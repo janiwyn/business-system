@@ -1,9 +1,9 @@
 <?php
 include '../includes/db.php';
 include '../includes/header.php';
-include '../pages/sidebar.php';
 include '../includes/auth.php';
 require_role("manager", "admin");
+include '../pages/sidebar.php';
 
 ?>
 
@@ -43,9 +43,9 @@ require_role("manager", "admin");
                     <h5>Total Sales</h5>
                     <h3>
                         <?php
-                        $sales_q = mysqli_query($conn, "SELECT SUM(quantity * total_price) AS total_sales FROM sales");
+                        $sales_q = mysqli_query($conn, "SELECT SUM(quantity * amount) AS `total-sales` FROM sales");
                         $sales_row = mysqli_fetch_assoc($sales_q);
-                        echo 'UGX ' . number_format($sales_row['total_sales'] ?? 0);
+                        echo 'UGX ' . number_format($sales_row['total-sales'] ?? 0);
                         ?>
                     </h3>
                 </div>
@@ -104,11 +104,11 @@ require_role("manager", "admin");
                     $sales = mysqli_query($conn, "SELECT * FROM sales ORDER BY date DESC");
                     while ($row = mysqli_fetch_assoc($sales)) {
                         echo "<tr>
-                            <td>{$row['product_id']}</td>
+                            <td>{$row['product-id']}</td>
                             <td>{$row['quantity']}</td>
-                            <td>{$row['sold_by']}</td>
-                            <td>UGX " . number_format($row['total_price']) . "</td>
-                            <td>UGX " . number_format($row['quantity'] * $row['total_price']) . "</td>
+                            <td>{$row['sold-by']}</td>
+                            <td>UGX " . number_format($row['amount']) . "</td>
+                            <td>UGX " . number_format($row['quantity'] * $row['amount']) . "</td>
                             <td>{$row['date']}</td>
                         </tr>";
                     }
