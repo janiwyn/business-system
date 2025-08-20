@@ -16,7 +16,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $spent_by = $_POST['spent_by'];
 
     if (!empty($category) && !empty($amount) && !empty($date)) {
-        $stmt = $conn->prepare("INSERT INTO expenses (category, branch_id, amount, description, date, spent_by) VALUES (?, ?, ?, ?, ?,?)");
+        $stmt = $conn->prepare("INSERT INTO expenses (category, `branch-id`, amount, description, date, `spent-by`) VALUES (?, ?, ?, ?, ?,?)");
         $stmt->bind_param("sidsss", $category, $branch_id, $amount, $description, $date, $spent_by);
         if ($stmt->execute()) {
             $message = "Expense added successfully.";
@@ -120,7 +120,7 @@ $total_expenses = $total_data['total_expenses'] ?? 0;
                                 <td><?php echo number_format($row['amount'], 2); ?></td>
                                 <td><?php echo htmlspecialchars($row['description']); ?></td>
                                 <td><?php echo $row['date']; ?></td>
-                                <td><?php echo htmlspecialchars($row['spent_by']); ?></td>
+                                <td><?php echo htmlspecialchars($row['spent-by']); ?></td>
                             </tr>
                         <?php endwhile; ?>
                     <?php else: ?>

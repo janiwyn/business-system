@@ -21,14 +21,14 @@ $lastMonth = date('m', strtotime('-1 month'));
 $year = date('Y');
 
 // Current month sales
-$currentQuery = $conn->prepare("SELECT SUM(total_price) as total FROM sales WHERE MONTH(date) = ? AND YEAR(date) = ?");
+$currentQuery = $conn->prepare("SELECT SUM(amount) as total FROM sales WHERE MONTH(date) = ? AND YEAR(date) = ?");
 $currentQuery->bind_param("ss", $currentMonth, $year);
 $currentQuery->execute();
 $currentResult = $currentQuery->get_result()->fetch_assoc();
 $currentSales = $currentResult['total'] ?? 0;
 
 // Last month sales
-$lastQuery = $conn->prepare("SELECT SUM(total_price) as total FROM sales WHERE MONTH(date) = ? AND YEAR(date) = ?");
+$lastQuery = $conn->prepare("SELECT SUM(amount) as total FROM sales WHERE MONTH(date) = ? AND YEAR(date) = ?");
 $lastQuery->bind_param("ss", $lastMonth, $year);
 $lastQuery->execute();
 $lastResult = $lastQuery->get_result()->fetch_assoc();
@@ -52,13 +52,13 @@ $stockRes = $conn->query('SELECT SUM(stock) AS total_stock FROM products');
 $totalStock = $stockRes->fetch_assoc()['total_stock'];
 
 // total profits
-$profitRes = $conn->query('SELECT SUM(net_profit) AS total_profits FROM profits');
+$profitRes = $conn->query('SELECT SUM(`net-profits`) AS total_profits FROM profits');
 $totalProfit = $profitRes->fetch_assoc()['total_profits'];
 
 // most selling product
 $productRes = $conn->query('
    SELECT p.name, SUM(s.quantity) AS total_sold FROM sales s
-   JOIN products p ON s.product_id = p.id
+   JOIN products p ON s.`product-id` = p.id
    GROUP BY p.name
    ORDER BY total_sold DESC 
    LIMIT 1
@@ -69,7 +69,7 @@ $topProduct = $productRes->fetch_assoc();
 $branchSales = $conn->query("
     SELECT b.name, COUNT(s.id) AS sales_count
     FROM sales s
-    JOIN branches b ON s.branch_id = b.id
+    JOIN branches b ON s.`branch-id` = b.id
     GROUP BY b.name
     ORDER BY sales_count DESC
     LIMIT 1
@@ -78,11 +78,11 @@ $topBranch = $branchSales->fetch_assoc();
 
 // fetching sales and profits from database
 $query = $conn->query("
-    SELECT branch_id,
-           SUM(total_price) AS total_sales,
-           SUM(total_price - cost_price) AS total_profits
+    SELECT `branch-id`,
+           SUM(amount) AS total_sales,
+           SUM(amount - `cost-price`) AS `total-profits`
     FROM sales
-    GROUP BY branch_id
+    GROUP BY `branch-id`
 ");
 
 $branchLabels = [];
@@ -90,9 +90,9 @@ $sales = [];
 $profits = [];
 
 while ($row = $query->fetch_assoc()) {
-    $branchLabels[] = $row["branch_id"];
+    $branchLabels[] = $row["branch-id"];
     $sales[] = $row["total_sales"];
-    $profits[] = $row["total_profits"];
+    $profits[] = $row["total-profits"];
 }
 $user_id = $_SESSION['user_id'];
 $username = $_SESSION['username'];
@@ -206,9 +206,9 @@ $username = $_SESSION['username'];
          <tbody>
             <?php
             $sales = $conn->query("
-                SELECT sales.id, products.name AS product_name, sales.quantity, sales.total_price,  sales.sold_by, sales.date
+                SELECT sales.id, products.name AS product_name, sales.quantity, sales.amount,  sales.`sold-by`, sales.date
                 FROM sales
-                JOIN products ON sales.product_id = products.id
+                JOIN products ON sales.`product-id` = products.id
                 ORDER BY sales.id DESC
                 LIMIT 10
             ");
@@ -219,9 +219,9 @@ $username = $_SESSION['username'];
                     <td><?= $i++ ?></td>
                     <td><?= $row['product_name'] ?></td>
                     <td><?= $row['quantity'] ?></td>
-                    <td><?= number_format($row['total_price'], 2) ?></td>
+                    <td><?= number_format($row['amount'], 2) ?></td>
                     <td><?= $row['date'] ?></td>
-                    <td><?= $row['sold_by'] ?></td>
+                    <td><?= $row['sold-by'] ?></td>
 
                 </tr>
             <?php endwhile; ?>
@@ -232,7 +232,7 @@ $username = $_SESSION['username'];
   <?php
   // Monthly sales for line chart (last 12 months)
 $monthlySalesQuery = $conn->query("
-  SELECT DATE_FORMAT(date, '%b') as month, SUM(total_price) as total
+  SELECT DATE_FORMAT(date, '%b') as month, SUM(amount) as total
   FROM sales
   WHERE date >= DATE_SUB(CURDATE(), INTERVAL 12 MONTH)
   GROUP BY MONTH(date)

@@ -9,22 +9,22 @@ include "../includes/db.php";
 
 
 $error = "";
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $username = trim($_POST['username']);
-    $password = trim(($_POST['password']));
+// if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+//     $username = trim($_POST['username']);
+//     $password = trim(($_POST['password']));
 
-    $hash = password_hash($password, PASSWORD_DEFAULT);
-   // $hash = password_hash($password, PASSWORD_BCRYPT);
+//     $hash = password_hash($password, PASSWORD_DEFAULT);
+//    // $hash = password_hash($password, PASSWORD_BCRYPT);
 
 
 
     // Fetch user from database
-    $query = "SELECT id, username, password, role FROM users WHERE username = ?";
-    $stmt = $conn->prepare($query);
-    $stmt->bind_param("s", $username);
-    $stmt->execute();
-    $user = $stmt->get_result()->fetch_assoc();
-   // print_r($user);
+//     $query = "SELECT id, username, password, role FROM users WHERE username = ?";
+//     $stmt = $conn->prepare($query);
+//     $stmt->bind_param("s", $username);
+//     $stmt->execute();
+//     $user = $stmt->get_result()->fetch_assoc();
+//    // print_r($user);
    // print(password_verify($password, $user["password"]));
 
     // print($password);
@@ -32,29 +32,42 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     // $stmt->close();
 
-    if($user && password_verify($password,$user["password"])) {
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $username = trim($_POST['username']);
+    $password = trim($_POST['password']);
+
+    // Fetch user from database
+    $query = "SELECT id, username, password, role FROM users WHERE username = ?";
+    $stmt = $conn->prepare($query);
+    $stmt->bind_param("s", $username);
+    $stmt->execute();
+    $user = $stmt->get_result()->fetch_assoc();
+    $stmt->close();
+
+    if ($user && password_verify($password, $user["password"])) {
         $_SESSION['user_id'] = $user['id'];
         $_SESSION['username'] = $user['username'];
-        $_SESSION['role'] = $user['role'];
-        $_SESSION['branch_id'] = $user['branch_id'];
+$_SESSION['role'] = strtolower(trim($user['role']));
 
         // redirect based on role
-        if($user['role'] === 'admin'){
-            header('location: ../pages/admin_dashboard.php');
-        }elseif($user['role'] === 'manager'){
-            header('location: ../pages/manager_dashboard.php');
-        }elseif($user['role'] === 'staff'){
-            header('location: ../pages/staff_dashboard.php');
-        }else{
-            $error = 'unknown role';
+        if ($_SESSION['role'] === 'admin') {
+            header('Location: ../pages/admin_dashboard.php');
+        } elseif ($_SESSION['role'] === 'manager') {
+            header('Location: ../pages/manager_dashboard.php'); // make sure this filename is correct
+        } elseif ($_SESSION['role'] === 'staff') {
+            header('Location: ../pages/staff_dashboard.php');
+        } else {
+            $error = 'Unknown role';
         }
-        exit;
-    }else{
-        $error = 'invalid username or password';
+        var_dump($_SESSION['role']);
+exit;
+
+        
+    } else {
+        $error = 'Invalid username or password';
     }
-    if($error){
-        echo $error;
-    }
+}
+
 
     // Use prepared statement
     // $stmt = $conn->prepare("SELECT id, username, password, role FROM users WHERE username = ?");
@@ -93,7 +106,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     //     }
     //     $stmt->close();
     // }
-}
+
 ?>
 
 <!DOCTYPE html>

@@ -10,7 +10,7 @@ require_role('manager');
 // Fetch data
 // Total Sales Today
 $sales_today = 0;
-$stmt = $conn->prepare("SELECT SUM(total_price) FROM sales WHERE branch_id = ? AND DATE(date) = CURDATE()");
+$stmt = $conn->prepare("SELECT SUM(amount)   FROM sales WHERE `branch-id` = ? AND DATE(`date`) = CURDATE()");
 $stmt->bind_param("i", $branch_id);
 $stmt->execute();
 $stmt->bind_result($sales_today);
@@ -19,7 +19,7 @@ $stmt->close();
 
 // Total Expenses Today
 $expenses_today = 0;
-$stmt = $conn->prepare("SELECT SUM(amount) FROM expenses WHERE branch_id = ? AND DATE(date) = CURDATE()");
+$stmt = $conn->prepare("SELECT SUM(amount) FROM expenses WHERE `branch-id` = ? AND DATE(`date`) = CURDATE()");
 $stmt->bind_param("i", $branch_id);
 $stmt->execute();
 $stmt->bind_result($expenses_today);
@@ -28,7 +28,7 @@ $stmt->close();
 
 // Total Products
 $total_products = 0;
-$stmt = $conn->prepare("SELECT COUNT(*) FROM products WHERE branch_id = ?");
+$stmt = $conn->prepare("SELECT COUNT(*) FROM products WHERE `branch-id` = ?");
 $stmt->bind_param("i", $branch_id);
 $stmt->execute();
 $stmt->bind_result($total_products);
@@ -37,7 +37,7 @@ $stmt->close();
 
 // Total Staff
 $total_staff = 0;
-$stmt = $conn->prepare("SELECT COUNT(*) FROM users WHERE branch_id = ? AND role = 'staff'");
+$stmt = $conn->prepare("SELECT COUNT(*) FROM users WHERE `branch-id` = ? AND role = 'staff'");
 $stmt->bind_param("i", $branch_id);
 $stmt->execute();
 $stmt->bind_result($total_staff);
@@ -107,11 +107,11 @@ $username = $_SESSION['username'];
                 <tbody>
                 <?php
                 $stmt = $conn->prepare("
-                    SELECT s.date, p.name, s.quantity, s.total_price, u.username 
+                    SELECT s.date, p.name, s.quantity, s.amount, u.username 
                     FROM sales s 
-                    JOIN products p ON s.product_id = p.id 
-                    JOIN users u ON s.sold_by = u.id 
-                    WHERE s.branch_id = ? 
+                    JOIN products p ON s.`product-id` = p.id 
+                    JOIN users u ON s.`sold-by` = u.id 
+                    WHERE s.`branch-id` = ? 
                     ORDER BY s.date DESC 
                     LIMIT 5
                 ");
@@ -123,7 +123,7 @@ $username = $_SESSION['username'];
                         <td>{$row['date']}</td>
                         <td>{$row['name']}</td>
                         <td>{$row['quantity']}</td>
-                        <td>UGX ".number_format($row['total_price'])."</td>
+                        <td>UGX ".number_format($row['amount'])."</td>
                         <td>{$row['username']}</td>
                     </tr>";
                 }
@@ -152,8 +152,8 @@ $username = $_SESSION['username'];
                 $stmt = $conn->prepare("
                     SELECT e.date, e.category, e.amount, u.username 
                     FROM expenses e 
-                    JOIN users u ON e.spent_by = u.id 
-                    WHERE e.branch_id = ? 
+                    JOIN users u ON e.`spent-by` = u.id 
+                    WHERE e.`branch-id` = ? 
                     ORDER BY e.date DESC 
                     LIMIT 5
                 ");

@@ -1,41 +1,41 @@
 <?php
 include '../includes/db.php';
 
+
 if ($_SERVER["REQUEST_METHOD"] == 'POST') {
-    $Username = $_POST['username'];
+    $username = $_POST['username'];
     $email = $_POST['email'];
     $password = $_POST['password'];
-    $comfirm_pasword = $_POST['confirm_password'];
-    $phone = $_POST['phone'];
+    $confirm_password = $_POST['confirm_password'];
     $role = $_POST['role'];
+    $phone = $_POST['phone'];
 
-    if (!empty($Username) && !empty($email) && !empty($password) && !empty($comfirm_pasword) && !empty($phone) && !empty($role)) {
+    if (!empty($username) && !empty($email) && !empty($password) && !empty($confirm_password) && !empty($phone) && !empty($role)) {
         
-        if ($password !== $comfirm_pasword) {
+        if ($password !== $confirm_password) {
             echo "Passwords do not match";
             exit;
         }
 
+        // Hash password
         $hash = password_hash($password, PASSWORD_DEFAULT);
-        //$hash = password_hash($password, PASSWORD_BCRYPT);
 
+        // Prepare SQL without confirm_password column
+        $sql = $conn->prepare("INSERT INTO users (username, email, password, role, phone) VALUES (?, ?, ?, ?, ?)");
+        $sql->bind_param("sssss", $username, $email, $hash, $role, $phone);
 
-        $sql = $conn->prepare("INSERT INTO users (username, email, password, phone, role)
-                VALUES (?,?,?,?,?)");
-        $sql->bind_param("sssss", $Username, $email, $hash, $phone, $role);
-        
-
-        if ($sql->execute() === TRUE) {
+        if ($sql->execute()) {
             echo "Registration successful";
         } else {
-            echo "Database error: " . mysqli_error($conn);
+            echo "Database error: " . $conn->error;
         }
+
+        $sql->close();
     } else {
         echo "All fields are required";
     }
 }
 ?>
-
 
 
 

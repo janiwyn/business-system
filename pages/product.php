@@ -1,24 +1,25 @@
 <?php
-include '../includes/db.php'; 
+include '../includes/db.php';
 include '../includes/header.php';
-include '../pages/sidebar.php';
 include '../includes/auth.php';
-// require_role("manager", "admin");
+require_role("manager", "admin");
+include '../pages/sidebar.php';
 
 // Handle Add Product Form Submission
 if (isset($_POST['add_product'])) {
     $name = $_POST['name'];
-    $price = $_POST['price'];
-    $cost = $_POST['cost'];
+    $price = $_POST['price'];  // fixed name to match form field
+    $cost = $_POST['cost'];    // fixed name to match form field
     $stock = $_POST['stock'];
 
-    $stmt = $conn->prepare("INSERT INTO products (name, selling_price, buying_price, stock) VALUES (?, ?, ?, ?)");
+    // Use correct column names
+    $stmt = $conn->prepare("INSERT INTO products (name, `selling-price`, `buying-price`, stock) VALUES (?, ?, ?, ?)");
     $stmt->bind_param("sddi", $name, $price, $cost, $stock);
 
     if ($stmt->execute()) {
         $message = "<div class='alert alert-success'>Product added successfully!</div>";
     } else {
-        $message = "<div class='alert alert-danger'>Error adding product.</div>";
+        $message = "<div class='alert alert-danger'>Error adding product: " . $stmt->error . "</div>";
     }
 }
 ?>
@@ -79,8 +80,8 @@ if (isset($_POST['add_product'])) {
                             echo "<tr>
                                 <td>{$i}</td>
                                 <td>" . htmlspecialchars($row['name']) . "</td>
-                                <td>" . number_format($row['selling_price'], 2) . "</td>
-                                <td>" . number_format($row['buying_price'], 2) . "</td>
+                                <td>" . number_format($row['selling-price'], 2) . "</td>
+                                <td>" . number_format($row['buying-price'], 2) . "</td>
                                 <td>{$row['stock']}</td>
                                 <td>
                                     <a href='edit_product.php?id={$row['id']}' class='btn btn-sm btn-warning'>Edit</a>

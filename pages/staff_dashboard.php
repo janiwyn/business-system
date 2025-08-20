@@ -48,10 +48,10 @@ $product_query = $conn->query("SELECT id, name FROM products");
 
 // Fetch Recent Sales
 $sales_query = $conn->prepare("
-    SELECT s.id, p.name, s.quantity, s.total_price, s.date 
+    SELECT s.id, p.name, s.quantity, s.amount, s.date 
     FROM sales s 
-    JOIN products p ON s.product_id = p.id 
-    WHERE s.sold_by = ? 
+    JOIN products p ON s.`product-id` = p.id 
+    WHERE s.`sold-by` = ? 
     ORDER BY s.date DESC 
     LIMIT 10
 ");
