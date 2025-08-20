@@ -5,6 +5,34 @@ include '../includes/auth.php';
 require_role("manager", "admin");
 include '../pages/sidebar.php';
 
+
+// Sales per month
+$salesData = [];
+$months = [];
+$sales_q = $conn->query("
+    SELECT DATE_FORMAT(date, '%b') AS month, SUM(amount) AS total
+    FROM sales
+    GROUP BY DATE_FORMAT(date, '%Y-%m')
+    ORDER BY MIN(date)
+");
+while ($row = $sales_q->fetch_assoc()) {
+    $months[] = $row['month'];
+    $salesData[] = $row['total'];
+}
+
+// Expenses per month
+$expenseData = [];
+$expenseMonths = [];
+$exp_q = $conn->query("
+    SELECT DATE_FORMAT(date, '%b') AS month, SUM(amount) AS total
+    FROM expenses
+    GROUP BY DATE_FORMAT(date, '%Y-%m')
+    ORDER BY MIN(date)
+");
+while ($row = $exp_q->fetch_assoc()) {
+    $expenseMonths[] = $row['month'];
+    $expenseData[] = $row['total'];
+}
 ?>
 
 <!DOCTYPE html>
@@ -166,31 +194,27 @@ include '../pages/sidebar.php';
     const salesChart = new Chart(document.getElementById('salesChart'), {
         type: 'bar',
         data: {
-            labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May'],
+            labels: <?= json_encode($months) ?>,
             datasets: [{
                 label: 'Sales',
-                data: [1000000, 1500000, 1200000, 1700000, 2000000],
+                data: <?= json_encode($salesData) ?>,
                 backgroundColor: 'rgba(40, 167, 69, 0.6)'
             }]
         },
-        options: {
-            responsive: true
-        }
+        options: { responsive: true }
     });
 
     const expensesChart = new Chart(document.getElementById('expensesChart'), {
         type: 'bar',
         data: {
-            labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May'],
+            labels: <?= json_encode($expenseMonths) ?>,
             datasets: [{
                 label: 'Expenses',
-                data: [600000, 700000, 550000, 800000, 950000],
+                data: <?= json_encode($expenseData) ?>,
                 backgroundColor: 'rgba(220, 53, 69, 0.6)'
             }]
         },
-        options: {
-            responsive: true
-        }
+        options: { responsive: true }
     });
 </script>
 <?php
