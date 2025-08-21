@@ -20,7 +20,7 @@ if (isset($_POST['add_sale'])) {
     $quantity = $_POST['quantity'];
 
     // Fetch product price
-    $stmt = $conn->prepare("SELECT selling_price FROM products WHERE id = ?");
+    $stmt = $conn->prepare("SELECT `selling-price` FROM products WHERE id = ?");
     $stmt->bind_param("i", $product_id);
     $stmt->execute();
     $stmt->bind_result($price);
@@ -30,7 +30,7 @@ if (isset($_POST['add_sale'])) {
     if ($price) {
         $total_price = $price * $quantity;
 
-        $stmt = $conn->prepare("INSERT INTO sales (product_id, quantity, total_price, sold_by, date) VALUES (?, ?, ?, ?, NOW())");
+        $stmt = $conn->prepare("INSERT INTO sales (`product-id`, quantity, amount, `sold-by`, date) VALUES (?, ?, ?, ?, NOW())");
         $stmt->bind_param("iidi", $product_id, $quantity, $total_price, $user_id);
         if ($stmt->execute()) {
             $message = "Sale recorded successfully.";
@@ -114,7 +114,7 @@ $sales_result = $sales_query->get_result();
                                 <td><?= $sale['id']; ?></td>
                                 <td><?= htmlspecialchars($sale['name']); ?></td>
                                 <td><?= $sale['quantity']; ?></td>
-                                <td>UGX <?= number_format($sale['total_price'], 2); ?></td>
+                                <td>UGX <?= number_format($sale['amount'], 2); ?></td>
                                 <td><?= $sale['date']; ?></td>
                             </tr>
                         <?php endwhile; ?>
