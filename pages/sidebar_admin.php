@@ -11,7 +11,7 @@ $role = $_SESSION['role'];
     <h4 class="text-center mb-4 fw-bold text-primary">Dashboard</h4>
     <ul class="nav flex-column">
       <li class="nav-item mb-2">
-        <a class="nav-link text-white d-flex align-items-center hover-effect" href="branch.php">
+        <a class="nav-link text-white d-flex align-items-center hover-effect" href="../pages/branch.php">
           <i class="fa-solid fa-building me-2"></i> Branches
         </a>
       </li>
