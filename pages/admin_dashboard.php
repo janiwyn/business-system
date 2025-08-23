@@ -98,6 +98,30 @@ $user_id = $_SESSION['user_id'];
 $username = $_SESSION['username'];
 
 ?>
+<style>
+  .card {
+    border: none;
+    border-radius: 15px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+    transition: transform 0.2s ease-in-out;
+  }
+  .card:hover {
+    transform: translateY(-5px);
+  }
+  .card h5, .card h6 {
+    font-weight: 600;
+  }
+  .table {
+    background: #fff;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+  }
+  .table thead {
+    background: #2c5364;
+    color: #fff;
+  }
+</style>
 
 
   <div class="container mt-4">

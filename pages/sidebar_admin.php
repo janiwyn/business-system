@@ -1,37 +1,57 @@
-
-<!-- Sidebar -->
+<?php
+if (!isset($_SESSION['role'])) {
+    header("Location: ../auth/login.php");
+    exit();
+}
+$role = $_SESSION['role'];
+?>
 <div class="d-flex">
-    <!-- Sidebar -->
-    <div class="bg-info text-white p-3" style="width: 250px; min-height: 100vh;">
-        <h4 class="text-center mb-4">Business System</h4>
-        <ul class="nav flex-column">
-            <li class="nav-item">
-                <a class="nav-link text-white" href="branch.php">🏢 Branches</a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link text-white" href="../pages/edit_product.php">🛠️ Edit Product</a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link text-white" href="../pages/expense.php">💸 Expenses</a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link text-white" href="../pages/product.php">📦 Products</a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link text-white" href="../pages/sales.php">🛒 Sales</a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link text-white" href="../pages/report.php">📊 Reports</a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link text-white" href="../pages/admin_dashboard.php">👑 Admin Dashboard</a>
-            </li>
+  <!-- Sidebar -->
+  <div class="sidebar bg-dark text-white p-3 shadow-lg" style="width: 250px; min-height: 100vh; border-top-right-radius: 12px; border-bottom-right-radius: 12px;">
+    <h4 class="text-center mb-4 fw-bold text-primary">Dashboard</h4>
+    <ul class="nav flex-column">
+      <li class="nav-item mb-2">
+        <a class="nav-link text-white d-flex align-items-center hover-effect" href="branch.php">
+          <i class="fa-solid fa-building me-2"></i> Branches
+        </a>
+      </li>
+      <li class="nav-item mb-2">
+        <a class="nav-link text-white d-flex align-items-center hover-effect" href="../pages/edit_product.php">
+          <i class="fa-solid fa-box me-2"></i> Edit Product
+        </a>
+      </li>
+      <li class="nav-item mb-2">
+        <a class="nav-link text-white d-flex align-items-center hover-effect" href="../pages/expense.php">
+          <i class="fa-solid fa-wallet me-2"></i> Expenses
+        </a>
+      </li>
+      <li class="nav-item mb-2">
+        <a class="nav-link text-white d-flex align-items-center hover-effect" href="../pages/product.php">
+          <i class="fa-solid fa-cubes me-2"></i> Products
+        </a>
+      </li>
+      <li class="nav-item mb-2">
+        <a class="nav-link text-white d-flex align-items-center hover-effect" href="../pages/sales.php">
+          <i class="fa-solid fa-cart-shopping me-2"></i> Sales
+        </a>
+      </li>
+      <li class="nav-item mb-2">
+        <a class="nav-link text-white d-flex align-items-center hover-effect" href="../pages/report.php">
+          <i class="fa-solid fa-chart-line me-2"></i> Reports
+        </a>
+      </li>
+      <li class="nav-item mb-2">
+        <a class="nav-link text-white d-flex align-items-center hover-effect" href="../pages/admin_dashboard.php">
+          <i class="fa-solid fa-crown me-2"></i> Admin Dashboard
+        </a>
+      </li>
+      <li class="nav-item mt-4">
+        <a class="nav-link text-danger fw-bold d-flex align-items-center hover-logout" href="../auth/logout.php">
+          <i class="fa-solid fa-right-from-bracket me-2"></i> Logout
+        </a>
+      </li>
+    </ul>
+  </div>
 
-            <li class="nav-item mt-3">
-                <a class="nav-link text-danger" href="../auth/logout.php">🚪 Logout</a>
-            </li>
-        </ul>
-    </div>
-
-    <!-- Main Content Placeholder -->
-    <div class="flex-grow-1 p-3">
+  <!-- Main Content -->
+  <div class="flex-grow-1 p-4">

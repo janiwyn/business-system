@@ -50,7 +50,9 @@ $branch = $branch_stmt->get_result()->fetch_assoc();
     $staff_result = $conn->query("SELECT * FROM users WHERE `branch-id` = $branch_id");
 
     // Get Inventory Summary
-    $inventory_result = $conn->query("SELECT COUNT(*) AS total_products, SUM(stock) AS stock FROM products WHERE `branch-id` = $branch_id");
+    $branch_id = intval($branch_id);
+    $sql = "SELECT COUNT(*) AS total_products, COALESCE(SUM(stock), 0) AS stock FROM products WHERE `branch-id` = $branch_id";
+    $inventory_result = $conn->query($sql);
     $inventory = $inventory_result->fetch_assoc();
 
     // Get Sales Summary
@@ -62,7 +64,7 @@ $branch = $branch_stmt->get_result()->fetch_assoc();
     $expenses = $expense_result->fetch_assoc();
 
     // Profit
-    $profit = $sales['revenue'] - $expenses['total_expense'];
+    $profit = ($sales['revenue'] ?? 0) - ($expenses['total_expense'] ?? 0); 
 
     // Top Selling Products
     $top_products_result = $conn->query("
@@ -94,7 +96,7 @@ $branch = $branch_stmt->get_result()->fetch_assoc();
             <div class="card text-white bg-primary mb-3">
                 <div class="card-body">
                     <h5 class="card-title">Inventory Summary</h5>
-                    <p class="card-text">Products: <?= $inventory['total_products'] ?> <br> Items in Stock: <?= $inventory['stock'] ?? 0 ?></p>
+                    <p class="card-text">Products: <?= $inventory['total_products'] ?? 0 ?> <br> Items in Stock: <?= $inventory['stock'] ?? 0 ?></p>
                 </div>
             </div>
         </div>

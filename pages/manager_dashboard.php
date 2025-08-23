@@ -5,7 +5,10 @@ include '../includes/header.php';
 include '../pages/sidebar.php';
 
 require_role('manager');
-
+$branch_id = $_SESSION['branch-id'] ?? 0;
+if($branch_id == 0){
+    die('No branch assigned to this manager');
+}
 
 // Fetch data
 // Total Sales Today
