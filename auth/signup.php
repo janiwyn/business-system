@@ -1,90 +1,249 @@
 <?php
 include '../includes/db.php';
 
+$error = "";
+$success = "";
 
 if ($_SERVER["REQUEST_METHOD"] == 'POST') {
-    $username = $_POST['username'];
-    $email = $_POST['email'];
+    $username = trim($_POST['username']);
+    $email = trim($_POST['email']);
     $password = $_POST['password'];
     $confirm_password = $_POST['confirm_password'];
     $role = $_POST['role'];
-    $phone = $_POST['phone'];
+    $phone = trim($_POST['phone']);
 
     if (!empty($username) && !empty($email) && !empty($password) && !empty($confirm_password) && !empty($phone) && !empty($role)) {
-        
         if ($password !== $confirm_password) {
-            echo "Passwords do not match";
-            exit;
-        }
-
-        // Hash password
-        $hash = password_hash($password, PASSWORD_DEFAULT);
-
-        // Prepare SQL without confirm_password column
-        $sql = $conn->prepare("INSERT INTO users (username, email, password, role, phone) VALUES (?, ?, ?, ?, ?)");
-        $sql->bind_param("sssss", $username, $email, $hash, $role, $phone);
-
-        if ($sql->execute()) {
-            echo "Registration successful";
+            $error = "Passwords do not match.";
         } else {
-            echo "Database error: " . $conn->error;
-        }
+            $hash = password_hash($password, PASSWORD_DEFAULT);
 
-        $sql->close();
+            $sql = $conn->prepare("INSERT INTO users (username, email, password, role, phone) VALUES (?, ?, ?, ?, ?)");
+            $sql->bind_param("sssss", $username, $email, $hash, $role, $phone);
+
+            if ($sql->execute()) {
+                $success = "Registration successful! You can now login.";
+            } else {
+                $error = "Database error: " . $conn->error;
+            }
+
+            $sql->close();
+        }
     } else {
-        echo "All fields are required";
+        $error = "All fields are required.";
     }
 }
 ?>
 
-
-
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Business System</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-LN+7fdVzj6u52u30Kp6M/trliBMCMKTyK833zpbD+pXdCLuTusPj697FH4R/5mcr" crossorigin="anonymous">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Business System - Sign Up</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+
+  <style>
+    :root{
+      --bg1:#0f2027; --bg2:#203a43; --bg3:#2c5364;
+      --brand1:#1e3c72; --brand2:#2a5298;
+      --ink:#203a43; --muted:#6c757d;
+    }
+
+    body{
+      margin:0; padding:0; min-height:100vh;
+      display:flex; align-items:center; justify-content:center;
+      background: linear-gradient(135deg, var(--bg1), var(--bg2), var(--bg3));
+      overflow:hidden; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    /* Background shapes (subtle) */
+    .background-shapes{position:absolute; inset:0; z-index:0; overflow:hidden;}
+    .shape{
+      position:absolute; border-radius:50%;
+      background: rgba(255,255,255,0.04);
+      animation: float 14s infinite ease-in-out;
+      filter: blur(0.2px);
+    }
+    .shape:nth-child(1){ width:160px; height:160px; top:-40px; left:-40px;}
+    .shape:nth-child(2){ width:240px; height:240px; bottom:-70px; right:-70px; animation-duration:18s;}
+    .shape:nth-child(3){ width:120px; height:120px; top:18%; right:8%; animation-duration:16s;}
+    @keyframes float{ 0%,100%{ transform:translateY(0) rotate(0);} 50%{ transform:translateY(-16px) rotate(16deg);} }
+
+    /* Card: tighter + compact */
+    .signup-card{
+      position:relative; z-index:1;
+      width:100%; max-width: 420px; /* compact width */
+      background:#fff; border-radius:16px;
+      padding:1.25rem 1.25rem 1rem;
+      box-shadow: 0 10px 28px rgba(0,0,0,0.18);
+      animation: rise 0.5s ease;
+    }
+    @keyframes rise{from{opacity:0; transform:translateY(20px);} to{opacity:1; transform:translateY(0);} }
+
+    .signup-header{text-align:center; margin-bottom:0.5rem;}
+    .signup-header img{width:56px; margin-bottom:0.25rem;}
+    .signup-header h3{font-weight:700; color:var(--ink); font-size:1.25rem; margin:0;}
+    .signup-header p{color:var(--muted); font-size:0.85rem; margin:0.25rem 0 0;}
+
+    /* Compact form controls */
+    .form-label{font-weight:600; font-size:0.875rem; color:#34495e; margin-bottom:0.25rem;}
+    .form-control, .form-select{
+      border-radius:10px; padding:0.5rem 0.7rem;
+    }
+    .form-control-sm, .form-select-sm{ font-size:0.9rem; }
+    .field-note{font-size:0.75rem; color:var(--muted);}
+
+    /* Buttons */
+    .btn-corporate{
+      background: linear-gradient(90deg, var(--brand1), var(--brand2));
+      color:#fff; font-weight:600; border-radius:999px; padding:0.55rem 1rem;
+      transition: transform .2s ease, box-shadow .2s ease, opacity .2s ease;
+    }
+    .btn-corporate:hover{ transform:translateY(-1px); box-shadow:0 6px 18px rgba(0,0,0,0.18); }
+    .btn-outline-muted{
+      border-radius:999px;
+    }
+
+    .divider{
+      height:1px; background:#e9ecef; margin:0.75rem 0;
+    }
+
+    .footer-text{
+      text-align:center; font-size:0.8rem; color:var(--muted); margin-top:0.5rem;
+    }
+
+    /* Inline small link row */
+    .alt-actions{
+      display:flex; gap:0.5rem; align-items:center; justify-content:center;
+      font-size:0.9rem;
+    }
+
+    /* Password toggle button */
+    .toggle-btn{
+      border:none; background:transparent; font-size:0.85rem; color:#0d6efd; padding:0 .25rem;
+    }
+
+    /* Make sure content never overflows on tiny devices */
+    @media (max-height: 640px){
+      .signup-card{ margin: 0.75rem; padding: 1rem; }
+    }
+  </style>
 </head>
 <body>
-<div class="container mt-5 w-50">
-    <h2>Sign Up</h2>
-    <form action="signup.php" method="POST" >
-        <div class="mb-3">
-            <label for="username" class="form-label">Username</label>
-            <input type="text" class="form-control" id="username" name="username" required>
+
+  <div class="background-shapes">
+    <div class="shape"></div>
+    <div class="shape"></div>
+    <div class="shape"></div>
+  </div>
+
+  <div class="signup-card">
+    <div class="signup-header">
+      <img src="../uploads/logo.png" alt="Logo" />
+      <h3>Create Account</h3>
+      <p>Register to access the Business System</p>
+    </div>
+
+    <?php if (!empty($error)): ?>
+      <div class="alert alert-danger py-2 text-center mb-2"><?php echo htmlspecialchars($error); ?></div>
+    <?php endif; ?>
+
+    <?php if (!empty($success)): ?>
+      <div class="alert alert-success py-2 text-center mb-2"><?php echo htmlspecialchars($success); ?></div>
+      <div class="text-center mb-2">
+        <a href="login.php" class="btn btn-sm btn-success rounded-pill px-3">Go to Login</a>
+      </div>
+    <?php endif; ?>
+
+    <form action="signup.php" method="POST" class="needs-validation" novalidate>
+      <div class="mb-2">
+        <label for="username" class="form-label">Username</label>
+        <input id="username" name="username" type="text" class="form-control form-control-sm" required>
+      </div>
+
+      <div class="mb-2">
+        <label for="email" class="form-label">Email Address</label>
+        <input id="email" name="email" type="email" class="form-control form-control-sm" required>
+      </div>
+
+      <div class="row g-2">
+        <div class="col-12 col-md-6">
+          <label for="password" class="form-label">Password</label>
+          <div class="input-group input-group-sm">
+            <input id="password" name="password" type="password" class="form-control" required>
+            <button class="toggle-btn" type="button" data-target="password">Show</button>
+          </div>
+          <div class="field-note mt-1">Min 8 characters recommended.</div>
         </div>
-        <div class="mb-3">
-            <label for="email" class="form-label">Email address</label>
-            <input type="email" class="form-control mb-3" id="email" name="email" required>
+        <div class="col-12 col-md-6">
+          <label for="confirm_password" class="form-label">Confirm Password</label>
+          <div class="input-group input-group-sm">
+            <input id="confirm_password" name="confirm_password" type="password" class="form-control" required>
+            <button class="toggle-btn" type="button" data-target="confirm_password">Show</button>
+          </div>
         </div>
-        <div class="mb-3">
-            <label for="password" class="form-label">Password</label>
-            <input type="password" class="form-control mb-3" id="password" name="password" required>
+      </div>
+
+      <div class="row g-2 mt-1">
+        <div class="col-12 col-md-6">
+          <label for="phone" class="form-label">Phone Number</label>
+          <input id="phone" name="phone" type="tel" class="form-control form-control-sm" required>
         </div>
-        <div class="mb-3">
-            <label for="confirm_password" class="form-label">Confirm Password</label>
-            <input type="password" class="form-control mb-3" id="confirm_password" name="confirm_password" required>
+        <div class="col-12 col-md-6">
+          <label for="role" class="form-label">Role</label>
+          <select id="role" name="role" class="form-select form-select-sm" required>
+            <option value="" disabled selected>Select role</option>
+            <option value="admin">Admin</option>
+            <option value="manager">Manager</option>
+            <option value="staff">Staff</option>
+          </select>
         </div>
-        <div class="mb-3">
-            <label for="phone" class="form-label">Phone Number</label>
-            <input type="tel" class="form-control mb-3" id="phone" name="phone" required>
-        </div>
-        <div class="mb-3">
-            <label for="role" class="form-label">Role</label>
-            <select class="form-select" id="role" name="role" required>
-                <option value="" disabled selected>Select your role</option>
-                <option value="admin">Admin</option>
-                <option value="staff">staff</option>
-                <option value="manager">Manager</option>
-            </select>
-        </div>
-        <button type="submit" name="signup" class="btn btn-success">Sign Up</button>
-        <a href="login.php" class="btn btn-primary">login</a>
+      </div>
+
+      <div class="divider"></div>
+
+      <button type="submit" name="signup" class="btn btn-corporate w-100 mb-2">Create Account</button>
+
+      <!-- <div class="alt-actions">
+        <span>Already have an account?</span>
+        <a class="btn btn-outline-muted btn-sm rounded-pill px-3" href="login.php">Login</a>
+      </div> -->
+    <div class="text-center mt-3">
+      <p>Already have an account? <a href="login.php">Login here</a></p>
+    </div>
     </form>
-</div>
-    
+
+    <div class="footer-text">© <?php echo date("Y"); ?> Business System</div>
+  </div>
+
+  <script>
+    // password visibility toggles
+    document.querySelectorAll('.toggle-btn').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const id = btn.getAttribute('data-target');
+        const input = document.getElementById(id);
+        if(!input) return;
+        const isPwd = input.type === 'password';
+        input.type = isPwd ? 'text' : 'password';
+        btn.textContent = isPwd ? 'Hide' : 'Show';
+      });
+    });
+
+    // basic bootstrap validation (kept compact)
+    (function () {
+      'use strict';
+      const forms = document.querySelectorAll('.needs-validation');
+      Array.from(forms).forEach(form => {
+        form.addEventListener('submit', event => {
+          if (!form.checkValidity()) {
+            event.preventDefault();
+            event.stopPropagation();
+          }
+          form.classList.add('was-validated');
+        }, false);
+      });
+    })();
+  </script>
 </body>
 </html>

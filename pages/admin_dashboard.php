@@ -5,17 +5,9 @@ require_role(["admin"]);
 include '../pages/sidebar.php';
 include '../includes/header.php';
 
-// Redirect if not staff
-// if ($_SESSION['role'] !== 'admin') {
-//     header("Location: ../auth/login.php");
-//     exit();
-// }
-
-// $user_id = $_SESSION['user_id'];
-// $username = $_SESSION['username'];
 $message = "";
 
-
+// Dates
 $currentMonth = date('m');
 $lastMonth = date('m', strtotime('-1 month'));
 $year = date('Y');
@@ -34,28 +26,18 @@ $lastQuery->execute();
 $lastResult = $lastQuery->get_result()->fetch_assoc();
 $lastSales = $lastResult['total'] ?? 0;
 
-// Calculate growth %
+// Growth
 $growth = $lastSales > 0 ? (($currentSales - $lastSales) / $lastSales) * 100 : 0;
 
+// Stats
+$employee = $conn->query('SELECT COUNT(*) AS total_employees FROM employee')->fetch_assoc()['total_employees'];
+$totalbranches = $conn->query('SELECT COUNT(*) AS total_branches FROM branches')->fetch_assoc()['total_branches'];
+$totalStock = $conn->query('SELECT SUM(stock) AS total_stock FROM products')->fetch_assoc()['total_stock'];
+$totalProfit = $conn->query('SELECT SUM(`net-profits`) AS total_profits FROM profits')->fetch_assoc()['total_profits'];
 
 
-// total employees
-$empRes = $conn->query('SELECT COUNT(*) AS total_employees FROM employees');
-$employee = $empRes->fetch_assoc()['total_employees'];
+// Most selling product
 
-// total branches
-$branchRes = $conn->query('SELECT COUNT(*) AS total_branches FROM branch');
-$totalbranches = $branchRes->fetch_assoc()['total_branches'];
-
-// total stock
-$stockRes = $conn->query('SELECT SUM(total_stock) AS total_stock FROM products');
-$totalStock = $stockRes->fetch_assoc()['total_stock'];
-
-// total profits
-$profitRes = $conn->query('SELECT SUM(`net_profits`) AS total_profits FROM profits');
-$totalProfit = $profitRes->fetch_assoc()['total_profits'];
-
-// most selling product
 $productRes = $conn->query('
    SELECT p.name, SUM(s.quantity) AS total_sold FROM sales s
    JOIN products p ON s.`product_id` = p.id
@@ -65,7 +47,7 @@ $productRes = $conn->query('
 ');
 $topProduct = $productRes->fetch_assoc();
 
-// Most Active Branch
+// Most active branch
 $branchSales = $conn->query("
     SELECT b.name, COUNT(s.id) AS sales_count
     FROM sales s
@@ -76,7 +58,7 @@ $branchSales = $conn->query("
 ");
 $topBranch = $branchSales->fetch_assoc();
 
-// fetching sales and profits from database
+// Branch sales & profits
 $query = $conn->query("
     SELECT branch_id,
            SUM(amount) AS total_sales,
@@ -94,53 +76,111 @@ while ($row = $query->fetch_assoc()) {
     $sales[] = $row["total_sales"];
     $profits[] = $row["total_profits"];
 }
+
 $user_id = $_SESSION['user_id'];
 $username = $_SESSION['username'];
-
 ?>
 
+<style>
+  /* General */
+  body {
+    background: #f4f6f9;
+  }
+  h3, h5 {
+    font-weight: 600;
+    color: #2c3e50;
+  }
 
-  <div class="container mt-4">
-    <h3 class="mb-4">Welcome, <?= htmlspecialchars($username); ?> </h3>
+  /* Cards */
+  .stat-card {
+    border: none;
+    border-radius: 15px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+    transition: transform 0.2s ease-in-out;
+    color: #fff;
+  }
+  .stat-card:hover { transform: translateY(-5px); }
+  .stat-icon {
+    font-size: 2rem;
+    opacity: 0.8;
+  }
+  .gradient-primary { background: linear-gradient(135deg, #1d976c, #2ecc71); }
+  .gradient-success { background: linear-gradient(135deg, #56ccf2, #2f80ed); }
+  .gradient-warning { background: linear-gradient(135deg, #f7971e, #ffd200); }
+  .gradient-danger  { background: linear-gradient(135deg, #eb3349, #f45c43); }
+  .gradient-info    { background: linear-gradient(135deg, #00c6ff, #0072ff); }
+  .gradient-secondary { background: linear-gradient(135deg, #757f9a, #d7dde8); }
 
-    <!-- Summary Cards -->
-    <div class="row text-white mb-4">
-      <div class="col-md-3 mb-3">
-        <div class="card bg-primary">
-          <div class="card-body">
-            <h5>Total Employees</h5>
+  /* Table */
+  .table {
+    background: #fff;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 3px 12px rgba(0,0,0,0.05);
+  }
+  .table thead {
+    background: #34495e;
+    color: #fff;
+  }
+  .table tbody tr:hover {
+    background: rgba(0,0,0,0.03);
+    cursor: pointer;
+  }
+</style>
+
+<div class="container-fluid mt-4">
+  <h3 class="mb-4">Welcome, <?= htmlspecialchars($username); ?> 👋</h3>
+
+  <!-- Summary Cards -->
+  <div class="row text-white mb-4">
+    <div class="col-md-3 mb-3">
+      <div class="card stat-card gradient-primary">
+        <div class="card-body d-flex justify-content-between align-items-center">
+          <div>
+            <h6>Total Employees</h6>
             <h3><?= $employee ?></h3>
           </div>
-        </div>
-      </div>
-      <div class="col-md-3 mb-3">
-        <div class="card bg-success">
-          <div class="card-body">
-            <h5>Total Branches</h5>
-            <h3><?= $totalbranches ?></h3>
-          </div>
-        </div>
-      </div>
-      <div class="col-md-3 mb-3">
-        <div class="card bg-warning">
-          <div class="card-body">
-            <h5>Total Stock</h5>
-            <h3><?=$totalStock ?></h3>
-          </div>
-        </div>
-      </div>
-      <div class="col-md-3 mb-3">
-        <div class="card bg-danger">
-          <div class="card-body">
-            <h5>Total Profit</h5>
-            <h3>$<?= number_format($totalProfit, 2) ?></h3>
-          </div>
+          <i class="fa-solid fa-users stat-icon"></i>
         </div>
       </div>
     </div>
+    <div class="col-md-3 mb-3">
+      <div class="card stat-card gradient-success">
+        <div class="card-body d-flex justify-content-between align-items-center">
+          <div>
+            <h6>Total Branches</h6>
+            <h3><?= $totalbranches ?></h3>
+          </div>
+          <i class="fa-solid fa-building stat-icon"></i>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3 mb-3">
+      <div class="card stat-card gradient-warning">
+        <div class="card-body d-flex justify-content-between align-items-center">
+          <div>
+            <h6>Total Stock</h6>
+            <h3><?= $totalStock ?></h3>
+          </div>
+          <i class="fa-solid fa-cubes stat-icon"></i>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3 mb-3">
+      <div class="card stat-card gradient-danger">
+        <div class="card-body d-flex justify-content-between align-items-center">
+          <div>
+            <h6>Total Profit</h6>
+            <h3>$<?= number_format($totalProfit, 2) ?></h3>
+          </div>
+          <i class="fa-solid fa-sack-dollar stat-icon"></i>
+        </div>
+      </div>
+    </div>
+  </div>
 
-    <!-- graphs -->
- <div class="row mb-4">
+  <!-- Charts -->
+  <div class="row mb-4">
     <div class="col-md-6">
       <div class="card">
         <div class="card-body">
@@ -158,79 +198,77 @@ $username = $_SESSION['username'];
       </div>
     </div>
   </div>
-    <!-- Extra Stats -->
-    <div class="row">
-      <div class="col-md-4">
-        <div class="card bg-info text-white">
-          <div class="card-body">
-            <h6>Most Selling Product</h6>
-            <p><?= $topProduct['name']?? 'N/A' ?>(<?=$topProduct['total_sold'] ?? '0'?> sold)</p>
-          </div>
-        </div>
-      </div>
-      <div class="col-md-4">
-        <div class="card bg-secondary text-white">
-          <div class="card-body">
-            <h6>Most Active Branch</h6>
-            <p><?= $topBranch['name'] ?? 'N/A'?>(<?=$topBranch['sales_count'] ?? '0'?> sales)</p>
-          </div>
-        </div>
-      </div>
-      <div class="col-md-4">
-        <div class="card bg-secondary text-white">
-          <div class="card-body">
-            <h6>Revenue Growth</h6>
-            <p>
-        <?= number_format($growth, 2) ?>%
-        <?= $growth >= 0 ? 'from last month ' : 'drop from last month ' ?>
-      </p>
-          </div>
+
+  <!-- Extra Stats -->
+  <div class="row mb-4">
+    <div class="col-md-4">
+      <div class="card stat-card gradient-info">
+        <div class="card-body">
+          <h6>Most Selling Product</h6>
+          <p><?= $topProduct['name']?? 'N/A' ?> (<?= $topProduct['total_sold'] ?? '0' ?> sold)</p>
         </div>
       </div>
     </div>
-
-    <!-- Recent Transactions -->
-    <div class="mt-5">
-      <h5>Recent Transactions</h5>
-      <table class="table table-bordered">
-        <thead>
-          <tr>
-            <th>Transaction ID</th>
-            <th>Product</th>
-            <th>Quantity</th>
-            <th>Amount</th>
-            <th>Date</th>
-            <th>sold_by</th>
-          </tr>
-        </thead>
-         <tbody>
-            <?php
-            $sales = $conn->query("
-                SELECT sales.id, products.name AS product_name, sales.quantity, sales.amount,  sales.sold_by, sales.date
-                FROM sales
-                JOIN products ON sales.product_id = products.id
-                ORDER BY sales.id DESC
-                LIMIT 10
-            ");
-            $i = 1;
-            while ($row = $sales->fetch_assoc()):
-            ?>
-                <tr>
-                    <td><?= $i++ ?></td>
-                    <td><?= $row['product_name'] ?></td>
-                    <td><?= $row['quantity'] ?></td>
-                    <td><?= number_format($row['amount'], 2) ?></td>
-                    <td><?= $row['date'] ?></td>
-                    <td><?= $row['sold_by'] ?></td>
-
-                </tr>
-            <?php endwhile; ?>
-        </tbody>
-      </table>
+    <div class="col-md-4">
+      <div class="card stat-card gradient-secondary">
+        <div class="card-body">
+          <h6>Most Active Branch</h6>
+          <p><?= $topBranch['name'] ?? 'N/A' ?> (<?= $topBranch['sales_count'] ?? '0' ?> sales)</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card stat-card gradient-success">
+        <div class="card-body">
+          <h6>Revenue Growth</h6>
+          <p><?= number_format($growth, 2) ?>% <?= $growth >= 0 ? 'increase 📈' : 'decrease 📉' ?> from last month</p>
+        </div>
+      </div>
     </div>
   </div>
-  <?php
-  // Monthly sales for line chart (last 12 months)
+
+  <!-- Recent Transactions -->
+  <div class="mt-5">
+    <h5>Recent Transactions</h5>
+    <table class="table table-striped table-hover">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Product</th>
+          <th>Quantity</th>
+          <th>Amount</th>
+          <th>Date</th>
+          <th>Sold By</th>
+        </tr>
+      </thead>
+      <tbody>
+        <?php
+        $sales = $conn->query("
+            SELECT sales.id, products.name AS product_name, sales.quantity, sales.amount, sales.`sold-by`, sales.date
+            FROM sales
+            JOIN products ON sales.`product-id` = products.id
+            ORDER BY sales.id DESC
+            LIMIT 10
+        ");
+        $i = 1;
+        while ($row = $sales->fetch_assoc()):
+        ?>
+          <tr>
+            <td><?= $i++ ?></td>
+            <td><?= $row['product_name'] ?></td>
+            <td><?= $row['quantity'] ?></td>
+            <td>$<?= number_format($row['amount'], 2) ?></td>
+            <td><?= $row['date'] ?></td>
+            <td><?= $row['sold-by'] ?></td>
+          </tr>
+        <?php endwhile; ?>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<?php
+// Monthly sales for line chart
 $monthlySalesQuery = $conn->query("
   SELECT DATE_FORMAT(date, '%b') as month, SUM(amount) as total
   FROM sales
@@ -241,23 +279,18 @@ $monthlySalesQuery = $conn->query("
 
 $months = [];
 $monthlyTotals = [];
-
 while ($row = $monthlySalesQuery->fetch_assoc()) {
     $months[] = $row['month'];
     $monthlyTotals[] = $row['total'];
 }
-
 ?>
-  <!-- JS for Charts -->
-  <script>
-  // Correct variable names and data structure
+
+<script>
   const branchLabels = <?= json_encode($branchLabels) ?>;
   const salesData = <?= json_encode($sales) ?>;
   const profitData = <?= json_encode($profits) ?>;
 
-  const barCtx = document.getElementById('barChart').getContext('2d');
-
-  const barChart = new Chart(barCtx, {
+  const barChart = new Chart(document.getElementById('barChart'), {
     type: 'bar',
     data: {
       labels: branchLabels,
@@ -270,43 +303,39 @@ while ($row = $monthlySalesQuery->fetch_assoc()) {
         {
           label: 'Profits',
           data: profitData,
-          backgroundColor: 'rgba(75, 192, 192, 0.7)'
+          backgroundColor: 'rgba(46, 204, 113, 0.7)'
         }
       ]
     },
     options: {
       responsive: true,
-      scales: {
-        y: {
-          beginAtZero: true
-        }
-      }
+      plugins: { legend: { position: 'top' } },
+      scales: { y: { beginAtZero: true } }
     }
   });
-   const lineCtx = document.getElementById('lineChart').getContext('2d');
 
-  const lineChart = new Chart(lineCtx, {
+  const lineChart = new Chart(document.getElementById('lineChart'), {
     type: 'line',
     data: {
       labels: <?= json_encode($months) ?>,
       datasets: [{
         label: 'Monthly Sales',
         data: <?= json_encode($monthlyTotals) ?>,
-        borderColor: 'rgba(255, 99, 132, 0.8)',
-        fill: false,
-        tension: 0.3
+        borderColor: '#e74c3c',
+        backgroundColor: 'rgba(231, 76, 60, 0.2)',
+        fill: true,
+        tension: 0.4,
+        pointBackgroundColor: '#fff',
+        pointBorderColor: '#e74c3c',
+        pointHoverRadius: 6
       }]
     },
     options: {
       responsive: true,
-      scales: {
-        y: {
-          beginAtZero: true
-        }
-      }
+      plugins: { legend: { display: false } },
+      scales: { y: { beginAtZero: true } }
     }
   });
 </script>
-
 
 <?php include '../includes/footer.php'; ?>
