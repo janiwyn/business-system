@@ -88,7 +88,8 @@ if (isset($_POST['add_product'])) {
         <div class="card-header">➕ Add New Product</div>
         <div class="card-body">
             <?= isset($message) ? $message : "" ?>
-            <form method="POST" action="products.php">
+            <!-- ✅ Fixed form action -->
+            <form method="POST" action="">
                 <div class="row g-3">
                     <div class="col-md-3">
                         <label for="name" class="form-label">Product Name</label>
