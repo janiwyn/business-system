@@ -1,7 +1,7 @@
 <?php
 include '../includes/db.php';
 include '../includes/auth.php';
-require_role("admin");
+require_role(["admin"]);
 include '../pages/sidebar.php';
 include '../includes/header.php';
 
@@ -40,25 +40,25 @@ $growth = $lastSales > 0 ? (($currentSales - $lastSales) / $lastSales) * 100 : 0
 
 
 // total employees
-$empRes = $conn->query('SELECT COUNT(*) AS total_employees FROM employee');
+$empRes = $conn->query('SELECT COUNT(*) AS total_employees FROM employees');
 $employee = $empRes->fetch_assoc()['total_employees'];
 
 // total branches
-$branchRes = $conn->query('SELECT COUNT(*) AS total_branches FROM branches');
+$branchRes = $conn->query('SELECT COUNT(*) AS total_branches FROM branch');
 $totalbranches = $branchRes->fetch_assoc()['total_branches'];
 
 // total stock
-$stockRes = $conn->query('SELECT SUM(stock) AS total_stock FROM products');
+$stockRes = $conn->query('SELECT SUM(total_stock) AS total_stock FROM products');
 $totalStock = $stockRes->fetch_assoc()['total_stock'];
 
 // total profits
-$profitRes = $conn->query('SELECT SUM(`net-profits`) AS total_profits FROM profits');
+$profitRes = $conn->query('SELECT SUM(`net_profits`) AS total_profits FROM profits');
 $totalProfit = $profitRes->fetch_assoc()['total_profits'];
 
 // most selling product
 $productRes = $conn->query('
    SELECT p.name, SUM(s.quantity) AS total_sold FROM sales s
-   JOIN products p ON s.`product-id` = p.id
+   JOIN products p ON s.`product_id` = p.id
    GROUP BY p.name
    ORDER BY total_sold DESC 
    LIMIT 1
@@ -69,7 +69,7 @@ $topProduct = $productRes->fetch_assoc();
 $branchSales = $conn->query("
     SELECT b.name, COUNT(s.id) AS sales_count
     FROM sales s
-    JOIN branches b ON s.`branch-id` = b.id
+    JOIN branch b ON s.`branch_id` = b.id
     GROUP BY b.name
     ORDER BY sales_count DESC
     LIMIT 1
@@ -78,11 +78,11 @@ $topBranch = $branchSales->fetch_assoc();
 
 // fetching sales and profits from database
 $query = $conn->query("
-    SELECT `branch-id`,
+    SELECT branch_id,
            SUM(amount) AS total_sales,
-           SUM(amount - `cost-price`) AS `total-profits`
+           SUM(amount - cost_price) AS total_profits
     FROM sales
-    GROUP BY `branch-id`
+    GROUP BY branch_id
 ");
 
 $branchLabels = [];
@@ -90,9 +90,9 @@ $sales = [];
 $profits = [];
 
 while ($row = $query->fetch_assoc()) {
-    $branchLabels[] = $row["branch-id"];
+    $branchLabels[] = $row["branch_id"];
     $sales[] = $row["total_sales"];
-    $profits[] = $row["total-profits"];
+    $profits[] = $row["total_profits"];
 }
 $user_id = $_SESSION['user_id'];
 $username = $_SESSION['username'];
@@ -206,9 +206,9 @@ $username = $_SESSION['username'];
          <tbody>
             <?php
             $sales = $conn->query("
-                SELECT sales.id, products.name AS product_name, sales.quantity, sales.amount,  sales.`sold-by`, sales.date
+                SELECT sales.id, products.name AS product_name, sales.quantity, sales.amount,  sales.sold_by, sales.date
                 FROM sales
-                JOIN products ON sales.`product-id` = products.id
+                JOIN products ON sales.product_id = products.id
                 ORDER BY sales.id DESC
                 LIMIT 10
             ");
@@ -221,7 +221,7 @@ $username = $_SESSION['username'];
                     <td><?= $row['quantity'] ?></td>
                     <td><?= number_format($row['amount'], 2) ?></td>
                     <td><?= $row['date'] ?></td>
-                    <td><?= $row['sold-by'] ?></td>
+                    <td><?= $row['sold_by'] ?></td>
 
                 </tr>
             <?php endwhile; ?>

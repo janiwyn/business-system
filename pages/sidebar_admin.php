@@ -9,22 +9,22 @@
                 <a class="nav-link text-white" href="branch.php">🏢 Branches</a>
             </li>
             <li class="nav-item">
-                <a class="nav-link text-white" href="../pages/edit_product.php">🛠️ Edit Product</a>
+                <a class="nav-link text-white" href="/pages/edit_product.php">🛠️ Edit Product</a>
             </li>
             <li class="nav-item">
-                <a class="nav-link text-white" href="../pages/expense.php">💸 Expenses</a>
+                <a class="nav-link text-white" href="/pages/expense.php">💸 Expenses</a>
             </li>
             <li class="nav-item">
-                <a class="nav-link text-white" href="../pages/product.php">📦 Products</a>
+                <a class="nav-link text-white" href="/pages/product.php">📦 Products</a>
             </li>
             <li class="nav-item">
-                <a class="nav-link text-white" href="../pages/sales.php">🛒 Sales</a>
+                <a class="nav-link text-white" href="/pages/sales.php">🛒 Sales</a>
             </li>
             <li class="nav-item">
-                <a class="nav-link text-white" href="../pages/report.php">📊 Reports</a>
+                <a class="nav-link text-white" href="/pages/report.php">📊 Reports</a>
             </li>
             <li class="nav-item">
-                <a class="nav-link text-white" href="../pages/admin_dashboard.php">👑 Admin Dashboard</a>
+                <a class="nav-link text-white" href="/pages/admin_dashboard.php">👑 Admin Dashboard</a>
             </li>
 
             <li class="nav-item mt-3">

@@ -9,7 +9,7 @@ include '../pages/sidebar.php';
 $branch_id = isset($_GET['id']) ? $_GET['id'] : 1;
 
 // Get Branch Info
-$branch_stmt = $conn->prepare("SELECT * FROM branches WHERE id = ?");
+$branch_stmt = $conn->prepare("SELECT * FROM branch WHERE id = ?");
 $branch_stmt->bind_param("i", $branch_id);
 $branch_stmt->execute();
 $branch = $branch_stmt->get_result()->fetch_assoc();
