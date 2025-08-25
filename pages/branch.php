@@ -21,8 +21,8 @@ $branch = $branch_stmt->get_result()->fetch_assoc();
     <div class='alert alert-warning'>No branches have been created yet. Please add a branch below.</div>
 
     <!-- Add Branch Form -->
-    <div class="card">
-        <div class="card-header">Add New Branch</div>
+    <div class="card shadow-sm rounded">
+        <div class="card-header bg-primary text-white fw-bold">Add New Branch</div>
         <div class="card-body">
             <form method="POST" action="create_branch.php">
                 <div class="mb-3">
@@ -45,28 +45,20 @@ $branch = $branch_stmt->get_result()->fetch_assoc();
 <?php else:
 
     // Continue loading the dashboard only if branch exists
-
-    // Get Staff
     $staff_result = $conn->query("SELECT * FROM users WHERE `branch-id` = $branch_id");
-
-    // Get Inventory Summary
     $branch_id = intval($branch_id);
-    $sql = "SELECT COUNT(*) AS total_products, COALESCE(SUM(stock), 0) AS stock FROM products WHERE `branch-id` = $branch_id";
-    $inventory_result = $conn->query($sql);
+
+    $inventory_result = $conn->query("SELECT COUNT(*) AS total_products, COALESCE(SUM(stock), 0) AS stock FROM products WHERE `branch-id` = $branch_id");
     $inventory = $inventory_result->fetch_assoc();
 
-    // Get Sales Summary
     $sales_result = $conn->query("SELECT COUNT(*) AS total_sales, SUM(amount) AS revenue FROM sales WHERE `branch-id` = $branch_id");
     $sales = $sales_result->fetch_assoc();
 
-    // Get Expenses
     $expense_result = $conn->query("SELECT SUM(amount) AS total_expense FROM expenses WHERE `branch-id` = $branch_id");
     $expenses = $expense_result->fetch_assoc();
 
-    // Profit
-    $profit = ($sales['revenue'] ?? 0) - ($expenses['total_expense'] ?? 0); 
+    $profit = ($sales['revenue'] ?? 0) - ($expenses['total_expense'] ?? 0);
 
-    // Top Selling Products
     $top_products_result = $conn->query("
         SELECT p.name, SUM(s.quantity) AS total_sold 
         FROM sales s 
@@ -78,52 +70,66 @@ $branch = $branch_stmt->get_result()->fetch_assoc();
     ");
 ?>
 
-    <h2 class="mb-4">Branch Dashboard - <?= $branch['name'] ?></h2>
+    <h2 class="mb-4 text-center fw-bold">Branch Dashboard - <?= $branch['name'] ?></h2>
 
     <!-- Branch Information -->
-    <div class="card mb-4">
-        <div class="card-header">Branch Information</div>
+    <div class="card mb-4 shadow-sm rounded border-0">
+        <div class="card-header bg-gradient-primary text-white fw-bold d-flex align-items-center">
+            <i class="bi bi-building me-2"></i> Branch Information
+        </div>
         <div class="card-body">
             <p><strong>Name:</strong> <?= $branch['name'] ?></p>
-            <p><strong>Location:</strong> <?= $branch['location'] ?></p>
-            <p><strong>Contact:</strong> <?= $branch['contact'] ?></p>
+            <p><strong>Location:</strong> <i class="bi bi-geo-alt-fill text-danger me-1"></i> <?= $branch['location'] ?></p>
+            <p><strong>Contact:</strong> <i class="bi bi-telephone-fill text-success me-1"></i> <?= $branch['contact'] ?></p>
         </div>
     </div>
 
-    <!-- Summaries -->
-    <div class="row">
+    <!-- Summary Cards -->
+    <div class="row g-4 mb-4">
         <div class="col-md-4">
-            <div class="card text-white bg-primary mb-3">
-                <div class="card-body">
-                    <h5 class="card-title">Inventory Summary</h5>
-                    <p class="card-text">Products: <?= $inventory['total_products'] ?? 0 ?> <br> Items in Stock: <?= $inventory['stock'] ?? 0 ?></p>
+            <div class="card text-white shadow-sm rounded border-0 bg-gradient-primary h-100 hover-scale">
+                <div class="card-body d-flex align-items-center">
+                    <i class="bi bi-box-seam fs-1 me-3"></i>
+                    <div>
+                        <h5 class="card-title">Inventory Summary</h5>
+                        <p class="card-text mb-0">Products: <?= $inventory['total_products'] ?? 0 ?></p>
+                        <p class="card-text">Items in Stock: <?= $inventory['stock'] ?? 0 ?></p>
+                    </div>
                 </div>
             </div>
         </div>
         <div class="col-md-4">
-            <div class="card text-white bg-success mb-3">
-                <div class="card-body">
-                    <h5 class="card-title">Sales Summary</h5>
-                    <p class="card-text">Sales: <?= $sales['total_sales'] ?> <br> Revenue: UGX <?= number_format($sales['revenue'], 2) ?></p>
+            <div class="card text-white shadow-sm rounded border-0 bg-gradient-success h-100 hover-scale">
+                <div class="card-body d-flex align-items-center">
+                    <i class="bi bi-currency-dollar fs-1 me-3"></i>
+                    <div>
+                        <h5 class="card-title">Sales Summary</h5>
+                        <p class="card-text mb-0">Sales: <?= $sales['total_sales'] ?></p>
+                        <p class="card-text">Revenue: UGX <?= number_format($sales['revenue'], 2) ?></p>
+                    </div>
                 </div>
             </div>
         </div>
         <div class="col-md-4">
-            <div class="card text-white bg-dark mb-3">
-                <div class="card-body">
-                    <h5 class="card-title">Profit Analysis</h5>
-                    <p class="card-text">Expenses: UGX <?= number_format($expenses['total_expense'], 2) ?> <br> Net Profit: UGX <?= number_format($profit, 2) ?></p>
+            <div class="card text-white shadow-sm rounded border-0 bg-gradient-dark h-100 hover-scale">
+                <div class="card-body d-flex align-items-center">
+                    <i class="bi bi-graph-up-arrow fs-1 me-3"></i>
+                    <div>
+                        <h5 class="card-title">Profit Analysis</h5>
+                        <p class="card-text mb-0">Expenses: UGX <?= number_format($expenses['total_expense'], 2) ?></p>
+                        <p class="card-text">Net Profit: UGX <?= number_format($profit, 2) ?></p>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
     <!-- Top Selling Products -->
-    <div class="card mb-4">
-        <div class="card-header">Top Selling Products</div>
-        <div class="card-body">
-            <table class="table table-bordered">
-                <thead>
+    <div class="card mb-4 shadow-sm rounded border-0">
+        <div class="card-header bg-gradient-secondary text-white fw-bold">Top Selling Products</div>
+        <div class="card-body table-responsive shadow-sm rounded">
+            <table class="table table-striped table-hover rounded">
+                <thead class="table-dark rounded">
                     <tr>
                         <th>Product</th>
                         <th>Quantity Sold</th>
@@ -142,11 +148,11 @@ $branch = $branch_stmt->get_result()->fetch_assoc();
     </div>
 
     <!-- Staff -->
-    <div class="card mb-4">
-        <div class="card-header">Branch Staff</div>
-        <div class="card-body">
-            <table class="table table-bordered">
-                <thead>
+    <div class="card mb-4 shadow-sm rounded border-0">
+        <div class="card-header bg-gradient-info text-white fw-bold">Branch Staff</div>
+        <div class="card-body table-responsive shadow-sm rounded">
+            <table class="table table-striped table-hover rounded">
+                <thead class="table-dark rounded">
                     <tr>
                         <th>Name</th>
                         <th>Username</th>
@@ -167,9 +173,9 @@ $branch = $branch_stmt->get_result()->fetch_assoc();
     </div>
 
     <!-- Charts -->
-    <div class="card mb-5">
-        <div class="card-header">Sales Chart</div>
-        <div class="card-body">
+    <div class="card mb-5 shadow-sm rounded border-0">
+        <div class="card-header bg-gradient-warning text-white fw-bold">Sales Chart</div>
+        <div class="card-body p-4 shadow-sm rounded">
             <canvas id="salesChart"></canvas>
         </div>
     </div>
@@ -196,16 +202,50 @@ $branch = $branch_stmt->get_result()->fetch_assoc();
                 data: [<?php
                     $top_products_result->data_seek(0); 
                     while ($row = $top_products_result->fetch_assoc()) {
-                        echo "{$row['total_sold']},";
+                        echo "{$row['total_sold']},"; 
                     }
                 ?>],
-                backgroundColor: 'rgba(54, 162, 235, 0.6)',
-                borderColor: 'rgba(54, 162, 235, 1)',
+                backgroundColor: function(context) {
+                    const colors = ['rgba(75, 192, 192, 0.7)', 'rgba(54, 162, 235, 0.7)', 'rgba(255, 206, 86, 0.7)',
+                                    'rgba(255, 99, 132, 0.7)', 'rgba(153, 102, 255, 0.7)'];
+                    return colors[context.dataIndex % colors.length];
+                },
+                borderRadius: 6,
                 borderWidth: 1
             }]
+        },
+        options: {
+            responsive: true,
+            animation: {
+                duration: 1200,
+                easing: 'easeOutQuart'
+            },
+            plugins: {
+                legend: { display: false },
+            },
+            scales: {
+                y: { beginAtZero: true, grid: { color: '#f0f0f0' } },
+                x: { grid: { color: '#f0f0f0' } }
+            }
         }
     });
 </script>
 <?php endif; ?>
 
-<?php include '../includes/footer.php'; ?>
+<style>
+/* Gradient Cards */
+.bg-gradient-primary { background: linear-gradient(135deg,#0d6efd,#6610f2); }
+.bg-gradient-success { background: linear-gradient(135deg,#198754,#20c997); }
+.bg-gradient-dark { background: linear-gradient(135deg,#212529,#343a40); }
+.bg-gradient-secondary { background: linear-gradient(135deg,#6c757d,#adb5bd); }
+.bg-gradient-info { background: linear-gradient(135deg,#0dcaf0,#3b82f6); }
+.bg-gradient-warning { background: linear-gradient(135deg,#ffc107,#fd7e14); }
+
+.hover-scale:hover { transform: scale(1.03); transition: 0.3s; }
+.card { border-radius: 12px; }
+.table-hover tbody tr:hover { background-color: rgba(0,0,0,0.05); }
+</style>
+
+<?
+include 'includes/footer.php';
+?>
