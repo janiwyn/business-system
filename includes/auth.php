@@ -8,11 +8,11 @@ if (!isset($_SESSION['user_id'])) {
 }
 
 // Check that branch_id is set for non-admin users
-if (isset($_SESSION['role']) && $_SESSION['role'] !== 'admin') {
-    if (!isset($_SESSION['branch_id'])) {
-        die("No branch assigned to this account. Contact the administrator.");
-    }
-}
+// if (isset($_SESSION['role']) && $_SESSION['role'] !== 'admin') {
+//     if (!isset($_SESSION['branch_id'])) {
+//         die("No branch assigned to this account. Contact the administrator.");
+//     }
+// }
 
 // Improved role-based access control
 function require_role($allowed_roles) {

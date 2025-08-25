@@ -30,10 +30,10 @@ $lastSales = $lastResult['total'] ?? 0;
 $growth = $lastSales > 0 ? (($currentSales - $lastSales) / $lastSales) * 100 : 0;
 
 // Stats
-$employee = $conn->query('SELECT COUNT(*) AS total_employees FROM employee')->fetch_assoc()['total_employees'];
-$totalbranches = $conn->query('SELECT COUNT(*) AS total_branches FROM branches')->fetch_assoc()['total_branches'];
-$totalStock = $conn->query('SELECT SUM(stock) AS total_stock FROM products')->fetch_assoc()['total_stock'];
-$totalProfit = $conn->query('SELECT SUM(`net-profits`) AS total_profits FROM profits')->fetch_assoc()['total_profits'];
+$employee = $conn->query('SELECT COUNT(*) AS total_employees FROM employees')->fetch_assoc()['total_employees'];
+$totalbranches = $conn->query('SELECT COUNT(*) AS total_branches FROM branch')->fetch_assoc()['total_branches'];
+$totalStock = $conn->query('SELECT SUM(total_stock) AS total_stock FROM products')->fetch_assoc()['total_stock'];
+$totalProfit = $conn->query('SELECT SUM(net_profits) AS total_profits FROM profits')->fetch_assoc()['total_profits'];
 
 
 // Most selling product
@@ -244,9 +244,9 @@ $username = $_SESSION['username'];
       <tbody>
         <?php
         $sales = $conn->query("
-            SELECT sales.id, products.name AS product_name, sales.quantity, sales.amount, sales.`sold-by`, sales.date
+            SELECT sales.id, products.name AS product_name, sales.quantity, sales.amount, sales.sold_by, sales.date
             FROM sales
-            JOIN products ON sales.`product-id` = products.id
+            JOIN products ON sales.product_id = products.id
             ORDER BY sales.id DESC
             LIMIT 10
         ");

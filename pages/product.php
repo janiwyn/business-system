@@ -1,9 +1,9 @@
 <?php
 include '../includes/db.php';
-include '../includes/header.php';
 include '../includes/auth.php';
-require_role("manager", "admin");
+require_role(["admin"]);
 include '../pages/sidebar.php';
+include '../includes/header.php';
 
 // Handle Add Product Form Submission
 if (isset($_POST['add_product'])) {
@@ -12,13 +12,13 @@ if (isset($_POST['add_product'])) {
     $cost = $_POST['cost'];
     $stock = $_POST['stock'];
 
-    $stmt = $conn->prepare("INSERT INTO products (name, `selling-price`, `buying-price`, stock) VALUES (?, ?, ?, ?)");
+    $stmt = $conn->prepare("INSERT INTO products (name, selling_price, buying_price, total_stock) VALUES (?, ?, ?, ?)");
     $stmt->bind_param("sddi", $name, $price, $cost, $stock);
 
     if ($stmt->execute()) {
-        $message = "<div class='alert alert-success shadow-sm'>✅ Product added successfully!</div>";
+        $message = "<div class='alert alert-success shadow-sm'> Product added successfully!</div>";
     } else {
-        $message = "<div class='alert alert-danger shadow-sm'>❌ Error adding product: " . $stmt->error . "</div>";
+        $message = "<div class='alert alert-danger shadow-sm'> Error adding product: " . $stmt->error . "</div>";
     }
 }
 ?>

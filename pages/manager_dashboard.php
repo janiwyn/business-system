@@ -1,8 +1,9 @@
 <?php
-include'../includes/auth.php';
 include '../includes/db.php';
-include '../includes/header.php';
+include '../includes/auth.php';
+require_role(["admin"]);
 include '../pages/sidebar.php';
+include '../includes/header.php';
 
 require_role('manager');
 $branch_id = $_SESSION['branch-id'] ?? 0;
