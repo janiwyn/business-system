@@ -32,15 +32,15 @@ $growth = $lastSales > 0 ? (($currentSales - $lastSales) / $lastSales) * 100 : 0
 // Stats
 $employee = $conn->query('SELECT COUNT(*) AS total_employees FROM employees')->fetch_assoc()['total_employees'];
 $totalbranches = $conn->query('SELECT COUNT(*) AS total_branches FROM branch')->fetch_assoc()['total_branches'];
-$totalStock = $conn->query('SELECT SUM(total_stock) AS total_stock FROM products')->fetch_assoc()['total_stock'];
-$totalProfit = $conn->query('SELECT SUM(net_profits) AS total_profits FROM profits')->fetch_assoc()['total_profits'];
+$totalStock = $conn->query('SELECT SUM(stock) AS total_stock FROM products')->fetch_assoc()['total_stock'];
+$totalProfit = $conn->query('SELECT SUM(`net-profits`) AS total_profits FROM profits')->fetch_assoc()['total_profits'];
 
 
 // Most selling product
 
 $productRes = $conn->query('
    SELECT p.name, SUM(s.quantity) AS total_sold FROM sales s
-   JOIN products p ON s.`product_id` = p.id
+   JOIN products p ON s.`product-id` = p.id
    GROUP BY p.name
    ORDER BY total_sold DESC 
    LIMIT 1
@@ -51,7 +51,7 @@ $topProduct = $productRes->fetch_assoc();
 $branchSales = $conn->query("
     SELECT b.name, COUNT(s.id) AS sales_count
     FROM sales s
-    JOIN branch b ON s.`branch_id` = b.id
+    JOIN branch b ON s.`branch-id` = b.id
     GROUP BY b.name
     ORDER BY sales_count DESC
     LIMIT 1
@@ -60,11 +60,11 @@ $topBranch = $branchSales->fetch_assoc();
 
 // Branch sales & profits
 $query = $conn->query("
-    SELECT branch_id,
+    SELECT `branch-id`,
            SUM(amount) AS total_sales,
-           SUM(amount - cost_price) AS total_profits
+           SUM(amount - `cost-price`) AS `total-profits`
     FROM sales
-    GROUP BY branch_id
+    GROUP BY `branch-id`
 ");
 
 $branchLabels = [];
@@ -244,9 +244,9 @@ $username = $_SESSION['username'];
       <tbody>
         <?php
         $sales = $conn->query("
-            SELECT sales.id, products.name AS product_name, sales.quantity, sales.amount, sales.sold_by, sales.date
+            SELECT sales.id, products.name AS product_name, sales.quantity, sales.amount, sales.`sold-by`, sales.date
             FROM sales
-            JOIN products ON sales.product_id = products.id
+            JOIN products ON sales.`product-id` = products.id
             ORDER BY sales.id DESC
             LIMIT 10
         ");

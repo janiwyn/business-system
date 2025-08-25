@@ -48,20 +48,20 @@ $branch = $branch_stmt->get_result()->fetch_assoc();
     // Continue loading the dashboard only if branch exists
 
     // Get Staff
-    $staff_result = $conn->query("SELECT * FROM users WHERE `branch_id` = $branch_id");
+    $staff_result = $conn->query("SELECT * FROM users WHERE `branch-id` = $branch_id");
 
     // Get Inventory Summary
     $branch_id = intval($branch_id);
-    $sql = "SELECT COUNT(*) AS total_products, COALESCE(SUM(total_stock), 0) AS total_stock FROM products WHERE `branch_id` = $branch_id";
+    $sql = "SELECT COUNT(*) AS total_products, COALESCE(SUM(stock), 0) AS stock FROM products WHERE `branch-id` = $branch_id";
     $inventory_result = $conn->query($sql);
     $inventory = $inventory_result->fetch_assoc();
 
     // Get Sales Summary
-    $sales_result = $conn->query("SELECT COUNT(*) AS total_sales, SUM(amount) AS revenue FROM sales WHERE `branch_id` = $branch_id");
+    $sales_result = $conn->query("SELECT COUNT(*) AS total_sales, SUM(amount) AS revenue FROM sales WHERE `branch-id` = $branch_id");
     $sales = $sales_result->fetch_assoc();
 
     // Get Expenses
-    $expense_result = $conn->query("SELECT SUM(amount) AS total_expense FROM expenses WHERE `branch_id` = $branch_id");
+    $expense_result = $conn->query("SELECT SUM(amount) AS total_expense FROM expenses WHERE `branch-id` = $branch_id");
     $expenses = $expense_result->fetch_assoc();
 
     // Profit
@@ -71,9 +71,9 @@ $branch = $branch_stmt->get_result()->fetch_assoc();
     $top_products_result = $conn->query("
         SELECT p.name, SUM(s.quantity) AS total_sold 
         FROM sales s 
-        JOIN products p ON s.product_id = p.id 
-        WHERE s.branch_id = $branch_id 
-        GROUP BY s.product_id 
+        JOIN products p ON s.`product-id` = p.id 
+        WHERE s.`branch-id` = $branch_id 
+        GROUP BY s.`product-id` 
         ORDER BY total_sold DESC 
         LIMIT 5
     ");
