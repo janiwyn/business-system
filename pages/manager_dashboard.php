@@ -1,15 +1,14 @@
 <?php
 include '../includes/db.php';
 include '../includes/auth.php';
-require_role(["admin"]);
-include '../pages/sidebar.php';
+include '../pages/sidebar_manager.php';
 include '../includes/header.php';
 
-require_role('manager');
-$branch_id = $_SESSION['branch-id'] ?? 0;
-if($branch_id == 0){
-    die('No branch assigned to this manager');
-}
+require_role(['manager']);
+// $branch_id = $_SESSION['branch-id'] ?? 0;
+// if($branch_id == 0){
+//     die('No branch assigned to this manager');
+// }
 
 // Fetch data
 // Total Sales Today

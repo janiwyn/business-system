@@ -72,9 +72,9 @@ $sales = [];
 $profits = [];
 
 while ($row = $query->fetch_assoc()) {
-    $branchLabels[] = $row["branch_id"];
+    $branchLabels[] = $row["branch-id"];
     $sales[] = $row["total_sales"];
-    $profits[] = $row["total_profits"];
+    $profits[] = $row["total-profits"];
 }
 
 $user_id = $_SESSION['user_id'];

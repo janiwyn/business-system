@@ -7,18 +7,18 @@ include '../includes/header.php';
 //session_start();
 include '../includes/db.php';
 // Fetch all branches
-$sql = "SELECT b.id, b.name, b.location, b.created_at, u.name AS manager 
-        FROM branch b
-        LEFT JOIN users u ON b.manager_id = u.id
-        ORDER BY b.id DESC";
+$sql = "SELECT id, name, location, contact
+        FROM branch
+        ORDER BY id DESC";
 $result = mysqli_query($conn, $sql);
+
 ?>
 
 
 <div class="container mt-5">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h2 class="fw-bold">Branches</h2>
-        <a href="branch_add.php" class="btn btn-primary">+ Add Branch</a>
+        <a href="create_branch.php" class="btn btn-primary">+ Add Branch</a>
     </div>
 
     <table class="table table-striped table-hover">
@@ -28,7 +28,6 @@ $result = mysqli_query($conn, $sql);
                 <th>Branch Name</th>
                 <th>Location</th>
                 <th>Manager</th>
-                <th>Created</th>
                 <th>Actions</th>
             </tr>
         </thead>
@@ -40,7 +39,6 @@ $result = mysqli_query($conn, $sql);
                     <td><?php echo htmlspecialchars($row['name']); ?></td>
                     <td><?php echo htmlspecialchars($row['location']); ?></td>
                     <td><?php echo $row['manager'] ?? '<span class="text-muted">No Manager</span>'; ?></td>
-                    <td><?php echo date("d M Y", strtotime($row['created_at'])); ?></td>
                     <td>
                         <a href="branch_view.php?id=<?php echo $row['id']; ?>" class="btn btn-sm btn-info">View</a>
                         <a href="branch_edit.php?id=<?php echo $row['id']; ?>" class="btn btn-sm btn-warning">Edit</a>

@@ -25,6 +25,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $_SESSION['user_id'] = $user['id'];
         $_SESSION['username'] = $user['username'];
 $_SESSION['role'] = strtolower(trim($user['role']));
+$_SESSION['branch-id'] = $user['branch-id']; 
+
 
         // Redirect based on role
         if ($_SESSION['role'] === 'admin') {

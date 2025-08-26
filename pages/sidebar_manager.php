@@ -46,8 +46,8 @@ $role = $_SESSION['role'];
         </a>
       </li>
       <li class="nav-item mb-2">
-        <a class="nav-link text-white d-flex align-items-center hover-effect" href="../pages/admin_dashboard.php">
-          <i class="fa-solid fa-crown me-2"></i> Admin Dashboard
+        <a class="nav-link text-white d-flex align-items-center hover-effect" href="../pages/manager_dashboard.php">
+          <i class="fa-solid fa-crown me-2"></i> Manager Dashboard
         </a>
       </li>
       <li class="nav-item mt-4">
