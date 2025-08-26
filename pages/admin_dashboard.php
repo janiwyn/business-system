@@ -1,7 +1,7 @@
 <?php
 include '../includes/db.php';
 include '../includes/auth.php';
-require_role("admin");
+require_role(["admin"]);
 include '../pages/sidebar.php';
 include '../includes/header.php';
 
@@ -30,12 +30,14 @@ $lastSales = $lastResult['total'] ?? 0;
 $growth = $lastSales > 0 ? (($currentSales - $lastSales) / $lastSales) * 100 : 0;
 
 // Stats
-$employee = $conn->query('SELECT COUNT(*) AS total_employees FROM employee')->fetch_assoc()['total_employees'];
-$totalbranches = $conn->query('SELECT COUNT(*) AS total_branches FROM branches')->fetch_assoc()['total_branches'];
+$employee = $conn->query('SELECT COUNT(*) AS total_employees FROM employees')->fetch_assoc()['total_employees'];
+$totalbranches = $conn->query('SELECT COUNT(*) AS total_branches FROM branch')->fetch_assoc()['total_branches'];
 $totalStock = $conn->query('SELECT SUM(stock) AS total_stock FROM products')->fetch_assoc()['total_stock'];
 $totalProfit = $conn->query('SELECT SUM(`net-profits`) AS total_profits FROM profits')->fetch_assoc()['total_profits'];
 
+
 // Most selling product
+
 $productRes = $conn->query('
    SELECT p.name, SUM(s.quantity) AS total_sold FROM sales s
    JOIN products p ON s.`product-id` = p.id
@@ -49,7 +51,7 @@ $topProduct = $productRes->fetch_assoc();
 $branchSales = $conn->query("
     SELECT b.name, COUNT(s.id) AS sales_count
     FROM sales s
-    JOIN branches b ON s.`branch-id` = b.id
+    JOIN branch b ON s.`branch-id` = b.id
     GROUP BY b.name
     ORDER BY sales_count DESC
     LIMIT 1

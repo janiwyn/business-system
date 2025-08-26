@@ -6,38 +6,14 @@ error_reporting(E_ALL);
 session_start();
 include "../includes/db.php";
 
-
-
 $error = "";
-// if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-//     $username = trim($_POST['username']);
-//     $password = trim(($_POST['password']));
-
-//     $hash = password_hash($password, PASSWORD_DEFAULT);
-//    // $hash = password_hash($password, PASSWORD_BCRYPT);
-
-
-
-    // Fetch user from database
-//     $query = "SELECT id, username, password, role FROM users WHERE username = ?";
-//     $stmt = $conn->prepare($query);
-//     $stmt->bind_param("s", $username);
-//     $stmt->execute();
-//     $user = $stmt->get_result()->fetch_assoc();
-//    // print_r($user);
-   // print(password_verify($password, $user["password"]));
-
-    // print($password);
-    //print($hash);
-
-    // $stmt->close();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $username = trim($_POST['username']);
     $password = trim($_POST['password']);
 
     // Fetch user from database
-    $query = "SELECT id, username, password, role, `branch-id` FROM users WHERE username = ?";
+    $query = "SELECT id, username, password, role FROM users WHERE username = ?";
     $stmt = $conn->prepare($query);
     $stmt->bind_param("s", $username);
     $stmt->execute();
@@ -45,69 +21,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $stmt->close();
 
     if ($user && password_verify($password, $user["password"])) {
+        // Store session variables
         $_SESSION['user_id'] = $user['id'];
         $_SESSION['username'] = $user['username'];
 $_SESSION['role'] = strtolower(trim($user['role']));
-$_SESSION['branch_id'] = $user['branch-id'];
+$_SESSION['branch-id'] = $user['branch-id']; 
 
-        // redirect based on role
+
+        // Redirect based on role
         if ($_SESSION['role'] === 'admin') {
             header('Location: ../pages/admin_dashboard.php');
         } elseif ($_SESSION['role'] === 'manager') {
-            header('Location: ../pages/manager_dashboard.php'); // make sure this filename is correct
+            header('Location: ../pages/manager_dashboard.php');
         } elseif ($_SESSION['role'] === 'staff') {
             header('Location: ../pages/staff_dashboard.php');
         } else {
             $error = 'Unknown role';
         }
-        var_dump($_SESSION['role']);
-exit;
-
-        
+        exit;
     } else {
         $error = 'Invalid username or password';
     }
 }
-
-
-    // Use prepared statement
-    // $stmt = $conn->prepare("SELECT id, username, password, role FROM users WHERE username = ?");
-    // if (!$stmt) {
-    //     $error = "Database error: " . $conn->error;
-    // } else {
-    //     $stmt->bind_param("s", $username);
-    //     if ($stmt->execute()) {
-    //         $result = $stmt->get_result();
-    //         if ($result && $result->num_rows === 1) {
-    //             $user = $result->fetch_assoc();
-    //             if (password_verify($password, $user['password'])) {
-    //                 $_SESSION['user_id'] = $user['id'];
-    //                 $_SESSION['role'] = $user['role'];
-    //                 $_SESSION['name'] = $user['username'];
-
-    //                 // Redirect based on role
-    //                 if ($user['role'] === 'admin') {
-    //                     header("Location: ../pages/admin_dashboard.php");   
-    //                 } elseif ($user['role'] === 'manager') {
-    //                     header("Location: ../pages/manage_dashboard.php");
-    //                 } elseif ($user['role'] === 'branch') {
-    //                     header("Location: ../pages/staff_dashboard.php");
-    //                 } else {
-    //                     $error = "Unknown role!";
-    //                 }
-    //                 exit;
-    //             } else {
-    //                 $error = "Wrong password";
-    //             }
-    //         } else {
-    //             $error = "User not found";
-    //         }
-    //     } else {
-    //         $error = "Query execution failed: " . $stmt->error;
-    //     }
-    //     $stmt->close();
-    // }
-
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -269,7 +204,7 @@ exit;
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Business System</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
 <body>
     <div class="container mt-5 w-50">
@@ -289,4 +224,4 @@ exit;
         </form>
     </div>
 </body>
-</html> 
+</html>

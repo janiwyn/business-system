@@ -1,9 +1,9 @@
 <?php
 include '../includes/db.php';
-include '../includes/header.php';
 include '../includes/auth.php';
-require_role("manager", "admin");
+require_role(["admin"]);
 include '../pages/sidebar.php';
+include '../includes/header.php';
 
 // Handle Add Product Form Submission
 if (isset($_POST['add_product'])) {
@@ -11,14 +11,15 @@ if (isset($_POST['add_product'])) {
     $price = $_POST['price'];
     $cost = $_POST['cost'];
     $stock = $_POST['stock'];
+    $branch_id = $_POST['branch_id'];
 
-    $stmt = $conn->prepare("INSERT INTO products (name, `selling-price`, `buying-price`, stock) VALUES (?, ?, ?, ?)");
-    $stmt->bind_param("sddi", $name, $price, $cost, $stock);
+    $stmt = $conn->prepare("INSERT INTO products (name, `selling-price`, `buying-price`, `stock`,`branch-id`) VALUES (?, ?, ?,?, ?)");
+    $stmt->bind_param("sddii", $name, $price, $cost, $stock, $branch_id);
 
     if ($stmt->execute()) {
-        $message = "<div class='alert alert-success shadow-sm'>✅ Product added successfully!</div>";
+        $message = "<div class='alert alert-success shadow-sm'> Product added successfully!</div>";
     } else {
-        $message = "<div class='alert alert-danger shadow-sm'>❌ Error adding product: " . $stmt->error . "</div>";
+        $message = "<div class='alert alert-danger shadow-sm'> Error adding product: " . $stmt->error . "</div>";
     }
 }
 ?>
@@ -107,6 +108,19 @@ if (isset($_POST['add_product'])) {
                         <label for="stock" class="form-label">Stock Quantity</label>
                         <input type="number" name="stock" id="stock" class="form-control" placeholder="0" required>
                     </div>
+                    <div class="col-md-3">
+    <label for="branch" class="form-label">Branch</label>
+    <select name="branch_id" id="branch" class="form-control" required>
+        <option value="">-- Select Branch --</option>
+        <?php
+        $branches = $conn->query("SELECT id, name FROM branch");
+        while ($b = $branches->fetch_assoc()) {
+            echo "<option value='{$b['id']}'>" . htmlspecialchars($b['name']) . "</option>";
+        }
+        ?>
+    </select>
+</div>
+
                 </div>
                 <div class="mt-3">
                     <button type="submit" name="add_product" class="btn btn-primary">➕ Add Product</button>

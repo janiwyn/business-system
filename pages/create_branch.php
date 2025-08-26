@@ -1,9 +1,10 @@
 <?php
 include '../includes/db.php';
-include '../includes/header.php';
 include '../includes/auth.php';
-require_role("manager", "admin");
+require_role(["admin"]);
 include '../pages/sidebar.php';
+include '../includes/header.php';
+
 
 $message = "";
 $message_class = "";
@@ -15,7 +16,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $contact = trim($_POST["contact"]);
 
     if (!empty($name) && !empty($location) && !empty($contact)) {
-        $stmt = $conn->prepare("INSERT INTO branches (name, location, contact) VALUES (?, ?, ?)");
+        $stmt = $conn->prepare("INSERT INTO branch (name, location, contact) VALUES (?, ?, ?)");
         $stmt->bind_param("sss", $name, $location, $contact);
 
         if ($stmt->execute()) {
@@ -24,7 +25,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
             // Redirect back to branch.php with new branch ID
             $new_branch_id = $stmt->insert_id;
-            header("Location: branch.php?id=$new_branch_id");
+          //  header("Location: list_branches.php");
             exit;
         } else {
             $message = "Failed to create branch. Try again.";

@@ -10,21 +10,31 @@ $role = $_SESSION['role'];
     <h4 class="text-left mb-4 fw-bold text-primary">Dashboard</h4>
     <ul class="nav flex-column">
       <?php if ($role == 'admin' || $role == 'manager') : ?>
-        <li class="nav-item mb-2">
-          <a class="nav-link text-white d-flex align-items-center hover-effect" href="../pages/branch.php">
-            <i class="fa-solid fa-building me-2"></i> Branches
+ <li class="nav-item mb-2">
+        <a class="nav-link text-white d-flex align-items-center hover-effect" href="../pages/branch.php">
+          <i class="fa-solid fa-building me-2"></i> Branches
+        </a>
+      </li>
+         <li class="nav-item mb-2">
+          <a class="nav-link text-white d-flex align-items-center hover-effect" href="../pages/list_branches.php">
+            <i class="fa-solid fa-building me-2"></i> List Branches
           </a>
         </li>
-        <li class="nav-item mb-2">
-          <a class="nav-link text-white d-flex align-items-center hover-effect" href="../pages/edit_product.php">
-            <i class="fa-solid fa-box me-2"></i> Edit Product
+        <!-- <li class="nav-item mb-2">
+          <a class="nav-link text-white d-flex align-items-center hover-effect" href="../pages/branch_view.php">
+            <i class="fa-solid fa-building me-2"></i> View Branches
           </a>
-        </li>
-        <li class="nav-item mb-2">
-          <a class="nav-link text-white d-flex align-items-center hover-effect" href="../pages/expense.php">
-            <i class="fa-solid fa-wallet me-2"></i> Expenses
-          </a>
-        </li>
+        </li> -->
+ <li class="nav-item mb-2">
+        <a class="nav-link text-white d-flex align-items-center hover-effect" href="../pages/edit_product.php">
+          <i class="fa-solid fa-box me-2"></i> Edit Product
+        </a>
+      </li>
+       <li class="nav-item mb-2">
+        <a class="nav-link text-white d-flex align-items-center hover-effect" href="../pages/expense.php">
+          <i class="fa-solid fa-wallet me-2"></i> Expenses
+        </a>
+      </li>
       <?php endif; ?>
 
       <?php if ($role == 'admin' || $role == 'manager' || $role == 'staff') : ?>

@@ -1,15 +1,16 @@
 <?php
 include '../includes/db.php';
-include '../includes/header.php';
 include '../includes/auth.php';
-require_role("manager", "admin");
+require_role(["admin"]);
 include '../pages/sidebar.php';
+include '../includes/header.php';
+
 
 // Branch ID can be passed via GET
 $branch_id = isset($_GET['id']) ? $_GET['id'] : 1;
 
 // Get Branch Info
-$branch_stmt = $conn->prepare("SELECT * FROM branches WHERE id = ?");
+$branch_stmt = $conn->prepare("SELECT * FROM branch WHERE id = ?");
 $branch_stmt->bind_param("i", $branch_id);
 $branch_stmt->execute();
 $branch = $branch_stmt->get_result()->fetch_assoc();
