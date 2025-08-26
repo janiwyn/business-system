@@ -174,3 +174,4 @@ if (isset($_POST['add_product'])) {
 </div>
 
 <?php include '../includes/footer.php'; ?>
+
