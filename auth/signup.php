@@ -27,40 +27,62 @@ if ($_SERVER["REQUEST_METHOD"] == 'POST') {
 
             if (!$branch_id_input || empty($branch_key_input)) {
                 $error = "Staff must select a branch and enter branch password.";
-            } else {
-                // Verify branch exists and password matches
-                $stmt = $conn->prepare("SELECT `branch-key` FROM branch WHERE id=?");
-                $stmt->bind_param("i", $branch_id_input);
-                $stmt->execute();
-                $branch = $stmt->get_result()->fetch_assoc();
-                $stmt->close();
+            } 
+            // else {
+            //     // Verify branch exists and password matches
+            //     $stmt = $conn->prepare("SELECT `branch-key` FROM branch WHERE id=?");
+            //     $stmt->bind_param("i", $branch_id_input);
+            //     $stmt->execute();
+            //     $branch = $stmt->get_result()->fetch_assoc();
+            //     $stmt->close();
 
-                if (!$branch) {
-                    $error = "Selected branch does not exist.";
-                } elseif (trim($branch['branch-key']) !== trim($branch_key_input)) {
-                    $error = "Invalid branch password.";
-                } else {
-                    $assigned_branch = $branch_id_input;
-                }
-            }
+            //     if (!$branch) {
+            //         $error = "Selected branch does not exist.";
+            //     } elseif ($branch['branch-key'] !== $branch_key_input) {
+            //         $error = "Invalid branch password.";
+            //     } else {
+            //         $assigned_branch = $branch_id_input;
+            //     }
+            // }
         }
 
         // Insert user if no errors
         if (empty($error)) {
             $hash = password_hash($password, PASSWORD_DEFAULT);
 
-            if ($role === 'staff') {
-                $stmt = $conn->prepare("INSERT INTO users (username, email, password, role, phone, `branch-id`) VALUES (?, ?, ?, ?, ?, ?)");
-                $stmt->bind_param("sssssi", $username, $email, $hash, $role, $phone, $assigned_branch);
-            } else {
-                $stmt = $conn->prepare("INSERT INTO users (username, email, password, role, phone) VALUES (?, ?, ?, ?, ?)");
-                $stmt->bind_param("sssss", $username, $email, $hash, $role, $phone);
+            $sql = "SELECT `branch-key` FROM branch WHERE `branch-key` = ?";
+            $stmt = $conn->prepare($sql);
+            if ($stmt === false) {
+                die("Prepare failed: " . $conn->error);
             }
+            $stmt->bind_param("s", $branch_key_input);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            if ($result->num_rows > 0) {
+                // ✅ Branch key exists and matches
+                $row = $result->fetch_assoc();
+                if ($row['branch-key'] === $branch_key_input) {
+                    if ($role === 'staff') {
+                        $stmt2 = $conn->prepare("INSERT INTO users (username, email, password, role, phone, `branch-id`) VALUES (?, ?, ?, ?, ?, ?)");
+                        $stmt2->bind_param("sssssi", $username, $email, $hash, $role, $phone, $assigned_branch);
 
-            if ($stmt->execute()) {
-                $success = "Registration successful! You can now login.";
+
+                    } else {
+                        $stmt2 = $conn->prepare("INSERT INTO users (username, email, password, role, phone) VALUES (?, ?, ?, ?, ?)");
+                        $stmt2->bind_param("sssss", $username, $email, $hash, $role, $phone);
+                    }
+
+                    if ($stmt2->execute()) {
+                        $success = "Registration successful! You can now login.";
+                    } else {
+                        $error = "Database error: " . $conn->error;
+                    }
+
+                    $stmt2->close();
+                }
             } else {
-                $error = "Database error: " . $conn->error;
+                $message = "Invalid branch key!!";
+                $message_class = "alert-danger";
             }
 
             $stmt->close();
@@ -169,6 +191,10 @@ $branches = $conn->query("SELECT id, name FROM branch ORDER BY name ASC");
       <p>Register to access the Business System</p>
     </div>
 
+    <?php if ($message): ?>
+        <div class="alert <?= $message_class ?>"><?= $message ?></div>
+    <?php endif; ?>
+
     <?php if (!empty($error)): ?>
         <div class="alert alert-danger py-2 text-center mb-2"><?= htmlspecialchars($error) ?></div>
     <?php endif; ?>
@@ -234,7 +260,7 @@ $branches = $conn->query("SELECT id, name FROM branch ORDER BY name ASC");
                     </div>
                     <div class="col-12 col-md-6">
                         <label for="branch_key" class="form-label">Branch Password</label>
-                        <input id="branch_key" name="branch_key" type="password" class="form-control form-control-sm">
+                        <input id="branch_key" name="branch_key" type="password" required class="form-control form-control-sm">
                     </div>
                 </div>
             </div>
