@@ -294,3 +294,4 @@ $branches = $conn->query("SELECT id, name FROM branch ORDER BY name ASC");
 </script>
 </body>
 </html>
+//script
