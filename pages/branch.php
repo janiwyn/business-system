@@ -5,17 +5,33 @@ require_role(["admin"]);
 include '../pages/sidebar.php';
 include '../includes/header.php';
 
-// Branch ID can be passed via GET
-$branch_id = isset($_GET['id']) ? $_GET['id'] : 1;
+// Branch ID can be passed via GET; use intval for safety
+$branch_id = isset($_GET['id']) ? intval($_GET['id']) : 0;
 
-// Fetch all branches for dropdown
-$all_branches = $conn->query("SELECT id, name FROM branch ORDER BY name ASC");
+// Fetch all branches (grab all columns so we can handle different column names safely)
+$all_branches = $conn->query("SELECT * FROM branch ORDER BY id ASC");
 
-// Get Branch Info
-$branch_stmt = $conn->prepare("SELECT * FROM branch WHERE id = ?");
-$branch_stmt->bind_param("i", $branch_id);
-$branch_stmt->execute();
-$branch = $branch_stmt->get_result()->fetch_assoc();
+// Get Branch Info if id provided
+$branch = null;
+if ($branch_id > 0) {
+    $branch_stmt = $conn->prepare("SELECT * FROM branch WHERE id = ?");
+    $branch_stmt->bind_param("i", $branch_id);
+    $branch_stmt->execute();
+    $branch = $branch_stmt->get_result()->fetch_assoc();
+    $branch_stmt->close();
+}
+
+// Helper to get a display name for a branch row (handles different column names)
+function branch_display_name($row) {
+    if (!is_array($row)) return '';
+    return $row['name'] ?? $row['branch-name'] ?? $row['branch_name'] ?? $row['branchName'] ?? $row['branch'] ?? ("Branch " . ($row['id'] ?? ''));
+}
+
+// Helper to get staff display name (some user tables use 'name', others 'username')
+function staff_display_name($userRow) {
+    if (!is_array($userRow)) return '';
+    return $userRow['name'] ?? $userRow['full_name'] ?? $userRow['username'] ?? $userRow['email'] ?? 'Staff';
+}
 ?>
 
 <div class="container mt-5">
@@ -24,17 +40,28 @@ $branch = $branch_stmt->get_result()->fetch_assoc();
     <div class="d-flex justify-content-end mb-3">
         <div class="dropdown">
             <button class="btn btn-outline-primary dropdown-toggle" type="button" id="branchDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-                <?= $branch ? "Viewing: " . htmlspecialchars($branch['name']) : "Select Branch to View" ?>
+                <?php if ($branch): ?>
+                    <?= "Viewing: " . htmlspecialchars(branch_display_name($branch)) ?>
+                <?php else: ?>
+                    Select Branch to View
+                <?php endif; ?>
             </button>
             <ul class="dropdown-menu" aria-labelledby="branchDropdown">
-                <?php while ($row = $all_branches->fetch_assoc()): ?>
-                    <li>
-                        <a class="dropdown-item <?= ($row['id'] == $branch_id) ? 'active' : '' ?>" 
-                           href="branch.php?id=<?= $row['id'] ?>">
-                           <?= htmlspecialchars($row['name']) ?>
-                        </a>
-                    </li>
-                <?php endwhile; ?>
+                <?php if ($all_branches && $all_branches->num_rows > 0): ?>
+                    <?php while ($row = $all_branches->fetch_assoc()): 
+                        $display = branch_display_name($row);
+                        $id = intval($row['id'] ?? 0);
+                    ?>
+                        <li>
+                            <a class="dropdown-item <?= ($id === $branch_id) ? 'active' : '' ?>" 
+                               href="branch.php?id=<?= $id ?>">
+                               <?= htmlspecialchars($display) ?>
+                            </a>
+                        </li>
+                    <?php endwhile; ?>
+                <?php else: ?>
+                    <li><span class="dropdown-item text-muted">No branches</span></li>
+                <?php endif; ?>
             </ul>
         </div>
     </div>
@@ -66,21 +93,27 @@ $branch = $branch_stmt->get_result()->fetch_assoc();
 
 <?php else:
 
-    // Continue loading the dashboard only if branch exists
-    $staff_result = $conn->query("SELECT * FROM users WHERE `branch-id` = $branch_id");
+    // Ensure branch_id is an integer
     $branch_id = intval($branch_id);
 
+    // Staff assigned to this branch
+    $staff_result = $conn->query("SELECT * FROM users WHERE `branch-id` = $branch_id");
+
+    // Inventory summary
     $inventory_result = $conn->query("SELECT COUNT(*) AS total_products, COALESCE(SUM(stock), 0) AS stock FROM products WHERE `branch-id` = $branch_id");
-    $inventory = $inventory_result->fetch_assoc();
+    $inventory = $inventory_result ? $inventory_result->fetch_assoc() : ['total_products' => 0, 'stock' => 0];
 
-    $sales_result = $conn->query("SELECT COUNT(*) AS total_sales, SUM(amount) AS revenue FROM sales WHERE `branch-id` = $branch_id");
-    $sales = $sales_result->fetch_assoc();
+    // Sales summary
+    $sales_result = $conn->query("SELECT COUNT(*) AS total_sales, COALESCE(SUM(amount),0) AS revenue FROM sales WHERE `branch-id` = $branch_id");
+    $sales = $sales_result ? $sales_result->fetch_assoc() : ['total_sales' => 0, 'revenue' => 0];
 
-    $expense_result = $conn->query("SELECT SUM(amount) AS total_expense FROM expenses WHERE `branch-id` = $branch_id");
-    $expenses = $expense_result->fetch_assoc();
+    // Expenses
+    $expense_result = $conn->query("SELECT COALESCE(SUM(amount),0) AS total_expense FROM expenses WHERE `branch-id` = $branch_id");
+    $expenses = $expense_result ? $expense_result->fetch_assoc() : ['total_expense' => 0];
 
     $profit = ($sales['revenue'] ?? 0) - ($expenses['total_expense'] ?? 0);
 
+    // Top products
     $top_products_result = $conn->query("
         SELECT p.name, SUM(s.quantity) AS total_sold 
         FROM sales s 
@@ -92,7 +125,7 @@ $branch = $branch_stmt->get_result()->fetch_assoc();
     ");
 ?>
 
-    <h2 class="mb-4 text-center fw-bold">Branch Dashboard - <?= $branch['name'] ?></h2>
+    <h2 class="mb-4 text-center fw-bold"><?= htmlspecialchars(branch_display_name($branch)) ?> - Branch Dashboard</h2>
 
     <!-- Branch Information -->
     <div class="card mb-4 shadow-sm rounded border-0">
@@ -100,9 +133,9 @@ $branch = $branch_stmt->get_result()->fetch_assoc();
             <i class="bi bi-building me-2"></i> Branch Information
         </div>
         <div class="card-body">
-            <p><strong>Name:</strong> <?= $branch['name'] ?></p>
-            <p><strong>Location:</strong> <i class="bi bi-geo-alt-fill text-danger me-1"></i> <?= $branch['location'] ?></p>
-            <p><strong>Contact:</strong> <i class="bi bi-telephone-fill text-success me-1"></i> <?= $branch['contact'] ?></p>
+            <p><strong>Name:</strong> <?= htmlspecialchars(branch_display_name($branch)) ?></p>
+            <p><strong>Location:</strong> <i class="bi bi-geo-alt-fill text-danger me-1"></i> <?= htmlspecialchars($branch['location'] ?? '') ?></p>
+            <p><strong>Contact:</strong> <i class="bi bi-telephone-fill text-success me-1"></i> <?= htmlspecialchars($branch['contact'] ?? '') ?></p>
         </div>
     </div>
 
@@ -114,8 +147,8 @@ $branch = $branch_stmt->get_result()->fetch_assoc();
                     <i class="bi bi-box-seam fs-1 me-3"></i>
                     <div>
                         <h5 class="card-title">Inventory Summary</h5>
-                        <p class="card-text mb-0">Products: <?= $inventory['total_products'] ?? 0 ?></p>
-                        <p class="card-text">Items in Stock: <?= $inventory['stock'] ?? 0 ?></p>
+                        <p class="card-text mb-0">Products: <?= intval($inventory['total_products'] ?? 0) ?></p>
+                        <p class="card-text">Items in Stock: <?= intval($inventory['stock'] ?? 0) ?></p>
                     </div>
                 </div>
             </div>
@@ -126,8 +159,8 @@ $branch = $branch_stmt->get_result()->fetch_assoc();
                     <i class="bi bi-currency-dollar fs-1 me-3"></i>
                     <div>
                         <h5 class="card-title">Sales Summary</h5>
-                        <p class="card-text mb-0">Sales: <?= $sales['total_sales'] ?></p>
-                        <p class="card-text">Revenue: UGX <?= number_format($sales['revenue'], 2) ?></p>
+                        <p class="card-text mb-0">Sales: <?= intval($sales['total_sales'] ?? 0) ?></p>
+                        <p class="card-text">Revenue: UGX <?= number_format(floatval($sales['revenue'] ?? 0), 2) ?></p>
                     </div>
                 </div>
             </div>
@@ -138,8 +171,8 @@ $branch = $branch_stmt->get_result()->fetch_assoc();
                     <i class="bi bi-graph-up-arrow fs-1 me-3"></i>
                     <div>
                         <h5 class="card-title">Profit Analysis</h5>
-                        <p class="card-text mb-0">Expenses: UGX <?= number_format($expenses['total_expense'], 2) ?></p>
-                        <p class="card-text">Net Profit: UGX <?= number_format($profit, 2) ?></p>
+                        <p class="card-text mb-0">Expenses: UGX <?= number_format(floatval($expenses['total_expense'] ?? 0), 2) ?></p>
+                        <p class="card-text">Net Profit: UGX <?= number_format(floatval($profit ?? 0), 2) ?></p>
                     </div>
                 </div>
             </div>
@@ -158,12 +191,16 @@ $branch = $branch_stmt->get_result()->fetch_assoc();
                     </tr>
                 </thead>
                 <tbody>
-                    <?php while($row = $top_products_result->fetch_assoc()): ?>
-                        <tr>
-                            <td><?= $row['name'] ?></td>
-                            <td><?= $row['total_sold'] ?></td>
-                        </tr>
-                    <?php endwhile; ?>
+                    <?php if ($top_products_result && $top_products_result->num_rows > 0): ?>
+                        <?php while($row = $top_products_result->fetch_assoc()): ?>
+                            <tr>
+                                <td><?= htmlspecialchars($row['name'] ?? '—') ?></td>
+                                <td><?= intval($row['total_sold'] ?? 0) ?></td>
+                            </tr>
+                        <?php endwhile; ?>
+                    <?php else: ?>
+                        <tr><td colspan="2" class="text-center text-muted">No product sales yet.</td></tr>
+                    <?php endif; ?>
                 </tbody>
             </table>
         </div>
@@ -182,13 +219,17 @@ $branch = $branch_stmt->get_result()->fetch_assoc();
                     </tr>
                 </thead>
                 <tbody>
-                    <?php while($staff = $staff_result->fetch_assoc()): ?>
-                        <tr>
-                            <td><?= $staff['name'] ?></td>
-                            <td><?= $staff['username'] ?></td>
-                            <td><?= ucfirst($staff['role']) ?></td>
-                        </tr>
-                    <?php endwhile; ?>
+                    <?php if ($staff_result && $staff_result->num_rows > 0): ?>
+                        <?php while($staff = $staff_result->fetch_assoc()): ?>
+                            <tr>
+                                <td><?= htmlspecialchars(staff_display_name($staff)) ?></td>
+                                <td><?= htmlspecialchars($staff['username'] ?? '') ?></td>
+                                <td><?= htmlspecialchars(ucfirst($staff['role'] ?? '')) ?></td>
+                            </tr>
+                        <?php endwhile; ?>
+                    <?php else: ?>
+                        <tr><td colspan="3" class="text-center text-muted">No staff assigned to this branch.</td></tr>
+                    <?php endif; ?>
                 </tbody>
             </table>
         </div>
@@ -207,25 +248,34 @@ $branch = $branch_stmt->get_result()->fetch_assoc();
 
 <!-- Chart JS -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<?php if ($branch): ?>
+<?php if ($branch && isset($top_products_result) && $top_products_result): ?>
 <script>
     const ctx = document.getElementById('salesChart');
     const salesChart = new Chart(ctx, {
         type: 'bar',
         data: {
             labels: [<?php
-                $top_products_result->data_seek(0); 
-                while ($row = $top_products_result->fetch_assoc()) {
-                    echo "'{$row['name']}',";
+                // collect labels safely
+                $labels = [];
+                if ($top_products_result) {
+                    $top_products_result->data_seek(0);
+                    while ($r = $top_products_result->fetch_assoc()) {
+                        $labels[] = addslashes($r['name'] ?? '');
+                    }
                 }
+                echo "'" . implode("','", $labels) . "'";
             ?>],
             datasets: [{
                 label: 'Quantity Sold',
                 data: [<?php
-                    $top_products_result->data_seek(0); 
-                    while ($row = $top_products_result->fetch_assoc()) {
-                        echo "{$row['total_sold']},"; 
+                    $data = [];
+                    if ($top_products_result) {
+                        $top_products_result->data_seek(0);
+                        while ($r = $top_products_result->fetch_assoc()) {
+                            $data[] = intval($r['total_sold'] ?? 0);
+                        }
                     }
+                    echo implode(",", $data);
                 ?>],
                 backgroundColor: function(context) {
                     const colors = ['rgba(75, 192, 192, 0.7)', 'rgba(54, 162, 235, 0.7)', 'rgba(255, 206, 86, 0.7)',
@@ -268,7 +318,5 @@ $branch = $branch_stmt->get_result()->fetch_assoc();
 .table-hover tbody tr:hover { background-color: rgba(0,0,0,0.05); }
 </style>
 
-<?
-include 'includes/footer.php';
-?>
+<?php include '../includes/footer.php'; ?>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
