@@ -29,15 +29,15 @@ $lastSales = $lastResult['total'] ?? 0;
 // Growth
 $growth = $lastSales > 0 ? (($currentSales - $lastSales) / $lastSales) * 100 : 0;
 
-// Stats
-$employee = $conn->query('SELECT COUNT(*) AS total_employees FROM employees')->fetch_assoc()['total_employees'];
+// ✅ FIX: count staff directly from users table
+$employee = $conn->query("SELECT COUNT(*) AS total_employees FROM users WHERE role='staff'")
+                 ->fetch_assoc()['total_employees'];
+
 $totalbranches = $conn->query('SELECT COUNT(*) AS total_branches FROM branch')->fetch_assoc()['total_branches'];
 $totalStock = $conn->query('SELECT SUM(stock) AS total_stock FROM products')->fetch_assoc()['total_stock'];
 $totalProfit = $conn->query('SELECT SUM(`net-profits`) AS total_profits FROM profits')->fetch_assoc()['total_profits'];
 
-
 // Most selling product
-
 $productRes = $conn->query('
    SELECT p.name, SUM(s.quantity) AS total_sold FROM sales s
    JOIN products p ON s.`product-id` = p.id
