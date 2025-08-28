@@ -5,9 +5,11 @@ require_role(["admin"]);
 include '../pages/sidebar.php';
 include '../includes/header.php';
 
-
 // Branch ID can be passed via GET
 $branch_id = isset($_GET['id']) ? $_GET['id'] : 1;
+
+// Fetch all branches for dropdown
+$all_branches = $conn->query("SELECT id, name FROM branch ORDER BY name ASC");
 
 // Get Branch Info
 $branch_stmt = $conn->prepare("SELECT * FROM branch WHERE id = ?");
@@ -17,6 +19,25 @@ $branch = $branch_stmt->get_result()->fetch_assoc();
 ?>
 
 <div class="container mt-5">
+
+    <!-- Branch Selector Dropdown -->
+    <div class="d-flex justify-content-end mb-3">
+        <div class="dropdown">
+            <button class="btn btn-outline-primary dropdown-toggle" type="button" id="branchDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                <?= $branch ? "Viewing: " . htmlspecialchars($branch['name']) : "Select Branch to View" ?>
+            </button>
+            <ul class="dropdown-menu" aria-labelledby="branchDropdown">
+                <?php while ($row = $all_branches->fetch_assoc()): ?>
+                    <li>
+                        <a class="dropdown-item <?= ($row['id'] == $branch_id) ? 'active' : '' ?>" 
+                           href="branch.php?id=<?= $row['id'] ?>">
+                           <?= htmlspecialchars($row['name']) ?>
+                        </a>
+                    </li>
+                <?php endwhile; ?>
+            </ul>
+        </div>
+    </div>
 
 <?php if (!$branch): ?>
     <div class='alert alert-warning'>No branches have been created yet. Please add a branch below.</div>
@@ -250,3 +271,4 @@ $branch = $branch_stmt->get_result()->fetch_assoc();
 <?
 include 'includes/footer.php';
 ?>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>

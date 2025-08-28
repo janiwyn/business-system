@@ -3,6 +3,8 @@ include '../includes/db.php';
 
 $error = "";
 $success = "";
+$message = "";
+$message_class = "";
 
 if ($_SERVER["REQUEST_METHOD"] == 'POST') {
     // Collect POST data safely
@@ -234,37 +236,39 @@ $branches = $conn->query("SELECT id, name FROM branch ORDER BY name ASC");
             </div>
         </div>
 
-        <div class="row g-2 mt-1">
-            <div class="col-12 col-md-6">
-                <label for="phone" class="form-label">Phone Number</label>
-                <input id="phone" name="phone" type="tel" class="form-control form-control-sm" required>
-            </div>
-            <div class="col-12 col-md-6">
-                <label for="role" class="form-label">Role</label>
-                <select id="role" name="role" class="form-select form-select-sm" required>
-                    <option value="" disabled selected>Select role</option>
-                    <option value="admin">Admin</option>
-                    <option value="manager">Manager</option>
-                    <option value="staff">Staff</option>
-                </select>
+<div class="row g-2 mt-1">
+  <div class="col-12 col-md-6">
+    <label for="phone" class="form-label">Phone Number</label>
+    <input id="phone" name="phone" type="tel" class="form-control form-control-sm" required>
+  </div>
+  <div class="col-12 col-md-6">
+    <label for="role" class="form-label">Role</label>
+    <select id="role" name="role" class="form-select form-select-sm" required>
+      <option value="" disabled selected>Select role</option>
+      <option value="admin">Admin</option>
+      <option value="manager">Manager</option>
+      <option value="staff">Staff</option>
+    </select>
+  </div>
+</div>
 
-                <div class="row g-2 mt-1 staff-branch-fields" style="display:none;">
-                    <div class="col-12 col-md-6">
-                        <label for="branch_id" class="form-label">Branch</label>
-                        <select id="branch_id" name="branch_id" class="form-select form-select-sm">
-                            <option value="" disabled selected>Select branch</option>
-                            <?php while ($b = $branches->fetch_assoc()): ?>
-                                <option value="<?= $b['id'] ?>"><?= htmlspecialchars($b['name']) ?></option>
-                            <?php endwhile; ?>
-                        </select>
-                    </div>
-                    <div class="col-12 col-md-6">
-                        <label for="branch_key" class="form-label">Branch Password</label>
-                        <input id="branch_key" name="branch_key" type="password" required class="form-control form-control-sm">
-                    </div>
-                </div>
-            </div>
-        </div>
+<!-- 👇 separate row for branch fields -->
+<div class="row g-2 mt-1 staff-branch-fields" style="display:none;">
+  <div class="col-12 col-md-6">
+    <label for="branch_id" class="form-label">Branch</label>
+    <select id="branch_id" name="branch_id" class="form-select form-select-sm">
+      <option value="" disabled selected>Select branch</option>
+      <?php while ($b = $branches->fetch_assoc()): ?>
+          <option value="<?= $b['id'] ?>"><?= htmlspecialchars($b['name']) ?></option>
+      <?php endwhile; ?>
+    </select>
+  </div>
+  <div class="col-12 col-md-6">
+    <label for="branch_key" class="form-label">Branch Password</label>
+    <input id="branch_key" name="branch_key" type="password" class="form-control form-control-sm">
+  </div>
+</div>
+
 
         <div class="divider"></div>
         <button type="submit" name="signup" class="btn btn-corporate w-100 mb-2">Create Account</button>
