@@ -14,80 +14,77 @@ if ($_SERVER["REQUEST_METHOD"] == 'POST') {
     $confirm_password = $_POST['confirm_password'] ?? '';
     $role = $_POST['role'] ?? '';
     $phone = trim($_POST['phone'] ?? '');
-    $assigned_branch = NULL;
+    $assigned_branch = NULL;           // will be set only for staff
 
     // Basic validation
     if (empty($username) || empty($email) || empty($password) || empty($confirm_password) || empty($role) || empty($phone)) {
         $error = "All fields are required.";
+    } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        $error = "Invalid email format.";
     } elseif ($password !== $confirm_password) {
         $error = "Passwords do not match.";
     } else {
-        // Staff role requires branch assignment
+        // If staff, must provide valid branch id + branch key that match
         if ($role === 'staff') {
-            $branch_id_input = intval($_POST['branch_id'] ?? 0);
+            $branch_id_input  = intval($_POST['branch_id'] ?? 0);
             $branch_key_input = trim($_POST['branch_key'] ?? '');
 
-            if (!$branch_id_input || empty($branch_key_input)) {
+            if (!$branch_id_input || $branch_key_input === '') {
                 $error = "Staff must select a branch and enter branch password.";
-            } 
-            // else {
-            //     // Verify branch exists and password matches
-            //     $stmt = $conn->prepare("SELECT `branch-key` FROM branch WHERE id=?");
-            //     $stmt->bind_param("i", $branch_id_input);
-            //     $stmt->execute();
-            //     $branch = $stmt->get_result()->fetch_assoc();
-            //     $stmt->close();
-
-            //     if (!$branch) {
-            //         $error = "Selected branch does not exist.";
-            //     } elseif ($branch['branch-key'] !== $branch_key_input) {
-            //         $error = "Invalid branch password.";
-            //     } else {
-            //         $assigned_branch = $branch_id_input;
-            //     }
-            // }
+            } else {
+                // Verify the selected branch AND its key match
+                $stmt = $conn->prepare("SELECT id FROM branch WHERE id = ? AND `branch-key` = ?");
+                $stmt->bind_param("is", $branch_id_input, $branch_key_input);
+                $stmt->execute();
+                $res = $stmt->get_result();
+                if ($res->num_rows === 0) {
+                    $error = "Invalid branch or branch password.";
+                } else {
+                    $assigned_branch = $branch_id_input;   // ✅ set it
+                }
+                $stmt->close();
+            }
         }
 
-        // Insert user if no errors
+        // If no validation errors so far, continue
+        if (empty($error)) {
+            // Optional: ensure email is unique
+            $check = $conn->prepare("SELECT id FROM users WHERE email = ?");
+            $check->bind_param("s", $email);
+            $check->execute();
+            $check->store_result();
+            if ($check->num_rows > 0) {
+                $error = "An account with this email already exists.";
+            }
+            $check->close();
+        }
+
+        // Insert user if still no errors
         if (empty($error)) {
             $hash = password_hash($password, PASSWORD_DEFAULT);
 
-            $sql = "SELECT `branch-key` FROM branch WHERE `branch-key` = ?";
-            $stmt = $conn->prepare($sql);
-            if ($stmt === false) {
-                die("Prepare failed: " . $conn->error);
-            }
-            $stmt->bind_param("s", $branch_key_input);
-            $stmt->execute();
-            $result = $stmt->get_result();
-            if ($result->num_rows > 0) {
-                // ✅ Branch key exists and matches
-                $row = $result->fetch_assoc();
-                if ($row['branch-key'] === $branch_key_input) {
-                    if ($role === 'staff') {
-                        $stmt2 = $conn->prepare("INSERT INTO users (username, email, password, role, phone, `branch-id`) VALUES (?, ?, ?, ?, ?, ?)");
-                        $stmt2->bind_param("sssssi", $username, $email, $hash, $role, $phone, $assigned_branch);
-
-
-                    } else {
-                        $stmt2 = $conn->prepare("INSERT INTO users (username, email, password, role, phone) VALUES (?, ?, ?, ?, ?)");
-                        $stmt2->bind_param("sssss", $username, $email, $hash, $role, $phone);
-                    }
-
-                    if ($stmt2->execute()) {
-                        $success = "Registration successful! You can now login.";
-                    } else {
-                        $error = "Database error: " . $conn->error;
-                    }
-
-                    $stmt2->close();
-                }
+            if ($role === 'staff') {
+                // Staff must include branch-id (now validated and set)
+                $stmt2 = $conn->prepare(
+                    "INSERT INTO users (username, email, password, role, phone, `branch-id`)
+                     VALUES (?, ?, ?, ?, ?, ?)"
+                );
+                $stmt2->bind_param("sssssi", $username, $email, $hash, $role, $phone, $assigned_branch);
             } else {
-                $message = "Invalid branch key!!";
-                $message_class = "alert-danger";
+                // Admin/Manager: no branch-id
+                $stmt2 = $conn->prepare(
+                    "INSERT INTO users (username, email, password, role, phone)
+                     VALUES (?, ?, ?, ?, ?)"
+                );
+                $stmt2->bind_param("sssss", $username, $email, $hash, $role, $phone);
             }
 
-            $stmt->close();
+            if ($stmt2->execute()) {
+                $success = "Registration successful! You can now login.";
+            } else {
+                $error = "Database error: " . $stmt2->error;
+            }
+            $stmt2->close();
         }
     }
 }
@@ -95,6 +92,7 @@ if ($_SERVER["REQUEST_METHOD"] == 'POST') {
 // Fetch branches for staff dropdown
 $branches = $conn->query("SELECT id, name FROM branch ORDER BY name ASC");
 ?>
+
 
 <!DOCTYPE html>
 <html lang="en">
