@@ -17,34 +17,56 @@ $message = "";
 // Handle Sale Form Submission
 if (isset($_POST['add_sale'])) {
     $product_id = $_POST['product_id'];
-    $quantity = $_POST['quantity'];
+    $quantity   = $_POST['quantity'];
 
-    $stmt = $conn->prepare("SELECT `selling-price` FROM products WHERE id = ?");
+    // Fetch product selling price and buying price
+    $stmt = $conn->prepare("SELECT `selling-price`, `buying-price`, `branch-id`, stock FROM products WHERE id = ?");
     $stmt->bind_param("i", $product_id);
     $stmt->execute();
-    $stmt->bind_result($price);
-    $stmt->fetch();
+    $result = $stmt->get_result();
+    $product = $result->fetch_assoc();
     $stmt->close();
 
-    if ($price) {
-        $total_price = $price * $quantity;
-        $stmt = $conn->prepare("INSERT INTO sales (`product-id`, quantity, amount, `sold-by`, date) VALUES (?, ?, ?, ?, NOW())");
-        $stmt->bind_param("iidi", $product_id, $quantity, $total_price, $user_id);
+    if (!$product) {
+        $message = "⚠️ Product not found.";
+    } elseif ($product['stock'] < $quantity) {
+        $message = "⚠️ Not enough stock available!";
+    } else {
+        // Calculate amount, cost, profit
+        $total_price  = $product['selling-price'] * $quantity;
+        $cost_price   = $product['buying-price'] * $quantity;
+        $total_profit = $total_price - $cost_price;
+        $branch_id    = $product['branch-id'];
+
+        // Insert into sales table
+        $stmt = $conn->prepare("
+            INSERT INTO sales (`product-id`, `branch-id`, quantity, amount, `sold-by`, `cost-price`, total_profits, date)
+            VALUES (?, ?, ?, ?, ?, ?, ?, NOW())
+        ");
+        $stmt->bind_param("iiididd", $product_id, $branch_id, $quantity, $total_price, $user_id, $cost_price, $total_profit);
+
         if ($stmt->execute()) {
+            // Update product stock
+            $new_stock = $product['stock'] - $quantity;
+            $update = $conn->prepare("UPDATE products SET stock = ? WHERE id = ?");
+            $update->bind_param("ii", $new_stock, $product_id);
+            $update->execute();
+            $update->close();
+
             $message = "✅ Sale recorded successfully!";
         } else {
             $message = "❌ Error recording sale.";
         }
         $stmt->close();
-    } else {
-        $message = "⚠️ Product not found.";
     }
 }
 
+// Fetch products for dropdown
 $product_query = $conn->query("SELECT id, name FROM products");
 
+// Fetch recent sales
 $sales_query = $conn->prepare("
-    SELECT s.id, p.name, s.quantity, s.amount, s.date 
+    SELECT s.id, p.name, s.quantity, s.amount, s.total_profits, s.date 
     FROM sales s 
     JOIN products p ON s.`product-id` = p.id 
     WHERE s.`sold-by` = ? 
@@ -55,6 +77,7 @@ $sales_query->bind_param("i", $user_id);
 $sales_query->execute();
 $sales_result = $sales_query->get_result();
 ?>
+
 
 <style>
     .dashboard-header {

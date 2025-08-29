@@ -8,9 +8,9 @@ include '../includes/header.php';
 $message = "";
 
 // Dates
-$currentMonth = date('m');
+$currentMonth =  date('m');
 $lastMonth = date('m', strtotime('-1 month'));
-$year = date('Y');
+$year =  date('Y');
 
 // Current month sales
 $currentQuery = $conn->prepare("SELECT SUM(amount) as total FROM sales WHERE MONTH(date) = ? AND YEAR(date) = ?");
@@ -21,7 +21,7 @@ $currentSales = $currentResult['total'] ?? 0;
 
 // Last month sales
 $lastQuery = $conn->prepare("SELECT SUM(amount) as total FROM sales WHERE MONTH(date) = ? AND YEAR(date) = ?");
-$lastQuery->bind_param("ss", $lastMonth, $year);
+$lastQuery->bind_param("ii", $lastMonth, $year);
 $lastQuery->execute();
 $lastResult = $lastQuery->get_result()->fetch_assoc();
 $lastSales = $lastResult['total'] ?? 0;
@@ -34,7 +34,23 @@ $employee = $conn->query('SELECT COUNT(*) AS total_employees FROM employees')->f
 $totalbranches = $conn->query('SELECT COUNT(*) AS total_branches FROM branch')->fetch_assoc()['total_branches'];
 $totalStock = $conn->query('SELECT SUM(stock) AS total_stock FROM products')->fetch_assoc()['total_stock'];
 $totalProfit = $conn->query('SELECT SUM(`net-profits`) AS total_profits FROM profits')->fetch_assoc()['total_profits'];
-
+// branch sales & profits
+$branchDataQuery = $conn->query("
+SELECT b.name AS branch_name, 
+       SUM(s.amount) AS total_sales, 
+       SUM(s.total_profits) AS total_profits
+       FROM sales s
+       JOIN branch b ON s.`branch-id` = b.id
+       GROUP BY b.id, b.name
+");
+$branchLabels = [];
+$sales = [];
+$profits = [];
+while ($row = $branchDataQuery->fetch_assoc()) {
+    $branchLabels[] = $row['branch_name'];
+    $sales[] = $row['total_sales'] ?? 0;
+    $profits[] = $row['total_profits'] ?? 0;
+}
 
 // Most selling product
 
@@ -59,22 +75,45 @@ $branchSales = $conn->query("
 $topBranch = $branchSales->fetch_assoc();
 
 // Branch sales & profits
+// Get total sales and total profits across all branches
 $query = $conn->query("
-    SELECT `branch-id`,
-           SUM(amount) AS total_sales,
-           SUM(amount - `cost-price`) AS `total-profits`
+    SELECT 
+        SUM(amount) AS total_sales,
+        SUM(total_profits) AS total_profits
     FROM sales
-    GROUP BY `branch-id`
+");
+$monthlySalesQuery = $conn->query("
+  SELECT DATE_FORMAT(date, '%b %Y') as month_label, SUM(amount) AS total
+  FROM sales
+  WHERE date >= DATE_SUB(CURDATE(), INTERVAL 12 MONTH)
+  GROUP BY YEAR(date), MONTH(date)
+  ORDER BY YEAR(date), MONTH(date)
 ");
 
-$branchLabels = [];
-$sales = [];
-$profits = [];
+$months = [];
+$monthlyTotals = [];
+while ($row = $monthlySalesQuery->fetch_assoc()) {
+    $months[] = $row['month_label'];  
+    $monthlyTotals[] = $row['total'];
+}
 
-while ($row = $query->fetch_assoc()) {
-    $branchLabels[] = $row["branch-id"];
-    $sales[] = $row["total_sales"];
-    $profits[] = $row["total-profits"];
+$result = $query->fetch_assoc();
+$totalSales   = $result['total_sales'];
+$totalProfits = $result['total_profits'];
+// if no sales in the month
+$months = [];
+$monthlyTotals = array_fill(0, 12, 0); // Initialize with zeros for 12 months
+$currentDate = new DateTime();
+for ($i = 11; $i >= 0; $i--) {
+    $date = (clone $currentDate)->modify("-$i months");
+    $months[] = $date->format('M Y'); 
+}
+
+while ($row = $monthlySalesQuery->fetch_assoc()) {
+    $monthIndex = array_search($row['month_label'], $months);
+    if ($monthIndex !== false) {
+        $monthlyTotals[$monthIndex] = $row['total'];
+    }
 }
 
 $user_id = $_SESSION['user_id'];
@@ -171,7 +210,7 @@ $username = $_SESSION['username'];
         <div class="card-body d-flex justify-content-between align-items-center">
           <div>
             <h6>Total Profit</h6>
-            <h3>$<?= number_format($totalProfit, 2) ?></h3>
+            <h3>$<?= number_format($totalProfits, 2) ?></h3>
           </div>
           <i class="fa-solid fa-sack-dollar stat-icon"></i>
         </div>
@@ -267,25 +306,10 @@ $username = $_SESSION['username'];
   </div>
 </div>
 
-<?php
-// Monthly sales for line chart
-$monthlySalesQuery = $conn->query("
-  SELECT DATE_FORMAT(date, '%b') as month, SUM(amount) as total
-  FROM sales
-  WHERE date >= DATE_SUB(CURDATE(), INTERVAL 12 MONTH)
-  GROUP BY MONTH(date)
-  ORDER BY MONTH(date)
-");
 
-$months = [];
-$monthlyTotals = [];
-while ($row = $monthlySalesQuery->fetch_assoc()) {
-    $months[] = $row['month'];
-    $monthlyTotals[] = $row['total'];
-}
-?>
 
 <script>
+   src="https://cdn.jsdelivr.net/npm/chart.js">
   const branchLabels = <?= json_encode($branchLabels) ?>;
   const salesData = <?= json_encode($sales) ?>;
   const profitData = <?= json_encode($profits) ?>;
@@ -293,16 +317,16 @@ while ($row = $monthlySalesQuery->fetch_assoc()) {
   const barChart = new Chart(document.getElementById('barChart'), {
     type: 'bar',
     data: {
-      labels: branchLabels,
+      labels: <?= json_encode($branchLabels) ?>,
       datasets: [
         {
           label: 'Sales',
-          data: salesData,
+          data: <?= json_encode($sales) ?>,
           backgroundColor: 'rgba(54, 162, 235, 0.7)'
         },
         {
           label: 'Profits',
-          data: profitData,
+          data: <?= json_encode($profits) ?>,
           backgroundColor: 'rgba(46, 204, 113, 0.7)'
         }
       ]

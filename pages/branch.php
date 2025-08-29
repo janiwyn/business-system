@@ -16,6 +16,8 @@ $branch_stmt = $conn->prepare("SELECT * FROM branch WHERE id = ?");
 $branch_stmt->bind_param("i", $branch_id);
 $branch_stmt->execute();
 $branch = $branch_stmt->get_result()->fetch_assoc();
+
+
 ?>
 
 <div class="container mt-5">
@@ -271,6 +273,3 @@ $branch = $branch_stmt->get_result()->fetch_assoc();
 // Footer
 include '../includes/footer.php';
 ?>
-
-<!-- Bootstrap JS -->
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>

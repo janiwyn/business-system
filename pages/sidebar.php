@@ -1,4 +1,5 @@
 <?php
+
 if (!isset($_SESSION['role'])) {
     header("Location: ../auth/login.php");
     exit();
@@ -43,7 +44,7 @@ $role = $_SESSION['role'];
             <i class="fa-solid fa-cubes me-2"></i> Products
           </a>
         </li>
-        <li class="nav-item mb-2">
+ <li class="nav-item mb-2">
           <a class="nav-link text-white d-flex align-items-center hover-effect" href="../pages/sales.php">
             <i class="fa-solid fa-cart-shopping me-2"></i> Sales
           </a>
