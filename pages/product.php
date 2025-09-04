@@ -8,8 +8,9 @@ include '../includes/auth.php';
 // Handle Add Product Form Submission
 if (isset($_POST['add_product'])) {
     $name = $_POST['name'];
-    $price = $_POST['price'];
-    $cost = $_POST['cost'];
+    $category = $_POST['category'];
+    $price = $_POST['selling-price'];
+    $cost = $_POST['buying-price'];
     $stock = $_POST['stock'];
 
     $stmt = $conn->prepare("INSERT INTO products (name, selling_price, buying_price, stock) VALUES (?, ?, ?, ?)");

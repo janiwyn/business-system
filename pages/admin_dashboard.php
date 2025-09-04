@@ -52,8 +52,8 @@ $stockRes = $conn->query('SELECT SUM(stock) AS total_stock FROM products');
 $totalStock = $stockRes->fetch_assoc()['total_stock'];
 
 // total profits
-$profitRes = $conn->query('SELECT SUM(net_profit) AS total_profits FROM profits');
-$totalProfit = $profitRes->fetch_assoc()['total_profits'];
+$profitRes = $conn->query('SELECT SUM(`total_price`-`cost-price`) AS `total-profits` FROM sales');
+$totalProfit = $profitRes->fetch_assoc()['total-profits'];
 
 // most selling product
 $productRes = $conn->query('

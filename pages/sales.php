@@ -9,12 +9,12 @@ $message = "";
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $product_id = $_POST["product_id"];
+    $branch_id = $_POST["branch_id"] ?? 1; // Default branch_id = 1
     $quantity = $_POST["quantity"];
     $sold_by = $_POST["sold_by"];
-    $branch_id = 1; 
 
     // Get current stock, selling price, buying price
-    $query = $conn->prepare("SELECT stock, selling_price, buying_price FROM products WHERE id = ?");
+    $query = $conn->prepare("SELECT stock, `selling-price`, `buying-price` FROM products WHERE id = ?");
     $query->bind_param("i", $product_id);
     $query->execute();
     $result = $query->get_result();
@@ -26,12 +26,15 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         $message = "Not enough stock available!";
     } else {
         $new_stock = $product['stock'] - $quantity;
-        $total_price = $product['selling_price'] * $quantity;
-        $cost_price = $product['buying_price'] * $quantity;
+        $total_price = $product['selling-price'] * $quantity;
+        $cost_price = $product['buying-price'] * $quantity;
+        $profit = $total_price - $cost_price;
 
-        // Insert into sales (AFTER validation!)
-        $insert = $conn->prepare("INSERT INTO sales (product_id, branch_id, quantity, total_price, sold_by, cost_price, date) VALUES (?, ?, ?, ?, ?, ?, NOW())");
-        $insert->bind_param("iiidsd", $product_id, $branch_id, $quantity, $total_price, $sold_by, $cost_price);
+        // Insert into sales
+        $insert = $conn->prepare("INSERT INTO `sales` 
+            (`product-id`, `branch-id`, `quantity`, `amount`, `cost-price`, `sold-by`, date, `total-profit`) 
+            VALUES (?, ?, ?, ?, ?, ?, NOW(), ?)");
+        $insert->bind_param("iiidisi", $product_id, $branch_id, $quantity, $total_price, $cost_price, $sold_by, $profit);
         $insert->execute();
 
         // Update product stock
@@ -43,14 +46,12 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     }
 }
 
-
 // Get product list
 $products = $conn->query("SELECT id, name FROM products");
 ?>
 
 <body class="bg-light">
     <div class="container mt-5">
-
 
     <h2 class="mb-4">Record a Sale</h2>
 
@@ -73,11 +74,11 @@ $products = $conn->query("SELECT id, name FROM products");
             <label class="form-label">Quantity</label>
             <input type="number" name="quantity" class="form-control" required min="1">
         </div>
-        <div class="mb-3">
-    <label class="form-label">Sold By</label>
-    <input type="text" name="sold_by" class="form-control" required>
-</div>
 
+        <div class="mb-3">
+            <label class="form-label">Sold By</label>
+            <input type="text" name="sold_by" class="form-control" required>
+        </div>
 
         <button type="submit" class="btn btn-success">Submit Sale</button>
     </form>
@@ -90,18 +91,20 @@ $products = $conn->query("SELECT id, name FROM products");
                 <th>Product</th>
                 <th>Quantity</th>
                 <th>Total Price</th>
+                <th>Cost Price</th>
+                <th>Profit</th>
                 <th>Sold At</th>
-                <th>sold_by</th>
-                
+                <th>Sold By</th>
             </tr>
         </thead>
         <tbody>
             <?php
             $sales = $conn->query("
-                SELECT sales.id, products.name AS product_name, sales.quantity, sales.total_price,  sales.sold_by, sales.date
-                FROM sales
-                JOIN products ON sales.product_id = products.id
-                ORDER BY sales.id DESC
+                SELECT s.id, p.name AS product_name, s.`quantity`, s.`amount`, s.`cost-price`, 
+                       s.`total-profit`, s.`sold-by`, s.`date`
+                FROM `sales` s
+                JOIN products p ON s.`product-id` = p.id
+                ORDER BY s.id DESC
                 LIMIT 10
             ");
             $i = 1;
@@ -111,9 +114,11 @@ $products = $conn->query("SELECT id, name FROM products");
                     <td><?= $i++ ?></td>
                     <td><?= $row['product_name'] ?></td>
                     <td><?= $row['quantity'] ?></td>
-                    <td><?= number_format($row['total_price'], 2) ?></td>
+                    <td><?= number_format($row['amount'], 2) ?></td>
+                    <td><?= number_format($row['cost-price'], 2) ?></td>
+                    <td><?= number_format($row['total-profit'], 2) ?></td>
                     <td><?= $row['date'] ?></td>
-
+                    <td><?= $row['sold-by'] ?></td>
                 </tr>
             <?php endwhile; ?>
         </tbody>

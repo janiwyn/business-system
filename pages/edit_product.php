@@ -19,10 +19,11 @@ $product = $result->fetch_assoc();
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $name = $_POST['name'];
-    $buying_price = $_POST['buying_price'];
-    $selling_price = $_POST['selling_price'];
+    $category = $_POST['category'];
+    $price = $_POST['selling-price'];
+    $cost = $_POST['buying-price'];
     $stock = $_POST['stock'];
-
+    
     $stmt = $conn->prepare("UPDATE products SET name=?, buying_price=?, selling_price=?, stock=? WHERE id=?");
     $stmt->bind_param("sddii", $name, $buying_price, $selling_price, $stock, $id);
 

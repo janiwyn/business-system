@@ -2,13 +2,12 @@
 include '../includes/db.php';
 
 if ($_SERVER["REQUEST_METHOD"] == 'POST') {
-    $Username = $_POST['username'];
+    $Username = $_POST['name'];
     $email = $_POST['email'];
     $password = $_POST['password'];
     $comfirm_pasword = $_POST['confirm_password'];
-    $phone = $_POST['phone'];
     $role = $_POST['role'];
-
+    $phone = $_POST['phone'];
     if (!empty($Username) && !empty($email) && !empty($password) && !empty($comfirm_pasword) && !empty($phone) && !empty($role)) {
         
         if ($password !== $comfirm_pasword) {
@@ -20,7 +19,7 @@ if ($_SERVER["REQUEST_METHOD"] == 'POST') {
         //$hash = password_hash($password, PASSWORD_BCRYPT);
 
 
-        $sql = $conn->prepare("INSERT INTO users (username, email, password, phone, role)
+        $sql = $conn->prepare("INSERT INTO users (name, email, password, role, phone)
                 VALUES (?,?,?,?,?)");
         $sql->bind_param("sssss", $Username, $email, $hash, $phone, $role);
         
