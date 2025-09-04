@@ -1,9 +1,9 @@
 <?php
 include '../includes/db.php';
-include '../includes/header.php';
 include '../includes/auth.php';
-require_role("manager", "admin");
+require_role(["admin"]);
 include '../pages/sidebar.php';
+include '../includes/header.php';
 
 if (!isset($_GET['id'])) {
     echo "No product selected.";
@@ -19,12 +19,12 @@ $product = $result->fetch_assoc();
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $name = $_POST['name'];
-    $category = $_POST['category'];
+    //$category = $_POST['category'];
     $price = $_POST['selling-price'];
     $cost = $_POST['buying-price'];
     $stock = $_POST['stock'];
     
-    $stmt = $conn->prepare("UPDATE products SET name=?, buying_price=?, selling_price=?, stock=? WHERE id=?");
+    $stmt = $conn->prepare("UPDATE products SET name=?, `buying-price`=?, `selling-price`=?, stock=? WHERE id=?");
     $stmt->bind_param("sddii", $name, $buying_price, $selling_price, $stock, $id);
 
     if ($stmt->execute()) {
@@ -51,11 +51,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         </div>
         <div class="mb-3">
             <label>Buying Price:</label>
-            <input type="number" step="0.01" name="buying_price" class="form-control" value="<?= $product['buying_price'] ?>" required>
+            <input type="number" step="0.01" name="buying-price" class="form-control" value="<?= $product['buying-price'] ?>" required>
         </div>
         <div class="mb-3">
             <label>Selling Price:</label>
-            <input type="number" step="0.01" name="selling_price" class="form-control" value="<?= $product['selling_price'] ?>" required>
+            <input type="number" step="0.01" name="selling-price" class="form-control" value="<?= $product['selling-price'] ?>" required>
         </div>
         <div class="mb-3">
             <label>Stock:</label>

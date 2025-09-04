@@ -1,9 +1,10 @@
 <?php
 include '../includes/db.php';
-include '../includes/header.php';
 include '../includes/auth.php';
-require_role("manager", "admin");
+require_role(["admin"]);
 include '../pages/sidebar.php';
+
+
 
 $message = "";
 $message_class = "";
@@ -13,28 +14,47 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $name = trim($_POST["name"]);
     $location = trim($_POST["location"]);
     $contact = trim($_POST["contact"]);
+    $branchKey = trim($_POST["branch-key"]);
 
-    if (!empty($name) && !empty($location) && !empty($contact)) {
-        $stmt = $conn->prepare("INSERT INTO branches (name, location, contact) VALUES (?, ?, ?)");
-        $stmt->bind_param("sss", $name, $location, $contact);
-
-        if ($stmt->execute()) {
-            $message = "Branch created successfully!";
-            $message_class = "alert-success";
-
-            // Redirect back to branch.php with new branch ID
-            $new_branch_id = $stmt->insert_id;
-            header("Location: branch.php?id=$new_branch_id");
-            exit;
-        } else {
-            $message = "Failed to create branch. Try again.";
-            $message_class = "alert-danger";
+    if (!empty($name) && !empty($location) && !empty($contact) && !empty($branchKey)) {
+        // Prepare the SQL query with proper comparison operator and parameter placeholder
+        $sql = "SELECT name, location FROM branch WHERE name = ? AND location = ?";
+        $stmt = $conn->prepare($sql);
+        if ($stmt === false) {
+            die("Prepare failed: " . $conn->error);
         }
+        $stmt->bind_param("ss", $name, $location);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        if ($result->num_rows > 0) {
+            $message = "Branch Already Exists!!";
+            $message_class = "alert-danger";
+        }else{
+            $stmt = $conn->prepare("INSERT INTO branch (name, location, contact, `branch-key`) VALUES (?, ?, ?, ?)");
+            $stmt->bind_param("ssss", $name, $location, $contact, $branchKey);
+
+            if ($stmt->execute()) {
+                $message = "Branch created successfully!";
+                $message_class = "alert-success";
+
+                // Redirect back to branch.php with new branch ID
+                $new_branch_id = $stmt->insert_id;
+                header("Location: list_branches.php");
+                exit;
+            } else {
+                $message = "Failed to create branch. Try again.";
+                $message_class = "alert-danger";
+            } 
+        }
+
+        
     } else {
         $message = "All fields are required.";
         $message_class = "alert-warning";
     }
 }
+
+include '../includes/header.php';
 ?>
 
 <div class="container mt-5">
@@ -59,6 +79,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 <div class="mb-3">
                     <label for="contact" class="form-label">Contact Info</label>
                     <input type="text" class="form-control" id="contact" name="contact" required placeholder="Enter phone or email">
+                </div>
+                <div class="mb-3">
+                    <label for="branch-key" class="form-label">Branch Key</label>
+                    <input type="password" class="form-control" id="branch-key" name="branch-key" required placeholder="Enter the Branch's Key">
                 </div>
                 <button type="submit" class="btn btn-primary">Create Branch</button>
                 <a href="branch.php" class="btn btn-secondary">Back to Branch Page</a>
