@@ -29,31 +29,16 @@ $lastSales = $lastResult['total'] ?? 0;
 // Growth
 $growth = $lastSales > 0 ? (($currentSales - $lastSales) / $lastSales) * 100 : 0;
 
-// Stats
-$employee = $conn->query('SELECT COUNT(*) AS total_employees FROM employees')->fetch_assoc()['total_employees'];
+// ✅ FIX: count staff directly from users table
+$employee = $conn->query("SELECT COUNT(*) AS total_employees FROM users WHERE role='staff'")
+                 ->fetch_assoc()['total_employees'];
+
 $totalbranches = $conn->query('SELECT COUNT(*) AS total_branches FROM branch')->fetch_assoc()['total_branches'];
 $totalStock = $conn->query('SELECT SUM(stock) AS total_stock FROM products')->fetch_assoc()['total_stock'];
 $totalProfit = $conn->query('SELECT SUM(`net-profits`) AS total_profits FROM profits')->fetch_assoc()['total_profits'];
-// branch sales & profits
-$branchDataQuery = $conn->query("
-SELECT b.name AS branch_name, 
-       SUM(s.amount) AS total_sales, 
-       SUM(s.total_profits) AS total_profits
-       FROM sales s
-       JOIN branch b ON s.`branch-id` = b.id
-       GROUP BY b.id, b.name
-");
-$branchLabels = [];
-$sales = [];
-$profits = [];
-while ($row = $branchDataQuery->fetch_assoc()) {
-    $branchLabels[] = $row['branch_name'];
-    $sales[] = $row['total_sales'] ?? 0;
-    $profits[] = $row['total_profits'] ?? 0;
-}
+
 
 // Most selling product
-
 $productRes = $conn->query('
    SELECT p.name, SUM(s.quantity) AS total_sold FROM sales s
    JOIN products p ON s.`product-id` = p.id
