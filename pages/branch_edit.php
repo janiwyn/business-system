@@ -1,5 +1,5 @@
 <?php
-include '../includes/header.php';
+ob_start();
 include '../includes/auth.php';
 require_role(['admin', 'manager']);
 include '../includes/db.php';
@@ -27,10 +27,11 @@ if (isset($_POST['update_branch'])) {
     $stmt = $conn->prepare($update_sql);
     $stmt->bind_param("sssi", $name, $location, $contact, $branch_id);
     $stmt->execute();
-
     header("Location: branch_view.php?id=$branch_id");
     exit;
 }
+  include '../includes/header.php';
+    include '../pages/sidebar.php';
 ?>
 
 <div class="container mt-5">

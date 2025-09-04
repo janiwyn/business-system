@@ -38,6 +38,8 @@ $stmt->bind_result($total_products);
 $stmt->fetch();
 $stmt->close();
 
+
+
 // Total Staff
 $total_staff = 0;
 $stmt = $conn->prepare("SELECT COUNT(*) FROM users WHERE `branch-id` = ? AND role = 'staff'");

@@ -69,7 +69,16 @@ $branch = $branch_stmt->get_result()->fetch_assoc();
 <?php else:
 
     // Continue loading the dashboard only if branch exists
-    $staff_result = $conn->query("SELECT * FROM users WHERE `branch-id` = $branch_id");
+   // $staff_result = $conn->query("SELECT * FROM users WHERE `branch-id` = $branch_id");
+   // display the staff name
+// Fetch staff for the current branch
+$stmt = $conn->prepare("SELECT username, role, `branch-id` FROM users WHERE `branch-id` = ? AND role = 'staff'");
+$stmt->bind_param("i", $branch_id);
+$stmt->execute();
+$staff_result = $stmt->get_result();
+
+print_r($staff_result->fetch_all(MYSQLI_ASSOC));
+echo "</pre>";
 
     $inventory_result = $conn->query("SELECT COUNT(*) AS total_products, COALESCE(SUM(stock), 0) AS stock FROM products WHERE `branch-id` = $branch_id");
     $inventory = $inventory_result->fetch_assoc();
@@ -171,18 +180,19 @@ $branch = $branch_stmt->get_result()->fetch_assoc();
     </div>
 
     <!-- Staff -->
-    <div class="card mb-4 shadow-sm rounded border-0">
-        <div class="card-header bg-gradient-info text-white fw-bold">Branch Staff</div>
-        <div class="card-body table-responsive shadow-sm rounded">
-            <table class="table table-striped table-hover rounded">
-                <thead class="table-dark rounded">
-                    <tr>
-                        <th>Name</th>
-                        <th>Username</th>
-                        <th>Role</th>
-                    </tr>
-                </thead>
-                <tbody>
+   <div class="card mb-4 shadow-sm rounded border-0">
+    <div class="card-header bg-gradient-info text-white fw-bold">Branch Staff</div>
+    <div class="card-body table-responsive shadow-sm rounded">
+        <table class="table table-striped table-hover rounded">
+            <thead class="table-dark rounded">
+                <tr>
+                    <th>Name</th>
+                    <th>Username</th>
+                    <th>Role</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php if($staff_result->num_rows > 0): ?>
                     <?php while($staff = $staff_result->fetch_assoc()): ?>
                         <tr>
                             <td><?= htmlspecialchars($staff['name'] ?? '-') ?></td>
@@ -190,10 +200,15 @@ $branch = $branch_stmt->get_result()->fetch_assoc();
                             <td><?= ucfirst($staff['role'] ?? '-') ?></td>
                         </tr>
                     <?php endwhile; ?>
-                </tbody>
-            </table>
-        </div>
+                <?php else: ?>
+                    <tr>
+                        <td colspan="3" class="text-center">No staff found for this branch.</td>
+                    </tr>
+                <?php endif; ?>
+            </tbody>
+        </table>
     </div>
+</div>
 
     <!-- Charts -->
     <div class="card mb-5 shadow-sm rounded border-0">
@@ -275,4 +290,3 @@ include '../includes/footer.php';
 ?>
 
 <!-- Bootstrap JS -->
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>

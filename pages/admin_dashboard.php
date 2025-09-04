@@ -294,7 +294,7 @@ $username = $_SESSION['username'];
 
 
 <script>
-   src="https://cdn.jsdelivr.net/npm/chart.js">
+src="https://cdn.jsdelivr.net/npm/chart.js">
   const branchLabels = <?= json_encode($branchLabels) ?>;
   const salesData = <?= json_encode($sales) ?>;
   const profitData = <?= json_encode($profits) ?>;
