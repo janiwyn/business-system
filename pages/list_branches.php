@@ -19,7 +19,7 @@ $result = mysqli_query($conn, $sql);
     <?php if (isset($_GET['deleted'])): ?>
         <div class="alert alert-success text-center">Branch deleted successfully.</div>
     <?php endif; ?>
-
+<?php echo $_SESSION['role']; ?>
     <table class="table table-striped table-hover">
         <thead class="table-dark">
             <tr>

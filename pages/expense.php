@@ -1,59 +1,58 @@
-
 <?php
 include '../includes/db.php';
 include '../includes/auth.php';
-require_role(["admin"]);
+require_role(["admin", "manager"]);
 include '../pages/sidebar.php';
 include '../includes/header.php';
+
 $message = "";
 $amount = 0;
 
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $category = $_POST['category'];
-    $branch_id = $_POST['branch_id'];
-    $amount = $_POST['amount'];
-    $description = $_POST['description'];
-    $date = $_POST['date'];
-    $spent_by = $_POST['spent_by'];
+    $category   = mysqli_real_escape_string($conn, $_POST['category']);
+    $branch_id  = mysqli_real_escape_string($conn, $_POST['branch_id']);
+    $amount     = floatval($_POST['amount']);
+    $description = mysqli_real_escape_string($conn, $_POST['description']);
+    $date       = $_POST['date'];
+    $spent_by   = mysqli_real_escape_string($conn, $_POST['spent_by']);
 
     if (!empty($category) && !empty($amount) && !empty($date)) {
-        $stmt = $conn->prepare("INSERT INTO expenses (category, `branch-id`, amount, description, date, `spent-by`) VALUES (?, ?, ?, ?, ?,?)");
-        $stmt->bind_param("sidsss", $category, $branch_id, $amount, $description, $date, $spent_by);
-        //var_dump($spent_by);
-
-        if ($stmt->execute()) {
+        $sql = "INSERT INTO expenses (category, `branch-id`, amount, description, date, `spent-by`) 
+                VALUES ('$category', '$branch_id', $amount, '$description', '$date', '$spent_by')";
+        if ($conn->query($sql)) {
             $message = "Expense added successfully.";
         } else {
-            $message = "Error: " . $stmt->error;
+            $message = "Error: " . $conn->error;
         }
-        $stmt->close();
+
+        // Update profits table
+        $currentDate = date("Y-m-d");
+        $result = $conn->query("SELECT * FROM profits WHERE date='$currentDate'");
+        $profit_result = $result->fetch_assoc();
+
+        if ($profit_result) {
+            $total_expenses = $profit_result['expenses'] + $amount;
+            $net_profit = $profit_result['total'] - $total_expenses;
+
+            $update_sql = "UPDATE profits SET expenses=$total_expenses, `net-profits`=$net_profit 
+                           WHERE date='$currentDate'";
+            $conn->query($update_sql);
+        }
     } else {
         $message = "Please fill in all required fields.";
     }
 }
-  $currentDate = date("Y-m-d");
-    $stmt = $conn->prepare("SELECT * FROM profits WHERE date = ?");
-    $stmt->bind_param("s", $currentDate);
-    $stmt->execute();
-    $result = $stmt->get_result();
-    $profit_result = $result->fetch_assoc();
-    $stmt->close();
 
-      $total_expenses = $profit_result['expenses'];
-        $total_expenses += $amount;
-        $net_profit = $profit_result["total"] - $total_expenses;
-         $stmt2 = $conn->prepare("
-            UPDATE profits SET expenses=?,`net-profits`=? WHERE date=?
-        ");
-        $stmt2->bind_param("dds", $total_expenses,$net_profit, $currentDate);
-        $stmt2->execute();
-        $stmt2->close();
+// Fetch expenses with username for spent-by
+$expenses = $conn->query("
+    SELECT e.*, u.username 
+    FROM expenses e 
+    LEFT JOIN users u ON e.`spent-by` = u.id 
+    ORDER BY e.date DESC
+");
 
-// Fetch expenses
-$expenses = $conn->query("SELECT * FROM expenses ORDER BY date DESC");
-
-// Get total
+// Get total expenses
 $total_result = $conn->query("SELECT SUM(amount) AS total_expenses FROM expenses");
 $total_data = $total_result->fetch_assoc();
 $total_expenses = $total_data['total_expenses'] ?? 0;
@@ -85,7 +84,7 @@ $total_expenses = $total_data['total_expenses'] ?? 0;
                         <input type="text" name="category" id="category" class="form-control" required>
                     </div>
                     <div class="col-md-4">
-                        <label for="branch_id" class="form-label">Branch_id *</label>
+                        <label for="branch_id" class="form-label">Branch ID *</label>
                         <input type="text" name="branch_id" id="branch_id" class="form-control" required>
                     </div>
                     <div class="col-md-4">
@@ -96,19 +95,18 @@ $total_expenses = $total_data['total_expenses'] ?? 0;
                         <label for="date" class="form-label">Date *</label>
                         <input type="date" name="date" id="date" class="form-control" required>
                     </div>
-                   <div class="col-md-6">
-    <label for="spent_by" class="form-label">Spent By *</label>
-    <select name="spent_by" id="spent_by" class="form-control" required>
-        <option value="">-- Select User --</option>
-        <?php
-        $users = $conn->query("SELECT id, username FROM users");
-        while ($u = $users->fetch_assoc()) {
-            echo "<option value='{$u['id']}'>{$u['username']}</option>";
-        }
-        ?>
-    </select>
-</div>
-
+                    <div class="col-md-6">
+                        <label for="spent_by" class="form-label">Spent By *</label>
+                        <select name="spent_by" id="spent_by" class="form-control" required>
+                            <option value="">-- Select User --</option>
+                            <?php
+                            $users = $conn->query("SELECT id, username FROM users");
+                            while ($u = $users->fetch_assoc()) {
+                                echo "<option value='{$u['id']}'>{$u['username']}</option>";
+                            }
+                            ?>
+                        </select>
+                    </div>
                     <div class="col-md-6">
                         <label for="description" class="form-label">Description</label>
                         <textarea name="description" id="description" class="form-control" rows="1"></textarea>
@@ -150,7 +148,7 @@ $total_expenses = $total_data['total_expenses'] ?? 0;
                                 <td><?php echo number_format($row['amount'], 2); ?></td>
                                 <td><?php echo htmlspecialchars($row['description']); ?></td>
                                 <td><?php echo $row['date']; ?></td>
-                                <td><?php echo htmlspecialchars($row['spent-by']); ?></td>
+                                <td><?php echo htmlspecialchars($row['username']); ?></td>
                             </tr>
                         <?php endwhile; ?>
                     <?php else: ?>
@@ -161,6 +159,7 @@ $total_expenses = $total_data['total_expenses'] ?? 0;
         </div>
     </div>
 </div>
+
 <?php
-    include '../includes/footer.php';
+include '../includes/footer.php';
 ?>
