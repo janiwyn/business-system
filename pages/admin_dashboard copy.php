@@ -29,13 +29,14 @@ $lastSales = $lastResult['total'] ?? 0;
 // Growth
 $growth = $lastSales > 0 ? (($currentSales - $lastSales) / $lastSales) * 100 : 0;
 
-// Employees
+// ✅ FIX: count staff directly from users table
 $employee = $conn->query("SELECT COUNT(*) AS total_employees FROM users WHERE role='staff'")
                  ->fetch_assoc()['total_employees'];
 
 $totalbranches = $conn->query('SELECT COUNT(*) AS total_branches FROM branch')->fetch_assoc()['total_branches'];
 $totalStock = $conn->query('SELECT SUM(stock) AS total_stock FROM products')->fetch_assoc()['total_stock'];
 $totalProfit = $conn->query('SELECT SUM(`net-profits`) AS total_profits FROM profits')->fetch_assoc()['total_profits'];
+
 
 // Most selling product
 $productRes = $conn->query('
@@ -58,39 +59,14 @@ $branchSales = $conn->query("
 ");
 $topBranch = $branchSales->fetch_assoc();
 
-// Branch sales & profits per branch
-$branchData = $conn->query("
-    SELECT b.name AS branch_name,
-           SUM(s.amount) AS total_sales,
-           SUM(pr.`net-profits`) AS total_profits
-    FROM sales s
-    JOIN branch b ON s.`branch-id` = b.id
-    LEFT JOIN profits pr ON s.id = pr.`branch-id`   -- adjust if profits relate differently
-    GROUP BY b.name
-");
-
-$branchLabels = [];
-$sales = [];
-$profits = [];
-
-while ($row = $branchData->fetch_assoc()) {
-    $branchLabels[] = $row['branch_name'];
-    $sales[]        = $row['total_sales'] ?? 0;
-    $profits[]      = $row['total_profits'] ?? 0;
-}
-
-// Total sales & profits
+// Branch sales & profits
+// Get total sales and total profits across all branches
 $query = $conn->query("
     SELECT 
         SUM(amount) AS total_sales,
         SUM(total_profits) AS total_profits
     FROM sales
 ");
-$result = $query->fetch_assoc();
-$totalSales   = $result['total_sales'];
-$totalProfits = $result['total_profits'];
-
-// Monthly sales (last 12 months)
 $monthlySalesQuery = $conn->query("
   SELECT DATE_FORMAT(date, '%b %Y') as month_label, SUM(amount) AS total
   FROM sales
@@ -98,7 +74,19 @@ $monthlySalesQuery = $conn->query("
   GROUP BY YEAR(date), MONTH(date)
   ORDER BY YEAR(date), MONTH(date)
 ");
+var_dump($monthlySalesQuery);
 
+$months = [];
+$monthlyTotals = [];
+while ($row = $monthlySalesQuery->fetch_assoc()) {
+    $months[] = $row['month_label'];  
+    $monthlyTotals[] = $row['total'];
+}
+
+$result = $query->fetch_assoc();
+$totalSales   = $result['total_sales'];
+$totalProfits = $result['total_profits'];
+// if no sales in the month
 $months = [];
 $monthlyTotals = array_fill(0, 12, 0); // Initialize with zeros for 12 months
 $currentDate = new DateTime();
@@ -113,6 +101,7 @@ while ($row = $monthlySalesQuery->fetch_assoc()) {
         $monthlyTotals[$monthIndex] = $row['total'];
     }
 }
+
 
 $user_id = $_SESSION['user_id'];
 $username = $_SESSION['username'];
@@ -280,7 +269,7 @@ $username = $_SESSION['username'];
       </thead>
       <tbody>
         <?php
-        $salesData = $conn->query("
+        $sales = $conn->query("
             SELECT sales.id, products.name AS product_name, sales.quantity, sales.amount, sales.`sold-by`, sales.date
             FROM sales
             JOIN products ON sales.`product-id` = products.id
@@ -288,7 +277,7 @@ $username = $_SESSION['username'];
             LIMIT 10
         ");
         $i = 1;
-        while ($row = $salesData->fetch_assoc()):
+        while ($row = $sales->fetch_assoc()):
         ?>
           <tr>
             <td><?= $i++ ?></td>
@@ -303,29 +292,30 @@ $username = $_SESSION['username'];
     </table>
   </div>
 </div>
-
-<!-- Load Chart.js -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<?
+var_dump($profits);
+var_dump($sales);
+?>
 
 <script>
+src="https://cdn.jsdelivr.net/npm/chart.js">
   const branchLabels = <?= json_encode($branchLabels) ?>;
-  const salesData    = <?= json_encode($sales) ?>;
-  const profitData   = <?= json_encode($profits) ?>;
+  const salesData = <?= json_encode($sales) ?>;
+  const profitData = <?= json_encode($profits) ?>;
 
-  // Bar Chart
-  new Chart(document.getElementById('barChart'), {
+  const barChart = new Chart(document.getElementById('barChart'), {
     type: 'bar',
     data: {
-      labels: branchLabels,
+      labels: <?= json_encode($branchLabels) ?>,
       datasets: [
         {
           label: 'Sales',
-          data: salesData,
+          data: <?= json_encode($sales) ?>,
           backgroundColor: 'rgba(54, 162, 235, 0.7)'
         },
         {
           label: 'Profits',
-          data: profitData,
+          data: <?= json_encode($profits) ?>,
           backgroundColor: 'rgba(46, 204, 113, 0.7)'
         }
       ]
@@ -337,8 +327,7 @@ $username = $_SESSION['username'];
     }
   });
 
-  // Line Chart
-  new Chart(document.getElementById('lineChart'), {
+  const lineChart = new Chart(document.getElementById('lineChart'), {
     type: 'line',
     data: {
       labels: <?= json_encode($months) ?>,
