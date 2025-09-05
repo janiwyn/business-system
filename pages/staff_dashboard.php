@@ -97,10 +97,15 @@ if (isset($_POST['add_sale'])) {
     }
 }
 
-// Fetch products for dropdown
-$product_query = $conn->query("SELECT id, name FROM products");
+// Fetch products for dropdown, filtered by the staff's branch.
+// This will also show the current stock and only list items that are in stock.
+$staff_branch_id = $_SESSION['branch_id'] ?? 0; // Assuming branch_id is in session for staff
+$product_stmt = $conn->prepare("SELECT id, name, stock FROM products WHERE `branch-id` = ? AND stock > 0 ORDER BY name ASC");
+$product_stmt->bind_param("i", $staff_branch_id);
+$product_stmt->execute();
+$product_query = $product_stmt->get_result();
 
-// Fetch recent sales
+// Fetch recent sales for the current staff member
 $sales_query = $conn->prepare("
     SELECT s.id, p.name, s.quantity, s.amount, s.total_profits, s.date 
     FROM sales s 
@@ -151,7 +156,7 @@ table th { background: #f8f9fc; }
                     <select class="form-select" name="product_id" id="product_id" required>
                         <option value="">-- Select Product --</option>
                         <?php while ($row = $product_query->fetch_assoc()): ?>
-                            <option value="<?= $row['id']; ?>"><?= htmlspecialchars($row['name']); ?></option>
+                            <option value="<?= $row['id']; ?>"><?= htmlspecialchars($row['name']); ?> (Stock: <?= $row['stock']; ?>)</option>
                         <?php endwhile; ?>
                     </select>
                 </div>
