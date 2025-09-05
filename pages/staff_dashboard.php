@@ -27,6 +27,14 @@ if (isset($_POST['add_sale'])) {
     $product = $result->fetch_assoc();
     $stmt->close();
 
+    $currentDate = date("Y-m-d");
+    $stmt = $conn->prepare("SELECT * FROM profits WHERE date = ?");
+    $stmt->bind_param("s", $currentDate);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $profit_result = $result->fetch_assoc();
+    $stmt->close();
+
     if (!$product) {
         $message = "⚠️ Product not found.";
     } elseif ($product['stock'] < $quantity) {
@@ -58,6 +66,19 @@ if (isset($_POST['add_sale'])) {
             $message = "❌ Error recording sale.";
         }
         $stmt->close();
+
+        $total_amount = $profit_result['total'];
+        $total_amount += $total_profit;
+        $net_profit = $total_amount - $profit_result["expenses"];
+         $stmt2 = $conn->prepare("
+            UPDATE profits SET `branch-id`=?, total=?,`net-profits`=? WHERE date=?
+        ");
+        $stmt2->bind_param("idds",  $branch_id, $total_amount,$net_profit, $currentDate);
+        $stmt2->execute();
+        $stmt2->close();
+
+        
+
     }
 }
 

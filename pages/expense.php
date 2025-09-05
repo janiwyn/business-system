@@ -1,3 +1,4 @@
+
 <?php
 include '../includes/db.php';
 include '../includes/auth.php';
@@ -5,6 +6,7 @@ require_role(["admin"]);
 include '../pages/sidebar.php';
 include '../includes/header.php';
 $message = "";
+$amount = 0;
 
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -18,6 +20,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!empty($category) && !empty($amount) && !empty($date)) {
         $stmt = $conn->prepare("INSERT INTO expenses (category, `branch-id`, amount, description, date, `spent-by`) VALUES (?, ?, ?, ?, ?,?)");
         $stmt->bind_param("sidsss", $category, $branch_id, $amount, $description, $date, $spent_by);
+        //var_dump($spent_by);
+
         if ($stmt->execute()) {
             $message = "Expense added successfully.";
         } else {
@@ -28,6 +32,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $message = "Please fill in all required fields.";
     }
 }
+  $currentDate = date("Y-m-d");
+    $stmt = $conn->prepare("SELECT * FROM profits WHERE date = ?");
+    $stmt->bind_param("s", $currentDate);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $profit_result = $result->fetch_assoc();
+    $stmt->close();
+
+      $total_expenses = $profit_result['expenses'];
+        $total_expenses += $amount;
+        $net_profit = $profit_result["total"] - $total_expenses;
+         $stmt2 = $conn->prepare("
+            UPDATE profits SET expenses=?,`net-profits`=? WHERE date=?
+        ");
+        $stmt2->bind_param("dds", $total_expenses,$net_profit, $currentDate);
+        $stmt2->execute();
+        $stmt2->close();
 
 // Fetch expenses
 $expenses = $conn->query("SELECT * FROM expenses ORDER BY date DESC");
@@ -75,10 +96,19 @@ $total_expenses = $total_data['total_expenses'] ?? 0;
                         <label for="date" class="form-label">Date *</label>
                         <input type="date" name="date" id="date" class="form-control" required>
                     </div>
-                    <div class="col-md-6">
-                        <label for="spent_by" class="form-label">Spent By</label>
-                        <input type="text" name="spent_by" id="spent_by" class="form-control">
-                    </div>
+                   <div class="col-md-6">
+    <label for="spent_by" class="form-label">Spent By *</label>
+    <select name="spent_by" id="spent_by" class="form-control" required>
+        <option value="">-- Select User --</option>
+        <?php
+        $users = $conn->query("SELECT id, username FROM users");
+        while ($u = $users->fetch_assoc()) {
+            echo "<option value='{$u['id']}'>{$u['username']}</option>";
+        }
+        ?>
+    </select>
+</div>
+
                     <div class="col-md-6">
                         <label for="description" class="form-label">Description</label>
                         <textarea name="description" id="description" class="form-control" rows="1"></textarea>

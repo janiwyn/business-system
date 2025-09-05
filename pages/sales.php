@@ -39,7 +39,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         $update->bind_param("ii", $new_stock, $product_id);
         $update->execute();
 
-        $message = "✅ Sale recorded successfully!";
     }
 }
 
