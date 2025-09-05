@@ -19,7 +19,7 @@ if (isset($_POST['add_sale'])) {
     $product_id = $_POST['product_id'];
     $quantity   = $_POST['quantity'];
 
-    // Fetch product selling price and buying price
+    // Fetch product selling price, buying price, branch id, and stock
     $stmt = $conn->prepare("SELECT `selling-price`, `buying-price`, `branch-id`, stock FROM products WHERE id = ?");
     $stmt->bind_param("i", $product_id);
     $stmt->execute();
@@ -28,6 +28,8 @@ if (isset($_POST['add_sale'])) {
     $stmt->close();
 
     $currentDate = date("Y-m-d");
+
+    // Fetch today's profit record
     $stmt = $conn->prepare("SELECT * FROM profits WHERE date = ?");
     $stmt->bind_param("s", $currentDate);
     $stmt->execute();
@@ -67,18 +69,31 @@ if (isset($_POST['add_sale'])) {
         }
         $stmt->close();
 
-        $total_amount = $profit_result['total'];
-        $total_amount += $total_profit;
-        $net_profit = $total_amount - $profit_result["expenses"];
-         $stmt2 = $conn->prepare("
-            UPDATE profits SET `branch-id`=?, total=?,`net-profits`=? WHERE date=?
-        ");
-        $stmt2->bind_param("idds",  $branch_id, $total_amount,$net_profit, $currentDate);
-        $stmt2->execute();
-        $stmt2->close();
+        // Handle profits for today
+        if ($profit_result) {
+            $total_amount = $profit_result['total'] + $total_profit;
+            $expenses     = $profit_result['expenses'] ?? 0;
+            $net_profit   = $total_amount - $expenses;
 
-        
+            $stmt2 = $conn->prepare("
+                UPDATE profits SET `branch-id`=?, total=?, `net-profits`=? WHERE date=?
+            ");
+            $stmt2->bind_param("idds", $branch_id, $total_amount, $net_profit, $currentDate);
+            $stmt2->execute();
+            $stmt2->close();
+        } else {
+            // No record for today exists, create one
+            $total_amount = $total_profit;
+            $net_profit   = $total_profit;
+            $expenses     = 0;
 
+            $stmt2 = $conn->prepare("
+                INSERT INTO profits (`branch-id`, total, `net-profits`, expenses, date) VALUES (?, ?, ?, ?, ?)
+            ");
+            $stmt2->bind_param("iddis", $branch_id, $total_amount, $net_profit, $expenses, $currentDate);
+            $stmt2->execute();
+            $stmt2->close();
+        }
     }
 }
 
@@ -99,36 +114,21 @@ $sales_query->execute();
 $sales_result = $sales_query->get_result();
 ?>
 
-
 <style>
-    .dashboard-header {
-        background: linear-gradient(135deg, #4e73df, #224abe);
-        color: white;
-        padding: 20px;
-        border-radius: 12px;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-        margin-bottom: 25px;
-        animation: fadeInDown 0.8s ease-in-out;
-    }
-    .dashboard-header h3 {
-        margin: 0;
-        font-weight: 600;
-    }
-    .card {
-        border-radius: 12px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-        transition: transform 0.2s ease;
-    }
-    .card:hover {
-        transform: translateY(-3px);
-    }
-    table th {
-        background: #f8f9fc;
-    }
-    @keyframes fadeInDown {
-        from {opacity: 0; transform: translateY(-20px);}
-        to {opacity: 1; transform: translateY(0);}
-    }
+.dashboard-header {
+    background: linear-gradient(135deg, #4e73df, #224abe);
+    color: white;
+    padding: 20px;
+    border-radius: 12px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    margin-bottom: 25px;
+    animation: fadeInDown 0.8s ease-in-out;
+}
+.dashboard-header h3 { margin: 0; font-weight: 600; }
+.card { border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); transition: transform 0.2s ease; }
+.card:hover { transform: translateY(-3px); }
+table th { background: #f8f9fc; }
+@keyframes fadeInDown { from {opacity: 0; transform: translateY(-20px);} to {opacity: 1; transform: translateY(0);} }
 </style>
 
 <div class="container mt-4">

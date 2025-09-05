@@ -8,10 +8,10 @@ include '../includes/header.php';
 // Handle Add Product Form Submission
 if (isset($_POST['add_product'])) {
     $name = $_POST['name'];
-    $category = $_POST['category'];
-    $price = $_POST['selling-price'];
-    $cost = $_POST['buying-price'];
-    $stock = $_POST['stock'];
+    $category = trim($_POST['category'] ?? "");
+    $price = trim($_POST['price'] ?? "");
+    $cost = trim($_POST['cost'] ?? "");
+    $stock = trim($_POST['stock'] ?? "");
     $branch_id = $_POST['branch_id'];
 
     $stmt = $conn->prepare("INSERT INTO products (name, `selling-price`, `buying-price`, `stock`,`branch-id`) VALUES (?, ?, ?,?, ?)");
