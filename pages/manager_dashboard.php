@@ -5,50 +5,26 @@ include '../pages/sidebar_manager.php';
 include '../includes/header.php';
 
 require_role(['manager']);
-// $branch_id = $_SESSION['branch-id'] ?? 0;
-// if($branch_id == 0){
-//     die('No branch assigned to this manager');
-// }
 
-// Fetch data
 // Total Sales Today
-$sales_today = 0;
-$stmt = $conn->prepare("SELECT SUM(amount)   FROM sales WHERE `branch-id` = ? AND DATE(`date`) = CURDATE()");
-$stmt->bind_param("i", $branch_id);
-$stmt->execute();
-$stmt->bind_result($sales_today);
-$stmt->fetch();
-$stmt->close();
+$sql = "SELECT SUM(amount) AS total FROM sales WHERE DATE(`date`) = CURDATE()";
+$result = mysqli_query($conn, $sql);
+$sales_today = ($row = mysqli_fetch_assoc($result)) ? $row['total'] ?? 0 : 0;
 
 // Total Expenses Today
-$expenses_today = 0;
-$stmt = $conn->prepare("SELECT SUM(amount) FROM expenses WHERE `branch-id` = ? AND DATE(`date`) = CURDATE()");
-$stmt->bind_param("i", $branch_id);
-$stmt->execute();
-$stmt->bind_result($expenses_today);
-$stmt->fetch();
-$stmt->close();
+$sql = "SELECT SUM(amount) AS total FROM expenses WHERE DATE(`date`) = CURDATE()";
+$result = mysqli_query($conn, $sql);
+$expenses_today = ($row = mysqli_fetch_assoc($result)) ? $row['total'] ?? 0 : 0;
 
 // Total Products
-$total_products = 0;
-$stmt = $conn->prepare("SELECT COUNT(*) FROM products WHERE `branch-id` = ?");
-$stmt->bind_param("i", $branch_id);
-$stmt->execute();
-$stmt->bind_result($total_products);
-$stmt->fetch();
-$stmt->close();
-
-
+$sql = "SELECT COUNT(*) AS total FROM products";
+$result = mysqli_query($conn, $sql);
+$total_products = ($row = mysqli_fetch_assoc($result)) ? $row['total'] : 0;
 
 // Total Staff
-$total_staff = 0;
-$stmt = $conn->prepare("SELECT COUNT(*) FROM users WHERE `branch-id` = ? AND role = 'staff'");
-$stmt->bind_param("i", $branch_id);
-$stmt->execute();
-$stmt->bind_result($total_staff);
-$stmt->fetch();
-$stmt->close();
-
+$sql = "SELECT COUNT(*) AS total FROM users WHERE role = 'staff'";
+$result = mysqli_query($conn, $sql);
+$total_staff = ($row = mysqli_fetch_assoc($result)) ? $row['total'] : 0;
 $user_id = $_SESSION['user_id'];
 $username = $_SESSION['username'];
 ?>
@@ -62,7 +38,7 @@ $username = $_SESSION['username'];
             <div class="card bg-success text-white">
                 <div class="card-body">
                     <h5 class="card-title">Sales Today</h5>
-                    <p class="card-text">UGX <?php echo number_format($sales_today); ?></p>
+                    <p class="card-text">UGX <?= number_format($sales_today); ?></p>
                 </div>
             </div>
         </div>
@@ -71,7 +47,7 @@ $username = $_SESSION['username'];
             <div class="card bg-danger text-white">
                 <div class="card-body">
                     <h5 class="card-title">Expenses Today</h5>
-                    <p class="card-text">UGX <?php echo number_format($expenses_today); ?></p>
+                    <p class="card-text">UGX <?= number_format($expenses_today); ?></p>
                 </div>
             </div>
         </div>
@@ -80,7 +56,7 @@ $username = $_SESSION['username'];
             <div class="card bg-info text-white">
                 <div class="card-body">
                     <h5 class="card-title">Products in Stock</h5>
-                    <p class="card-text"><?php echo $total_products; ?> items</p>
+                    <p class="card-text"><?= $total_products; ?> items</p>
                 </div>
             </div>
         </div>
@@ -89,7 +65,7 @@ $username = $_SESSION['username'];
             <div class="card bg-primary text-white">
                 <div class="card-body">
                     <h5 class="card-title">Branch Staff</h5>
-                    <p class="card-text"><?php echo $total_staff; ?> staff</p>
+                    <p class="card-text"><?= $total_staff; ?> staff</p>
                 </div>
             </div>
         </div>
@@ -111,19 +87,17 @@ $username = $_SESSION['username'];
                 </thead>
                 <tbody>
                 <?php
-                $stmt = $conn->prepare("
-                    SELECT s.date, p.name, s.quantity, s.amount, u.username 
-                    FROM sales s 
-                    JOIN products p ON s.`product-id` = p.id 
-                    JOIN users u ON s.`sold-by` = u.id 
-                    WHERE s.`branch-id` = ? 
-                    ORDER BY s.date DESC 
-                    LIMIT 5
-                ");
-                $stmt->bind_param("i", $branch_id);
-                $stmt->execute();
-                $result = $stmt->get_result();
-                while($row = $result->fetch_assoc()) {
+               $sql = "
+    SELECT s.date, p.name, s.quantity, s.amount, u.username 
+    FROM sales s 
+    JOIN products p ON s.`product-id` = p.id 
+    JOIN users u ON s.`sold-by` = u.id 
+    ORDER BY s.date DESC 
+    LIMIT 5
+";
+
+                $result = mysqli_query($conn, $sql);
+                while($row = mysqli_fetch_assoc($result)) {
                     echo "<tr>
                         <td>{$row['date']}</td>
                         <td>{$row['name']}</td>
@@ -132,7 +106,6 @@ $username = $_SESSION['username'];
                         <td>{$row['username']}</td>
                     </tr>";
                 }
-                $stmt->close();
                 ?>
                 </tbody>
             </table>
@@ -154,18 +127,16 @@ $username = $_SESSION['username'];
                 </thead>
                 <tbody>
                 <?php
-                $stmt = $conn->prepare("
-                    SELECT e.date, e.category, e.amount, u.username 
-                    FROM expenses e 
-                    JOIN users u ON e.`spent-by` = u.id 
-                    WHERE e.`branch-id` = ? 
-                    ORDER BY e.date DESC 
-                    LIMIT 5
-                ");
-                $stmt->bind_param("i", $branch_id);
-                $stmt->execute();
-                $result = $stmt->get_result();
-                while($row = $result->fetch_assoc()) {
+$sql = "
+    SELECT e.date, e.category, e.amount, u.username 
+    FROM expenses e 
+    JOIN users u ON e.`spent-by` = u.id 
+    ORDER BY e.date DESC 
+    LIMIT 5
+";
+
+                $result = mysqli_query($conn, $sql);
+                while($row = mysqli_fetch_assoc($result)) {
                     echo "<tr>
                         <td>{$row['date']}</td>
                         <td>{$row['category']}</td>
@@ -173,7 +144,6 @@ $username = $_SESSION['username'];
                         <td>{$row['username']}</td>
                     </tr>";
                 }
-                $stmt->close();
                 ?>
                 </tbody>
             </table>
@@ -184,12 +154,12 @@ $username = $_SESSION['username'];
     <div class="d-flex gap-3">
         <a href="sales.php" class="btn btn-success">Add New Sale</a>
         <a href="expense.php" class="btn btn-danger">Add New Expense</a>
-        <a href="edit_product.php" class="btn btn-info">Manage Products</a>
-     <a href="report.php" class="btn btn-secondary">Generate Report</a>
+        <!-- <a href="edit_product.php" class="btn btn-info">Manage Products</a> -->
+        <a href="report.php" class="btn btn-secondary">Generate Report</a>
     </div>
 
 </div>
 
 <?php
-    include '../includes/footer.php';
+include '../includes/footer.php';
 ?>

@@ -60,14 +60,16 @@ $topBranch = $branchSales->fetch_assoc();
 
 // Branch sales & profits per branch
 $branchData = $conn->query("
-    SELECT b.name AS branch_name,
-           SUM(s.amount) AS total_sales,
-           SUM(pr.`net-profits`) AS total_profits
-    FROM sales s
-    JOIN branch b ON s.`branch-id` = b.id
-    LEFT JOIN profits pr ON s.id = pr.`branch-id`   -- adjust if profits relate differently
+    SELECT 
+        b.name AS branch_name,
+        SUM(s.amount) AS total_sales,
+        SUM(pr.`net-profits`) AS total_profits
+    FROM branch b
+    LEFT JOIN sales s ON s.`branch-id` = b.id
+    LEFT JOIN profits pr ON pr.`branch-id` = b.id
     GROUP BY b.name
 ");
+
 
 $branchLabels = [];
 $sales = [];
@@ -167,7 +169,8 @@ $username = $_SESSION['username'];
 
 <div class="container-fluid mt-4">
   <h3 class="mb-4">Welcome, <?= htmlspecialchars($username); ?> 👋</h3>
-
+<?php
+?>
   <!-- Summary Cards -->
   <div class="row text-white mb-4">
     <div class="col-md-3 mb-3">

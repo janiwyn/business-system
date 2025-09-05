@@ -29,7 +29,6 @@ $lastSales = $lastResult['total'] ?? 0;
 // Growth
 $growth = $lastSales > 0 ? (($currentSales - $lastSales) / $lastSales) * 100 : 0;
 
-// ✅ FIX: count staff directly from users table
 $employee = $conn->query("SELECT COUNT(*) AS total_employees FROM users WHERE role='staff'")
                  ->fetch_assoc()['total_employees'];
 
@@ -61,12 +60,28 @@ $topBranch = $branchSales->fetch_assoc();
 
 // Branch sales & profits
 // Get total sales and total profits across all branches
-$query = $conn->query("
+$branchData = $conn->query("
     SELECT 
-        SUM(amount) AS total_sales,
-        SUM(total_profits) AS total_profits
-    FROM sales
+        b.name AS branch_name,
+        IFNULL(SUM(s.amount), 0) AS sales,
+        IFNULL(SUM(p.`net-profits`), 0) AS profits
+    FROM branch b
+    LEFT JOIN sales s ON s.`branch-id` = b.id
+    LEFT JOIN profits p ON p.`branch-id` = b.id
+    GROUP BY b.id
 ");
+
+$branchLabels = [];
+$sales = [];
+$profits = [];
+
+while ($row = $branchData->fetch_assoc()) {
+    $branchLabels[] = $row['branch_name'];
+    $sales[] = (float)$row['sales'];
+    $profits[] = (float)$row['profits'];
+}
+
+
 $monthlySalesQuery = $conn->query("
   SELECT DATE_FORMAT(date, '%b %Y') as month_label, SUM(amount) AS total
   FROM sales
@@ -74,7 +89,7 @@ $monthlySalesQuery = $conn->query("
   GROUP BY YEAR(date), MONTH(date)
   ORDER BY YEAR(date), MONTH(date)
 ");
-var_dump($monthlySalesQuery);
+//var_dump($monthlySalesQuery);
 
 $months = [];
 $monthlyTotals = [];
@@ -153,6 +168,10 @@ $username = $_SESSION['username'];
     cursor: pointer;
   }
 </style>
+<?php
+var_dump($sales);
+var_dump($profits);
+?>
 
 <div class="container-fluid mt-4">
   <h3 class="mb-4">Welcome, <?= htmlspecialchars($username); ?> 👋</h3>
@@ -292,10 +311,7 @@ $username = $_SESSION['username'];
     </table>
   </div>
 </div>
-<?
-var_dump($profits);
-var_dump($sales);
-?>
+
 
 <script>
 src="https://cdn.jsdelivr.net/npm/chart.js">
