@@ -5,32 +5,34 @@ require_role(["admin", "manager", "staff"]);
 include '../pages/sidebar.php';
 include '../includes/header.php';
 
-// Handle Add Product Form Submission
+$message = "";
+
+// Add product form
 if (isset($_POST['add_product'])) {
     $name = $_POST['name'];
-    $category = trim($_POST['category'] ?? "");
-    $price = trim($_POST['price'] ?? "");
-    $cost = trim($_POST['cost'] ?? "");
-    $stock = trim($_POST['stock'] ?? "");
+    $price = $_POST['price'];
+    $cost = $_POST['cost'];
+    $stock = $_POST['stock'];
     $branch_id = $_POST['branch_id'];
 
-    $stmt = $conn->prepare("INSERT INTO products (name, `selling-price`, `buying-price`, `stock`,`branch-id`) VALUES (?, ?, ?, ?, ?)");
+    $stmt = $conn->prepare("INSERT INTO products (name, `selling-price`, `buying-price`, stock, `branch-id`) VALUES (?, ?, ?, ?, ?)");
     $stmt->bind_param("sddii", $name, $price, $cost, $stock, $branch_id);
-
-    if ($stmt->execute()) {
-        $message = "<div class='alert alert-success shadow-sm'> Product added successfully!</div>";
-    } else {
-        $message = "<div class='alert alert-danger shadow-sm'> Error adding product: " . $stmt->error . "</div>";
-    }
+    $stmt->execute();
+    $message = $stmt->affected_rows > 0 ? "<div class='alert alert-success'>Product added successfully!</div>" : "<div class='alert alert-danger'>Error: ".$stmt->error."</div>";
+    $stmt->close();
 }
 
-// ✅ Branch filter handling
+// Branch filter
 $selected_branch = $_GET['branch'] ?? '';
-$whereClause = "";
-if (!empty($selected_branch)) {
-    $whereClause = "WHERE p.`branch-id` = " . intval($selected_branch);
-}
+$whereClause = $selected_branch ? "WHERE p.`branch-id` = ".intval($selected_branch) : "";
+$query = "SELECT p.*, b.name AS branch_name FROM products p LEFT JOIN branch b ON p.`branch-id` = b.id $whereClause ORDER BY p.id DESC";
+$result = $conn->query($query);
+
 ?>
+
+<!-- HTML omitted for brevity; just loop $result for product table -->
+
+
 
 <!-- Custom Styling -->
 <style>

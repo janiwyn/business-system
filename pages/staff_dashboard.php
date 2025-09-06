@@ -4,97 +4,79 @@ include '../includes/db.php';
 include '../includes/header.php';
 include '../pages/sidebar.php';
 
-// Redirect if not staff
 if ($_SESSION['role'] !== 'staff') {
     header("Location: ../auth/login.php");
     exit();
 }
 
-$user_id = $_SESSION['user_id'];
-$username = $_SESSION['username'];
-$message = "";
+$user_id   = $_SESSION['user_id'];
+$username  = $_SESSION['username'];
+$branch_id = $_SESSION['branch_id']; // ✅ fixed
+$message   = "";
 
-// Handle Sale Form Submission
+// Handle sale submission
 if (isset($_POST['add_sale'])) {
     $product_id = $_POST['product_id'];
     $quantity   = $_POST['quantity'];
 
-    // Fetch product details
-    $stmt = $conn->prepare("SELECT name, `selling-price`, `buying-price`, `branch-id`, stock FROM products WHERE id = ?");
-    $stmt->bind_param("i", $product_id);
+    $stmt = $conn->prepare("SELECT name, `selling-price`, `buying-price`, `branch-id`, stock FROM products WHERE id = ? AND `branch-id` = ?");
+    $stmt->bind_param("ii", $product_id, $branch_id);
     $stmt->execute();
-    $result = $stmt->get_result();
-    $product = $result->fetch_assoc();
+    $product = $stmt->get_result()->fetch_assoc();
     $stmt->close();
 
     $currentDate = date("Y-m-d");
 
-    // Fetch today's profit record
-    $stmt = $conn->prepare("SELECT * FROM profits WHERE date = ?");
-    $stmt->bind_param("s", $currentDate);
+    $stmt = $conn->prepare("SELECT * FROM profits WHERE date = ? AND `branch-id` = ?");
+    $stmt->bind_param("si", $currentDate, $branch_id);
     $stmt->execute();
-    $result = $stmt->get_result();
-    $profit_result = $result->fetch_assoc();
+    $profit_result = $stmt->get_result()->fetch_assoc();
     $stmt->close();
 
     if (!$product) {
-        $message = "⚠️ Product not found.";
+        $message = "⚠️ Product not found or not in your branch.";
     } elseif ($product['stock'] < $quantity) {
         $message = "⚠️ Not enough stock available!";
     } else {
-        // Calculate amount, cost, profit
         $total_price  = $product['selling-price'] * $quantity;
         $cost_price   = $product['buying-price'] * $quantity;
         $total_profit = $total_price - $cost_price;
-        $branch_id    = $product['branch-id'];
 
-        // Insert into sales table
         $stmt = $conn->prepare("
             INSERT INTO sales (`product-id`, `branch-id`, quantity, amount, `sold-by`, `cost-price`, total_profits, date)
             VALUES (?, ?, ?, ?, ?, ?, ?, NOW())
         ");
         $stmt->bind_param("iiididd", $product_id, $branch_id, $quantity, $total_price, $user_id, $cost_price, $total_profit);
-
-        if ($stmt->execute()) {
-            // Update product stock
-            $new_stock = $product['stock'] - $quantity;
-            $update = $conn->prepare("UPDATE products SET stock = ? WHERE id = ?");
-            $update->bind_param("ii", $new_stock, $product_id);
-            $update->execute();
-            $update->close();
-
-            $message = "✅ Sale recorded successfully!";
-
-            // Stock threshold warning
-            if ($new_stock < 10) {
-                $message .= "<br>⚠️ Stock for <strong>" . htmlspecialchars($product['name']) . "</strong> is below the threshold ({$new_stock} left). Please restock!";
-            }
-        } else {
-            $message = "❌ Error recording sale.";
-        }
+        $stmt->execute();
         $stmt->close();
 
-        // Handle profits for today
+        $new_stock = $product['stock'] - $quantity;
+        $update = $conn->prepare("UPDATE products SET stock = ? WHERE id = ?");
+        $update->bind_param("ii", $new_stock, $product_id);
+        $update->execute();
+        $update->close();
+
+        $message = "✅ Sale recorded successfully!";
+        if ($new_stock < 10) {
+            $message .= "<br>⚠️ Stock for <strong>" . htmlspecialchars($product['name']) . "</strong> is below threshold ({$new_stock} left).";
+        }
+
+        // Update profits
         if ($profit_result) {
             $total_amount = $profit_result['total'] + $total_profit;
             $expenses     = $profit_result['expenses'] ?? 0;
             $net_profit   = $total_amount - $expenses;
 
-            $stmt2 = $conn->prepare("
-                UPDATE profits SET `branch-id`=?, total=?, `net-profits`=? WHERE date=?
-            ");
-            $stmt2->bind_param("idds", $branch_id, $total_amount, $net_profit, $currentDate);
+            $stmt2 = $conn->prepare("UPDATE profits SET total=?, `net-profits`=? WHERE date=? AND `branch-id`=?");
+            $stmt2->bind_param("ddsi", $total_amount, $net_profit, $currentDate, $branch_id);
             $stmt2->execute();
             $stmt2->close();
         } else {
-            // No record for today exists, create one
             $total_amount = $total_profit;
             $net_profit   = $total_profit;
             $expenses     = 0;
 
-            $stmt2 = $conn->prepare("
-                INSERT INTO profits (`branch-id`, total, `net-profits`, expenses, date) VALUES (?, ?, ?, ?, ?)
-            ");
+            $stmt2 = $conn->prepare("INSERT INTO profits (`branch-id`, total, `net-profits`, expenses, date) VALUES (?, ?, ?, ?, ?)");
             $stmt2->bind_param("iddis", $branch_id, $total_amount, $net_profit, $expenses, $currentDate);
             $stmt2->execute();
             $stmt2->close();
@@ -102,25 +84,39 @@ if (isset($_POST['add_sale'])) {
     }
 }
 
-// Fetch products for dropdown (include stock now)
-$product_query = $conn->query("SELECT id, name, stock FROM products");
+// Fetch products for dropdown
+$stmt = $conn->prepare("SELECT id, name, stock FROM products WHERE `branch-id` = ?");
+$stmt->bind_param("i", $branch_id);
+$stmt->execute();
+$product_query = $stmt->get_result();
+$stmt->close();
+
+// Fetch low stock
+$stmt = $conn->prepare("SELECT name, stock FROM products WHERE `branch-id` = ? AND stock < 10 ORDER BY stock ASC");
+$stmt->bind_param("i", $branch_id);
+$stmt->execute();
+$low_stock_query = $stmt->get_result();
+$stmt->close();
 
 // Fetch recent sales
-$sales_query = $conn->prepare("
+$sales_stmt = $conn->prepare("
     SELECT s.id, p.name, s.quantity, s.amount, s.total_profits, s.date 
     FROM sales s 
     JOIN products p ON s.`product-id` = p.id 
-    WHERE s.`sold-by` = ? 
+    WHERE s.`branch-id` = ? 
     ORDER BY s.date DESC 
     LIMIT 10
 ");
-$sales_query->bind_param("i", $user_id);
-$sales_query->execute();
-$sales_result = $sales_query->get_result();
-
-// Fetch low stock products for panel
-$low_stock_query = $conn->query("SELECT name, stock FROM products WHERE stock < 10 ORDER BY stock ASC");
+$sales_stmt->bind_param("i", $branch_id);
+$sales_stmt->execute();
+$sales_result = $sales_stmt->get_result();
+$sales_stmt->close();
 ?>
+
+<!-- HTML omitted for brevity; same as your previous staff_dashboard.php -->
+<!-- Just ensure dropdown loops over $product_query for staff branch only -->
+
+
 
 <style>
 .dashboard-header {
@@ -187,7 +183,7 @@ table th { background: #f8f9fc; }
 
     <!-- Low Stock Products Panel -->
     <div class="card mb-4">
-        <div class="card-header bg-warning text-dark">⚠️ Low Stock Products (Below 10)</div>
+        <div class="card-header bg-warning text-dark">⚠️ Low Stock Products (Branch <?= $branch_id; ?>)</div>
         <div class="card-body">
             <?php if ($low_stock_query->num_rows > 0): ?>
                 <ul class="list-group">
@@ -199,14 +195,14 @@ table th { background: #f8f9fc; }
                     <?php endwhile; ?>
                 </ul>
             <?php else: ?>
-                <p class="text-muted fst-italic">All products have sufficient stock.</p>
+                <p class="text-muted fst-italic">All products have sufficient stock in your branch.</p>
             <?php endif; ?>
         </div>
     </div>
 
     <!-- Recent Sales Table -->
     <div class="card">
-        <div class="card-header bg-secondary text-white">📊 Recent Sales</div>
+        <div class="card-header bg-secondary text-white">📊 Recent Sales (Branch <?= $branch_id; ?>)</div>
         <div class="card-body">
             <?php if ($sales_result->num_rows > 0): ?>
                 <div class="table-responsive">
@@ -234,7 +230,7 @@ table th { background: #f8f9fc; }
                     </table>
                 </div>
             <?php else: ?>
-                <p class="text-muted fst-italic">No sales recorded yet.</p>
+                <p class="text-muted fst-italic">No sales recorded yet in this branch.</p>
             <?php endif; ?>
         </div>
     </div>
