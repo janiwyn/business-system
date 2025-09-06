@@ -19,8 +19,8 @@ if (isset($_POST['add_sale'])) {
     $product_id = $_POST['product_id'];
     $quantity   = $_POST['quantity'];
 
-    // Fetch product selling price, buying price, branch id, and stock
-    $stmt = $conn->prepare("SELECT `selling-price`, `buying-price`, `branch-id`, stock FROM products WHERE id = ?");
+    // Fetch product details
+    $stmt = $conn->prepare("SELECT name, `selling-price`, `buying-price`, `branch-id`, stock FROM products WHERE id = ?");
     $stmt->bind_param("i", $product_id);
     $stmt->execute();
     $result = $stmt->get_result();
@@ -64,6 +64,11 @@ if (isset($_POST['add_sale'])) {
             $update->close();
 
             $message = "✅ Sale recorded successfully!";
+
+            // Stock threshold warning
+            if ($new_stock < 10) {
+                $message .= "<br>⚠️ Stock for <strong>" . htmlspecialchars($product['name']) . "</strong> is below the threshold ({$new_stock} left). Please restock!";
+            }
         } else {
             $message = "❌ Error recording sale.";
         }
@@ -97,8 +102,8 @@ if (isset($_POST['add_sale'])) {
     }
 }
 
-// Fetch products for dropdown
-$product_query = $conn->query("SELECT id, name FROM products");
+// Fetch products for dropdown (include stock now)
+$product_query = $conn->query("SELECT id, name, stock FROM products");
 
 // Fetch recent sales
 $sales_query = $conn->prepare("
@@ -112,6 +117,9 @@ $sales_query = $conn->prepare("
 $sales_query->bind_param("i", $user_id);
 $sales_query->execute();
 $sales_result = $sales_query->get_result();
+
+// Fetch low stock products for panel
+$low_stock_query = $conn->query("SELECT name, stock FROM products WHERE stock < 10 ORDER BY stock ASC");
 ?>
 
 <style>
@@ -128,6 +136,7 @@ $sales_result = $sales_query->get_result();
 .card { border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); transition: transform 0.2s ease; }
 .card:hover { transform: translateY(-3px); }
 table th { background: #f8f9fc; }
+.low-stock { color: red; font-weight: bold; }
 @keyframes fadeInDown { from {opacity: 0; transform: translateY(-20px);} to {opacity: 1; transform: translateY(0);} }
 </style>
 
@@ -151,7 +160,15 @@ table th { background: #f8f9fc; }
                     <select class="form-select" name="product_id" id="product_id" required>
                         <option value="">-- Select Product --</option>
                         <?php while ($row = $product_query->fetch_assoc()): ?>
-                            <option value="<?= $row['id']; ?>"><?= htmlspecialchars($row['name']); ?></option>
+                            <?php if ($row['stock'] < 10): ?>
+                                <option value="<?= $row['id']; ?>" class="low-stock">
+                                    <?= htmlspecialchars($row['name']); ?> (Stock: <?= $row['stock']; ?> 🔴 Low)
+                                </option>
+                            <?php else: ?>
+                                <option value="<?= $row['id']; ?>">
+                                    <?= htmlspecialchars($row['name']); ?> (Stock: <?= $row['stock']; ?>)
+                                </option>
+                            <?php endif; ?>
                         <?php endwhile; ?>
                     </select>
                 </div>
@@ -165,6 +182,25 @@ table th { background: #f8f9fc; }
                     </button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- Low Stock Products Panel -->
+    <div class="card mb-4">
+        <div class="card-header bg-warning text-dark">⚠️ Low Stock Products (Below 10)</div>
+        <div class="card-body">
+            <?php if ($low_stock_query->num_rows > 0): ?>
+                <ul class="list-group">
+                    <?php while ($low = $low_stock_query->fetch_assoc()): ?>
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            <?= htmlspecialchars($low['name']); ?>
+                            <span class="badge bg-danger rounded-pill"><?= $low['stock']; ?></span>
+                        </li>
+                    <?php endwhile; ?>
+                </ul>
+            <?php else: ?>
+                <p class="text-muted fst-italic">All products have sufficient stock.</p>
+            <?php endif; ?>
         </div>
     </div>
 
