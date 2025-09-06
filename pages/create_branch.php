@@ -14,7 +14,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $name = trim($_POST["name"]);
     $location = trim($_POST["location"]);
     $contact = trim($_POST["contact"]);
-    $branchKey = trim($_POST["branch-key"]);
+    $branchKey = trim($_POST["branch-key"] ?? "");
 
     if (!empty($name) && !empty($location) && !empty($contact) && !empty($branchKey)) {
         // Prepare the SQL query with proper comparison operator and parameter placeholder

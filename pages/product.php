@@ -7,26 +7,18 @@ include '../includes/header.php';
 
 // Handle Add Product Form Submission
 if (isset($_POST['add_product'])) {
-    $name       = $conn->real_escape_string($_POST['name']);
-    $price      = (float) $_POST['price'];
-    $cost       = (float) $_POST['cost'];
-    $stock      = (int) $_POST['stock'];
-    $branch_id  = (int) $_POST['branch_id'];
-    $received_by = $_SESSION['username'] ?? 'system'; // person logged in
+    $name = $_POST['name'];
+    $category = $_POST['category'];
+    $price = $_POST['selling-price'];
+    $cost = $_POST['buying-price'];
+    $stock = $_POST['stock'];
+    $branch_id = $_POST['branch_id'];
 
-    //  Insert into products table (no stock column now)
-    $sql = "INSERT INTO products (name, `selling-price`, `buying-price`, `branch-id`) 
-            VALUES ('$name', $price, $cost, $branch_id)";
-    
-    if ($conn->query($sql)) {
-        $product_id = $conn->insert_id; // get new product id
+    $stmt = $conn->prepare("INSERT INTO products (name, `selling-price`, `buying-price`, `stock`,`branch-id`) VALUES (?, ?, ?,?, ?)");
+    $stmt->bind_param("sddii", $name, $price, $cost, $stock, $branch_id);
 
-        // 2️⃣ Insert into stock table
-        $sql_stock = "INSERT INTO stock (`product-id`, `branch-id`, `quantity-received`, `received-by`, `date`) 
-                      VALUES ($product_id, $branch_id, $stock, '$received_by', NOW())";
-        $conn->query($sql_stock);
-
-        $message = "<div class='alert alert-success shadow-sm'> Product and stock added successfully!</div>";
+    if ($stmt->execute()) {
+        $message = "<div class='alert alert-success shadow-sm'> Product added successfully!</div>";
     } else {
         $message = "<div class='alert alert-danger shadow-sm'> Error adding product: " . $conn->error . "</div>";
     }
