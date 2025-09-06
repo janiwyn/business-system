@@ -36,21 +36,45 @@ if ($user_role === 'staff') {
     $whereClause = $selected_branch ? "WHERE p.`branch-id` = ".intval($selected_branch) : "";
 }
 
-// Fetch products
+// Pagination setup
+$items_per_page = 10;
+$page = isset($_GET['page']) ? max(1, intval($_GET['page'])) : 1;
+$offset = ($page - 1) * $items_per_page;
+
+// Count total products
+$count_query = "SELECT COUNT(*) as total FROM products p LEFT JOIN branch b ON p.`branch-id` = b.id $whereClause";
+$total_result = $conn->query($count_query);
+$total_row = $total_result->fetch_assoc();
+$total_items = $total_row['total'];
+$total_pages = ceil($total_items / $items_per_page);
+
+// Fetch products for current page
 $query = "SELECT p.*, b.name AS branch_name 
           FROM products p 
           LEFT JOIN branch b ON p.`branch-id` = b.id 
           $whereClause 
-          ORDER BY p.id DESC";
+          ORDER BY p.id DESC
+          LIMIT $items_per_page OFFSET $offset";
 $result = $conn->query($query);
 ?>
 
-<!-- Custom Styling --> <style> .page-title { font-size: 28px; font-weight: 600; color: #2c3e50; margin-bottom: 25px; animation: fadeInDown 0.8s; } .card { border-radius: 12px; box-shadow: 0px 4px 12px rgba(0,0,0,0.08); transition: transform 0.2s ease-in-out; } .card:hover { transform: translateY(-2px); } .card-header { font-weight: 600; background: linear-gradient(135deg, #007bff, #0056b3); color: white; border-radius: 12px 12px 0 0 !important; } .form-control { border-radius: 8px; } .btn-primary { border-radius: 8px; padding: 8px 18px; font-weight: 500; box-shadow: 0px 3px 8px rgba(0,0,0,0.2); } .btn-warning, .btn-danger { border-radius: 6px; font-size: 13px; padding: 5px 12px; } table { border-radius: 10px; overflow: hidden; } thead.table-dark th { background: #2c3e50 !important; color: #fff; text-transform: uppercase; font-size: 13px; } tbody tr:hover { background-color: #f8f9fa; transition: 0.3s; } @keyframes fadeInDown { from {opacity: 0; transform: translateY(-15px);} to {opacity: 1; transform: translateY(0);} } </style>
+<style>
+.page-title { font-size: 28px; font-weight: 600; color: #2c3e50; margin-bottom: 25px; animation: fadeInDown 0.8s; }
+.card { border-radius: 12px; box-shadow: 0px 4px 12px rgba(0,0,0,0.08); transition: transform 0.2s ease-in-out; }
+.card:hover { transform: translateY(-2px); }
+.card-header { font-weight: 600; background: linear-gradient(135deg, #007bff, #0056b3); color: white; border-radius: 12px 12px 0 0 !important; }
+.form-control { border-radius: 8px; }
+.btn-primary { border-radius: 8px; padding: 8px 18px; font-weight: 500; box-shadow: 0px 3px 8px rgba(0,0,0,0.2); }
+.btn-warning, .btn-danger { border-radius: 6px; font-size: 13px; padding: 5px 12px; }
+table { border-radius: 10px; overflow: hidden; }
+thead.table-dark th { background: #2c3e50 !important; color: #fff; text-transform: uppercase; font-size: 13px; }
+tbody tr:hover { background-color: #f8f9fa; transition: 0.3s; }
+@keyframes fadeInDown { from {opacity: 0; transform: translateY(-15px);} to {opacity: 1; transform: translateY(0);} }
+</style>
 
 <div class="container mt-5">
     <h2 class="page-title text-center">📦 Product Management</h2>
 
-    <!-- Add Product Form -->
     <div class="card mb-4">
         <div class="card-header">➕ Add New Product</div>
         <div class="card-body">
@@ -78,10 +102,8 @@ $result = $conn->query($query);
                         <select name="branch_id" id="branch" class="form-control" required>
                             <option value="">-- Select Branch --</option>
                             <?php
-                            // Admin/manager: show all branches
                             $branches = $conn->query("SELECT id, name FROM branch");
                             while ($b = $branches->fetch_assoc()) {
-                                // Staff can only add products to their branch
                                 if ($user_role === 'staff' && $b['id'] != $user_branch) continue;
                                 $selected = ($user_role === 'staff' && $b['id'] == $user_branch) ? "selected" : "";
                                 echo "<option value='{$b['id']}' $selected>" . htmlspecialchars($b['name']) . "</option>";
@@ -97,12 +119,11 @@ $result = $conn->query($query);
         </div>
     </div>
 
-    <!-- Display Product List -->
+    <!-- Product List -->
     <div class="card mb-5">
         <div class="card-header d-flex justify-content-between align-items-center">
             <span>📋 Product List</span>
             <?php if ($user_role !== 'staff'): ?>
-            <!-- Branch filter dropdown for admin/manager -->
             <form method="GET" class="d-flex align-items-center">
                 <label class="me-2 fw-bold">Filter by Branch:</label>
                 <select name="branch" class="form-control" onchange="this.form.submit()">
@@ -134,7 +155,7 @@ $result = $conn->query($query);
                 <tbody>
                     <?php
                     if ($result->num_rows > 0) {
-                        $i = 1;
+                        $i = $offset + 1;
                         while ($row = $result->fetch_assoc()) {
                             echo "<tr>
                                 <td>{$i}</td>";
@@ -159,23 +180,21 @@ $result = $conn->query($query);
                     ?>
                 </tbody>
             </table>
+
+            <!-- Pagination -->
+            <?php if ($total_pages > 1): ?>
+            <nav aria-label="Page navigation">
+                <ul class="pagination justify-content-center mt-3">
+                    <?php for ($p = 1; $p <= $total_pages; $p++): ?>
+                        <li class="page-item <?= ($p == $page) ? 'active' : '' ?>">
+                            <a class="page-link" href="?page=<?= $p ?><?= ($selected_branch ? '&branch=' . $selected_branch : '') ?>"><?= $p ?></a>
+                        </li>
+                    <?php endfor; ?>
+                </ul>
+            </nav>
+            <?php endif; ?>
         </div>
     </div>
 </div>
-
-<!-- Custom Styling -->
-<style>
-.page-title { font-size: 28px; font-weight: 600; color: #2c3e50; margin-bottom: 25px; animation: fadeInDown 0.8s; }
-.card { border-radius: 12px; box-shadow: 0px 4px 12px rgba(0,0,0,0.08); transition: transform 0.2s ease-in-out; }
-.card:hover { transform: translateY(-2px); }
-.card-header { font-weight: 600; background: linear-gradient(135deg, #007bff, #0056b3); color: white; border-radius: 12px 12px 0 0 !important; }
-.form-control { border-radius: 8px; }
-.btn-primary { border-radius: 8px; padding: 8px 18px; font-weight: 500; box-shadow: 0px 3px 8px rgba(0,0,0,0.2); }
-.btn-warning, .btn-danger { border-radius: 6px; font-size: 13px; padding: 5px 12px; }
-table { border-radius: 10px; overflow: hidden; }
-thead.table-dark th { background: #2c3e50 !important; color: #fff; text-transform: uppercase; font-size: 13px; }
-tbody tr:hover { background-color: #f8f9fa; transition: 0.3s; }
-@keyframes fadeInDown { from {opacity: 0; transform: translateY(-15px);} to {opacity: 1; transform: translateY(0);} }
-</style>
 
 <?php include '../includes/footer.php'; ?>

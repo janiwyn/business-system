@@ -17,10 +17,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $quantity   = $_POST["quantity"] ?? null;
     $sold_by    = $_POST["sold-by"] ?? null;
 
-    // Staff can only sell in their branch
     $branch_id  = ($user_role === 'staff') ? $user_branch : ($_POST['branch-id'] ?? 1);
 
-    // Fetch product details
     $query = $conn->prepare("SELECT stock, `selling-price`, `buying-price` FROM products WHERE id = ? AND (? IS NULL OR `branch-id` = ?)");
     $query->bind_param("iii", $product_id, $branch_id, $branch_id);
     $query->execute();
@@ -63,7 +61,19 @@ if ($user_role === 'staff') {
     }
 }
 
-// Fetch sales
+// Pagination setup
+$items_per_page = 10;
+$page = isset($_GET['page']) ? max(1, intval($_GET['page'])) : 1;
+$offset = ($page - 1) * $items_per_page;
+
+// Count total sales
+$count_query = "SELECT COUNT(*) as total FROM sales JOIN products ON sales.`product-id` = products.id $whereClause";
+$total_result = $conn->query($count_query);
+$total_row = $total_result->fetch_assoc();
+$total_items = $total_row['total'];
+$total_pages = ceil($total_items / $items_per_page);
+
+// Fetch sales for current page
 $sales_query = "
     SELECT sales.id, products.name AS `product-name`, sales.quantity, sales.amount, sales.`sold-by`, sales.date, branch.name AS branch_name
     FROM sales
@@ -71,16 +81,14 @@ $sales_query = "
     JOIN branch ON sales.`branch-id` = branch.id
     $whereClause
     ORDER BY sales.id DESC
-    LIMIT 10
+    LIMIT $items_per_page OFFSET $offset
 ";
 $sales = $conn->query($sales_query);
 
 // Fetch products for dropdown
-if ($user_role === 'staff') {
-    $products = $conn->query("SELECT id, name FROM products WHERE `branch-id` = $user_branch");
-} else {
-    $products = $conn->query("SELECT id, name FROM products");
-}
+$products = ($user_role === 'staff') 
+    ? $conn->query("SELECT id, name FROM products WHERE `branch-id` = $user_branch") 
+    : $conn->query("SELECT id, name FROM products");
 
 // Fetch branches for admin/manager filter
 $branches = ($user_role !== 'staff') ? $conn->query("SELECT id, name FROM branch") : [];
@@ -89,12 +97,11 @@ $branches = ($user_role !== 'staff') ? $conn->query("SELECT id, name FROM branch
 <body class="bg-light">
 <div class="container mt-5">
 
-    <!-- Message -->
     <?php if ($message): ?>
         <div class="alert alert-info text-center fw-bold"><?= $message ?></div>
     <?php endif; ?>
 
-    <!-- Card for form -->
+    <!-- Record Sale Card -->
     <div class="card shadow-lg border-0 rounded-4 p-4">
         <h3 class="text-center mb-4">
             <i class="bi bi-cash-coin text-success"></i> 🛒 Record a Sale
@@ -140,7 +147,7 @@ $branches = ($user_role !== 'staff') ? $conn->query("SELECT id, name FROM branch
         </form>
     </div>
 
-    <!-- Recent sales table -->
+    <!-- Recent Sales Table -->
     <div class="card shadow mt-5 border-0 rounded-4">
         <div class="card-header bg-success text-white fw-bold rounded-top-4 d-flex justify-content-between align-items-center">
             <span><i class="bi bi-receipt-cutoff"></i> Recent Sales</span>
@@ -175,7 +182,7 @@ $branches = ($user_role !== 'staff') ? $conn->query("SELECT id, name FROM branch
                 </thead>
                 <tbody>
                     <?php
-                    $i = 1;
+                    $i = $offset + 1;
                     while ($row = $sales->fetch_assoc()):
                     ?>
                         <tr>
@@ -193,6 +200,19 @@ $branches = ($user_role !== 'staff') ? $conn->query("SELECT id, name FROM branch
                     <?php endif; ?>
                 </tbody>
             </table>
+
+            <!-- Pagination -->
+            <?php if ($total_pages > 1): ?>
+            <nav aria-label="Page navigation">
+                <ul class="pagination justify-content-center mt-3">
+                    <?php for ($p = 1; $p <= $total_pages; $p++): ?>
+                        <li class="page-item <?= ($p == $page) ? 'active' : '' ?>">
+                            <a class="page-link" href="?page=<?= $p ?><?= ($selected_branch ? '&branch=' . $selected_branch : '') ?>"><?= $p ?></a>
+                        </li>
+                    <?php endfor; ?>
+                </ul>
+            </nav>
+            <?php endif; ?>
         </div>
     </div>
 </div>
