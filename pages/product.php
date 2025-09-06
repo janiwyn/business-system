@@ -1,27 +1,34 @@
 <?php
+session_start();
 include '../includes/db.php';
 include '../includes/auth.php';
 require_role(["admin", "manager", "staff"]);
 include '../pages/sidebar.php';
 include '../includes/header.php';
 
-// Handle Add Product Form Submission
+$message = "";
+
+// Get logged-in user info
+$user_role   = $_SESSION['role'];
+$user_branch = $_SESSION['branch_id'] ?? null;
+
+// Add product form
 if (isset($_POST['add_product'])) {
     $name = $_POST['name'];
-    $category = $_POST['category'];
-    $price = $_POST['selling-price'];
-    $cost = $_POST['buying-price'];
-    $stock = $_POST['stock'];
+    $category = trim($_POST['category'] ?? "");
+    $price = trim($_POST['price'] ?? "");
+    $cost = trim($_POST['cost'] ?? "");
+    $stock = trim($_POST['stock'] ?? "");
     $branch_id = $_POST['branch_id'];
     
 
-    $stmt = $conn->prepare("INSERT INTO products (name, `selling-price`, `buying-price`, `stock`,`branch-id`) VALUES (?, ?, ?,?, ?)");
+    $stmt = $conn->prepare("INSERT INTO products (name, `selling-price`, `buying-price`, stock, `branch-id`) VALUES (?, ?, ?, ?, ?)");
     $stmt->bind_param("sddii", $name, $price, $cost, $stock, $branch_id);
 
     if ($stmt->execute()) {
         $message = "<div class='alert alert-success shadow-sm'> Product added successfully!</div>";
     } else {
-        $message = "<div class='alert alert-danger shadow-sm'> Error adding product: " . $conn->error . "</div>";
+        $message = "<div class='alert alert-danger shadow-sm'> Error adding product: " . $stmt->error . "</div>";
     }
 }
 ?>
@@ -40,14 +47,18 @@ if (isset($_POST['add_product'])) {
         box-shadow: 0px 4px 12px rgba(0,0,0,0.08);
         transition: transform 0.2s ease-in-out;
     }
-    .card:hover { transform: translateY(-2px); }
+    .card:hover {
+        transform: translateY(-2px);
+    }
     .card-header {
         font-weight: 600;
         background: linear-gradient(135deg, #007bff, #0056b3);
         color: white;
         border-radius: 12px 12px 0 0 !important;
     }
-    .form-control { border-radius: 8px; }
+    .form-control {
+        border-radius: 8px;
+    }
     .btn-primary {
         border-radius: 8px;
         padding: 8px 18px;
@@ -59,14 +70,20 @@ if (isset($_POST['add_product'])) {
         font-size: 13px;
         padding: 5px 12px;
     }
-    table { border-radius: 10px; overflow: hidden; }
+    table {
+        border-radius: 10px;
+        overflow: hidden;
+    }
     thead.table-dark th {
         background: #2c3e50 !important;
         color: #fff;
         text-transform: uppercase;
         font-size: 13px;
     }
-    tbody tr:hover { background-color: #f8f9fa; transition: 0.3s; }
+    tbody tr:hover {
+        background-color: #f8f9fa;
+        transition: 0.3s;
+    }
     @keyframes fadeInDown {
         from {opacity: 0; transform: translateY(-15px);}
         to {opacity: 1; transform: translateY(0);}
@@ -76,7 +93,6 @@ if (isset($_POST['add_product'])) {
 <div class="container mt-5">
     <h2 class="page-title text-center">📦 Product Management</h2>
 
-    <!-- Add Product Form -->
     <div class="card mb-4">
         <div class="card-header">➕ Add New Product</div>
         <div class="card-body">
@@ -100,17 +116,18 @@ if (isset($_POST['add_product'])) {
                         <input type="number" name="stock" id="stock" class="form-control" placeholder="0" required>
                     </div>
                     <div class="col-md-3">
-                        <label for="branch" class="form-label">Branch</label>
-                        <select name="branch_id" id="branch" class="form-control" required>
-                            <option value="">-- Select Branch --</option>
-                            <?php
-                            $branches = $conn->query("SELECT id, name FROM branch");
-                            while ($b = $branches->fetch_assoc()) {
-                                echo "<option value='{$b['id']}'>" . htmlspecialchars($b['name']) . "</option>";
-                            }
-                            ?>
-                        </select>
-                    </div>
+    <label for="branch" class="form-label">Branch</label>
+    <select name="branch_id" id="branch" class="form-control" required>
+        <option value="">-- Select Branch --</option>
+        <?php
+        $branches = $conn->query("SELECT id, name FROM branch");
+        while ($b = $branches->fetch_assoc()) {
+            echo "<option value='{$b['id']}'>" . htmlspecialchars($b['name']) . "</option>";
+        }
+        ?>
+    </select>
+</div>
+
                 </div>
                 <div class="mt-3">
                     <button type="submit" name="add_product" class="btn btn-primary">➕ Add Product</button>
@@ -119,14 +136,32 @@ if (isset($_POST['add_product'])) {
         </div>
     </div>
 
-    <!-- Display Product List -->
+    <!-- Product List -->
     <div class="card mb-5">
-        <div class="card-header">📋 Product List</div>
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <span>📋 Product List</span>
+            <?php if ($user_role !== 'staff'): ?>
+            <form method="GET" class="d-flex align-items-center">
+                <label class="me-2 fw-bold">Filter by Branch:</label>
+                <select name="branch" class="form-control" onchange="this.form.submit()">
+                    <option value="">-- All Branches --</option>
+                    <?php
+                    $branches = $conn->query("SELECT id, name FROM branch");
+                    while ($b = $branches->fetch_assoc()) {
+                        $selected = ($selected_branch == $b['id']) ? "selected" : "";
+                        echo "<option value='{$b['id']}' $selected>" . htmlspecialchars($b['name']) . "</option>";
+                    }
+                    ?>
+                </select>
+            </form>
+            <?php endif; ?>
+        </div>
         <div class="card-body">
             <table class="table table-bordered table-striped align-middle text-center">
                 <thead class="table-dark">
                     <tr>
                         <th>#</th>
+                        <?php if (empty($selected_branch) && $user_role !== 'staff') echo "<th>Branch</th>"; ?>
                         <th>Name</th>
                         <th>Selling Price</th>
                         <th>Buying Price</th>
@@ -136,21 +171,16 @@ if (isset($_POST['add_product'])) {
                 </thead>
                 <tbody>
                     <?php
-                    // Fetch products with total stock
-                    $sql = "SELECT p.id, p.name, p.`selling-price`, p.`buying-price`, 
-                                   COALESCE(SUM(s.`quantity-received`),0) AS total_stock
-                            FROM products p
-                            LEFT JOIN stock s ON p.id = s.`product-id`
-                            GROUP BY p.id
-                            ORDER BY p.id DESC";
-                    $result = $conn->query($sql);
-
+                    $result = $conn->query("SELECT * FROM products ORDER BY id DESC");
                     if ($result->num_rows > 0) {
-                        $i = 1;
+                        $i = $offset + 1;
                         while ($row = $result->fetch_assoc()) {
                             echo "<tr>
-                                <td>{$i}</td>
-                                <td>" . htmlspecialchars($row['name']) . "</td>
+                                <td>{$i}</td>";
+                            if (empty($selected_branch) && $user_role !== 'staff') {
+                                echo "<td>" . htmlspecialchars($row['branch_name'] ?? 'Unknown') . "</td>";
+                            }
+                            echo "<td>" . htmlspecialchars($row['name']) . "</td>
                                 <td>$" . number_format($row['selling-price'], 2) . "</td>
                                 <td>$" . number_format($row['buying-price'], 2) . "</td>
                                 <td>{$row['total_stock']}</td>
@@ -162,11 +192,25 @@ if (isset($_POST['add_product'])) {
                             $i++;
                         }
                     } else {
-                        echo "<tr><td colspan='6' class='text-center text-muted'>No products found.</td></tr>";
+                        $colspan = (empty($selected_branch) && $user_role !== 'staff') ? 7 : 6;
+                        echo "<tr><td colspan='$colspan' class='text-center text-muted'>No products found.</td></tr>";
                     }
                     ?>
                 </tbody>
             </table>
+
+            <!-- Pagination -->
+            <?php if ($total_pages > 1): ?>
+            <nav aria-label="Page navigation">
+                <ul class="pagination justify-content-center mt-3">
+                    <?php for ($p = 1; $p <= $total_pages; $p++): ?>
+                        <li class="page-item <?= ($p == $page) ? 'active' : '' ?>">
+                            <a class="page-link" href="?page=<?= $p ?><?= ($selected_branch ? '&branch=' . $selected_branch : '') ?>"><?= $p ?></a>
+                        </li>
+                    <?php endfor; ?>
+                </ul>
+            </nav>
+            <?php endif; ?>
         </div>
     </div>
 </div>
