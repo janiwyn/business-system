@@ -13,6 +13,7 @@ if (isset($_POST['add_product'])) {
     $cost = $_POST['buying-price'];
     $stock = $_POST['stock'];
     $branch_id = $_POST['branch_id'];
+    
 
     $stmt = $conn->prepare("INSERT INTO products (name, `selling-price`, `buying-price`, `stock`,`branch-id`) VALUES (?, ?, ?,?, ?)");
     $stmt->bind_param("sddii", $name, $price, $cost, $stock, $branch_id);
