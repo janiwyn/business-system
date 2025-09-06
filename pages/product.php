@@ -14,7 +14,7 @@ if (isset($_POST['add_product'])) {
     $stock = trim($_POST['stock'] ?? "");
     $branch_id = $_POST['branch_id'];
 
-    $stmt = $conn->prepare("INSERT INTO products (name, `selling-price`, `buying-price`, `stock`,`branch-id`) VALUES (?, ?, ?,?, ?)");
+    $stmt = $conn->prepare("INSERT INTO products (name, `selling-price`, `buying-price`, `stock`,`branch-id`) VALUES (?, ?, ?, ?, ?)");
     $stmt->bind_param("sddii", $name, $price, $cost, $stock, $branch_id);
 
     if ($stmt->execute()) {
@@ -22,6 +22,13 @@ if (isset($_POST['add_product'])) {
     } else {
         $message = "<div class='alert alert-danger shadow-sm'> Error adding product: " . $stmt->error . "</div>";
     }
+}
+
+// ✅ Branch filter handling
+$selected_branch = $_GET['branch'] ?? '';
+$whereClause = "";
+if (!empty($selected_branch)) {
+    $whereClause = "WHERE p.`branch-id` = " . intval($selected_branch);
 }
 ?>
 
@@ -90,7 +97,6 @@ if (isset($_POST['add_product'])) {
         <div class="card-header">➕ Add New Product</div>
         <div class="card-body">
             <?= isset($message) ? $message : "" ?>
-            <!-- ✅ Fixed form action -->
             <form method="POST" action="">
                 <div class="row g-3">
                     <div class="col-md-3">
@@ -110,18 +116,17 @@ if (isset($_POST['add_product'])) {
                         <input type="number" name="stock" id="stock" class="form-control" placeholder="0" required>
                     </div>
                     <div class="col-md-3">
-    <label for="branch" class="form-label">Branch</label>
-    <select name="branch_id" id="branch" class="form-control" required>
-        <option value="">-- Select Branch --</option>
-        <?php
-        $branches = $conn->query("SELECT id, name FROM branch");
-        while ($b = $branches->fetch_assoc()) {
-            echo "<option value='{$b['id']}'>" . htmlspecialchars($b['name']) . "</option>";
-        }
-        ?>
-    </select>
-</div>
-
+                        <label for="branch" class="form-label">Branch</label>
+                        <select name="branch_id" id="branch" class="form-control" required>
+                            <option value="">-- Select Branch --</option>
+                            <?php
+                            $branches = $conn->query("SELECT id, name FROM branch");
+                            while ($b = $branches->fetch_assoc()) {
+                                echo "<option value='{$b['id']}'>" . htmlspecialchars($b['name']) . "</option>";
+                            }
+                            ?>
+                        </select>
+                    </div>
                 </div>
                 <div class="mt-3">
                     <button type="submit" name="add_product" class="btn btn-primary">➕ Add Product</button>
@@ -132,12 +137,29 @@ if (isset($_POST['add_product'])) {
 
     <!-- Display Product List -->
     <div class="card mb-5">
-        <div class="card-header">📋 Product List</div>
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <span>📋 Product List</span>
+            <!-- ✅ Branch filter dropdown -->
+            <form method="GET" class="d-flex align-items-center">
+                <label class="me-2 fw-bold">Filter by Branch:</label>
+                <select name="branch" class="form-control" onchange="this.form.submit()">
+                    <option value="">-- All Branches --</option>
+                    <?php
+                    $branches = $conn->query("SELECT id, name FROM branch");
+                    while ($b = $branches->fetch_assoc()) {
+                        $selected = ($selected_branch == $b['id']) ? "selected" : "";
+                        echo "<option value='{$b['id']}' $selected>" . htmlspecialchars($b['name']) . "</option>";
+                    }
+                    ?>
+                </select>
+            </form>
+        </div>
         <div class="card-body">
             <table class="table table-bordered table-striped align-middle text-center">
                 <thead class="table-dark">
                     <tr>
                         <th>#</th>
+                        <?php if (empty($selected_branch)) echo "<th>Branch</th>"; ?>
                         <th>Name</th>
                         <th>Selling Price</th>
                         <th>Buying Price</th>
@@ -147,13 +169,25 @@ if (isset($_POST['add_product'])) {
                 </thead>
                 <tbody>
                     <?php
-                    $result = $conn->query("SELECT * FROM products ORDER BY id DESC");
+                    // ✅ Join with branch table only when fetching
+                    $query = "
+                        SELECT p.*, b.name AS branch_name 
+                        FROM products p 
+                        LEFT JOIN branch b ON p.`branch-id` = b.id 
+                        $whereClause 
+                        ORDER BY p.id DESC
+                    ";
+                    $result = $conn->query($query);
+
                     if ($result->num_rows > 0) {
                         $i = 1;
                         while ($row = $result->fetch_assoc()) {
                             echo "<tr>
-                                <td>{$i}</td>
-                                <td>" . htmlspecialchars($row['name']) . "</td>
+                                <td>{$i}</td>";
+                            if (empty($selected_branch)) {
+                                echo "<td>" . htmlspecialchars($row['branch_name'] ?? 'Unknown') . "</td>";
+                            }
+                            echo "<td>" . htmlspecialchars($row['name']) . "</td>
                                 <td>$" . number_format($row['selling-price'], 2) . "</td>
                                 <td>$" . number_format($row['buying-price'], 2) . "</td>
                                 <td>{$row['stock']}</td>
@@ -165,7 +199,8 @@ if (isset($_POST['add_product'])) {
                             $i++;
                         }
                     } else {
-                        echo "<tr><td colspan='6' class='text-center text-muted'>No products found.</td></tr>";
+                        $colspan = empty($selected_branch) ? 7 : 6;
+                        echo "<tr><td colspan='$colspan' class='text-center text-muted'>No products found.</td></tr>";
                     }
                     ?>
                 </tbody>
@@ -175,5 +210,3 @@ if (isset($_POST['add_product'])) {
 </div>
 
 <?php include '../includes/footer.php'; ?>
-
-
