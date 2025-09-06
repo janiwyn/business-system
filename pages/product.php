@@ -7,20 +7,28 @@ include '../includes/header.php';
 
 // Handle Add Product Form Submission
 if (isset($_POST['add_product'])) {
-    $name = $_POST['name'];
-    $category = $_POST['category'];
-    $price = $_POST['selling-price'];
-    $cost = $_POST['buying-price'];
-    $stock = $_POST['stock'];
-    $branch_id = $_POST['branch_id'];
+    $name       = $conn->real_escape_string($_POST['name']);
+    $price      = (float) $_POST['price'];
+    $cost       = (float) $_POST['cost'];
+    $stock      = (int) $_POST['stock'];
+    $branch_id  = (int) $_POST['branch_id'];
+    $received_by = $_SESSION['username'] ?? 'system'; // person logged in
 
-    $stmt = $conn->prepare("INSERT INTO products (name, `selling-price`, `buying-price`, `stock`,`branch-id`) VALUES (?, ?, ?,?, ?)");
-    $stmt->bind_param("sddii", $name, $price, $cost, $stock, $branch_id);
+    //  Insert into products table (no stock column now)
+    $sql = "INSERT INTO products (name, `selling-price`, `buying-price`, `branch-id`) 
+            VALUES ('$name', $price, $cost, $branch_id)";
+    
+    if ($conn->query($sql)) {
+        $product_id = $conn->insert_id; // get new product id
 
-    if ($stmt->execute()) {
-        $message = "<div class='alert alert-success shadow-sm'> Product added successfully!</div>";
+        // 2️⃣ Insert into stock table
+        $sql_stock = "INSERT INTO stock (`product-id`, `branch-id`, `quantity-received`, `received-by`, `date`) 
+                      VALUES ($product_id, $branch_id, $stock, '$received_by', NOW())";
+        $conn->query($sql_stock);
+
+        $message = "<div class='alert alert-success shadow-sm'> Product and stock added successfully!</div>";
     } else {
-        $message = "<div class='alert alert-danger shadow-sm'> Error adding product: " . $stmt->error . "</div>";
+        $message = "<div class='alert alert-danger shadow-sm'> Error adding product: " . $conn->error . "</div>";
     }
 }
 ?>
@@ -39,18 +47,14 @@ if (isset($_POST['add_product'])) {
         box-shadow: 0px 4px 12px rgba(0,0,0,0.08);
         transition: transform 0.2s ease-in-out;
     }
-    .card:hover {
-        transform: translateY(-2px);
-    }
+    .card:hover { transform: translateY(-2px); }
     .card-header {
         font-weight: 600;
         background: linear-gradient(135deg, #007bff, #0056b3);
         color: white;
         border-radius: 12px 12px 0 0 !important;
     }
-    .form-control {
-        border-radius: 8px;
-    }
+    .form-control { border-radius: 8px; }
     .btn-primary {
         border-radius: 8px;
         padding: 8px 18px;
@@ -62,20 +66,14 @@ if (isset($_POST['add_product'])) {
         font-size: 13px;
         padding: 5px 12px;
     }
-    table {
-        border-radius: 10px;
-        overflow: hidden;
-    }
+    table { border-radius: 10px; overflow: hidden; }
     thead.table-dark th {
         background: #2c3e50 !important;
         color: #fff;
         text-transform: uppercase;
         font-size: 13px;
     }
-    tbody tr:hover {
-        background-color: #f8f9fa;
-        transition: 0.3s;
-    }
+    tbody tr:hover { background-color: #f8f9fa; transition: 0.3s; }
     @keyframes fadeInDown {
         from {opacity: 0; transform: translateY(-15px);}
         to {opacity: 1; transform: translateY(0);}
@@ -90,7 +88,6 @@ if (isset($_POST['add_product'])) {
         <div class="card-header">➕ Add New Product</div>
         <div class="card-body">
             <?= isset($message) ? $message : "" ?>
-            <!-- ✅ Fixed form action -->
             <form method="POST" action="">
                 <div class="row g-3">
                     <div class="col-md-3">
@@ -110,18 +107,17 @@ if (isset($_POST['add_product'])) {
                         <input type="number" name="stock" id="stock" class="form-control" placeholder="0" required>
                     </div>
                     <div class="col-md-3">
-    <label for="branch" class="form-label">Branch</label>
-    <select name="branch_id" id="branch" class="form-control" required>
-        <option value="">-- Select Branch --</option>
-        <?php
-        $branches = $conn->query("SELECT id, name FROM branch");
-        while ($b = $branches->fetch_assoc()) {
-            echo "<option value='{$b['id']}'>" . htmlspecialchars($b['name']) . "</option>";
-        }
-        ?>
-    </select>
-</div>
-
+                        <label for="branch" class="form-label">Branch</label>
+                        <select name="branch_id" id="branch" class="form-control" required>
+                            <option value="">-- Select Branch --</option>
+                            <?php
+                            $branches = $conn->query("SELECT id, name FROM branch");
+                            while ($b = $branches->fetch_assoc()) {
+                                echo "<option value='{$b['id']}'>" . htmlspecialchars($b['name']) . "</option>";
+                            }
+                            ?>
+                        </select>
+                    </div>
                 </div>
                 <div class="mt-3">
                     <button type="submit" name="add_product" class="btn btn-primary">➕ Add Product</button>
@@ -147,7 +143,15 @@ if (isset($_POST['add_product'])) {
                 </thead>
                 <tbody>
                     <?php
-                    $result = $conn->query("SELECT * FROM products ORDER BY id DESC");
+                    // Fetch products with total stock
+                    $sql = "SELECT p.id, p.name, p.`selling-price`, p.`buying-price`, 
+                                   COALESCE(SUM(s.`quantity-received`),0) AS total_stock
+                            FROM products p
+                            LEFT JOIN stock s ON p.id = s.`product-id`
+                            GROUP BY p.id
+                            ORDER BY p.id DESC";
+                    $result = $conn->query($sql);
+
                     if ($result->num_rows > 0) {
                         $i = 1;
                         while ($row = $result->fetch_assoc()) {
@@ -156,7 +160,7 @@ if (isset($_POST['add_product'])) {
                                 <td>" . htmlspecialchars($row['name']) . "</td>
                                 <td>$" . number_format($row['selling-price'], 2) . "</td>
                                 <td>$" . number_format($row['buying-price'], 2) . "</td>
-                                <td>{$row['stock']}</td>
+                                <td>{$row['total_stock']}</td>
                                 <td>
                                     <a href='edit_product.php?id={$row['id']}' class='btn btn-sm btn-warning me-1'>✏️ Edit</a>
                                     <a href='delete_product.php?id={$row['id']}' class='btn btn-sm btn-danger' onclick='return confirm(\"Are you sure you want to delete this product?\")'>🗑️ Delete</a>
@@ -175,5 +179,3 @@ if (isset($_POST['add_product'])) {
 </div>
 
 <?php include '../includes/footer.php'; ?>
-
-

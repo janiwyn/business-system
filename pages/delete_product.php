@@ -5,7 +5,7 @@ include '../includes/auth.php';
 require_role("manager", "admin");
 
 if (!isset($_GET['id'])) {
-    echo "No product selected.";
+   echo "No product selected.";
     exit;
 }
 
