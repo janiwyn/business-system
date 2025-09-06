@@ -1,4 +1,5 @@
 <?php
+session_start();
 include '../includes/db.php';
 include '../includes/auth.php';
 require_role(["admin", "manager", "staff"]);
@@ -7,12 +8,16 @@ include '../includes/header.php';
 
 $message = "";
 
+// Get logged-in user info
+$user_role   = $_SESSION['role'];
+$user_branch = $_SESSION['branch_id'] ?? null;
+
 // Add product form
 if (isset($_POST['add_product'])) {
-    $name = $_POST['name'];
-    $price = $_POST['price'];
-    $cost = $_POST['cost'];
-    $stock = $_POST['stock'];
+    $name      = $_POST['name'];
+    $price     = $_POST['price'];
+    $cost      = $_POST['cost'];
+    $stock     = $_POST['stock'];
     $branch_id = $_POST['branch_id'];
 
     $stmt = $conn->prepare("INSERT INTO products (name, `selling-price`, `buying-price`, stock, `branch-id`) VALUES (?, ?, ?, ?, ?)");
@@ -22,74 +27,25 @@ if (isset($_POST['add_product'])) {
     $stmt->close();
 }
 
-// Branch filter
-$selected_branch = $_GET['branch'] ?? '';
-$whereClause = $selected_branch ? "WHERE p.`branch-id` = ".intval($selected_branch) : "";
-$query = "SELECT p.*, b.name AS branch_name FROM products p LEFT JOIN branch b ON p.`branch-id` = b.id $whereClause ORDER BY p.id DESC";
-$result = $conn->query($query);
+// Branch filter (admin/manager only)
+$selected_branch = '';
+if ($user_role === 'staff') {
+    $whereClause = "WHERE p.`branch-id` = " . intval($user_branch);
+} else {
+    $selected_branch = $_GET['branch'] ?? '';
+    $whereClause = $selected_branch ? "WHERE p.`branch-id` = ".intval($selected_branch) : "";
+}
 
+// Fetch products
+$query = "SELECT p.*, b.name AS branch_name 
+          FROM products p 
+          LEFT JOIN branch b ON p.`branch-id` = b.id 
+          $whereClause 
+          ORDER BY p.id DESC";
+$result = $conn->query($query);
 ?>
 
-<!-- HTML omitted for brevity; just loop $result for product table -->
-
-
-
-<!-- Custom Styling -->
-<style>
-    .page-title {
-        font-size: 28px;
-        font-weight: 600;
-        color: #2c3e50;
-        margin-bottom: 25px;
-        animation: fadeInDown 0.8s;
-    }
-    .card {
-        border-radius: 12px;
-        box-shadow: 0px 4px 12px rgba(0,0,0,0.08);
-        transition: transform 0.2s ease-in-out;
-    }
-    .card:hover {
-        transform: translateY(-2px);
-    }
-    .card-header {
-        font-weight: 600;
-        background: linear-gradient(135deg, #007bff, #0056b3);
-        color: white;
-        border-radius: 12px 12px 0 0 !important;
-    }
-    .form-control {
-        border-radius: 8px;
-    }
-    .btn-primary {
-        border-radius: 8px;
-        padding: 8px 18px;
-        font-weight: 500;
-        box-shadow: 0px 3px 8px rgba(0,0,0,0.2);
-    }
-    .btn-warning, .btn-danger {
-        border-radius: 6px;
-        font-size: 13px;
-        padding: 5px 12px;
-    }
-    table {
-        border-radius: 10px;
-        overflow: hidden;
-    }
-    thead.table-dark th {
-        background: #2c3e50 !important;
-        color: #fff;
-        text-transform: uppercase;
-        font-size: 13px;
-    }
-    tbody tr:hover {
-        background-color: #f8f9fa;
-        transition: 0.3s;
-    }
-    @keyframes fadeInDown {
-        from {opacity: 0; transform: translateY(-15px);}
-        to {opacity: 1; transform: translateY(0);}
-    }
-</style>
+<!-- Custom Styling --> <style> .page-title { font-size: 28px; font-weight: 600; color: #2c3e50; margin-bottom: 25px; animation: fadeInDown 0.8s; } .card { border-radius: 12px; box-shadow: 0px 4px 12px rgba(0,0,0,0.08); transition: transform 0.2s ease-in-out; } .card:hover { transform: translateY(-2px); } .card-header { font-weight: 600; background: linear-gradient(135deg, #007bff, #0056b3); color: white; border-radius: 12px 12px 0 0 !important; } .form-control { border-radius: 8px; } .btn-primary { border-radius: 8px; padding: 8px 18px; font-weight: 500; box-shadow: 0px 3px 8px rgba(0,0,0,0.2); } .btn-warning, .btn-danger { border-radius: 6px; font-size: 13px; padding: 5px 12px; } table { border-radius: 10px; overflow: hidden; } thead.table-dark th { background: #2c3e50 !important; color: #fff; text-transform: uppercase; font-size: 13px; } tbody tr:hover { background-color: #f8f9fa; transition: 0.3s; } @keyframes fadeInDown { from {opacity: 0; transform: translateY(-15px);} to {opacity: 1; transform: translateY(0);} } </style>
 
 <div class="container mt-5">
     <h2 class="page-title text-center">📦 Product Management</h2>
@@ -122,9 +78,13 @@ $result = $conn->query($query);
                         <select name="branch_id" id="branch" class="form-control" required>
                             <option value="">-- Select Branch --</option>
                             <?php
+                            // Admin/manager: show all branches
                             $branches = $conn->query("SELECT id, name FROM branch");
                             while ($b = $branches->fetch_assoc()) {
-                                echo "<option value='{$b['id']}'>" . htmlspecialchars($b['name']) . "</option>";
+                                // Staff can only add products to their branch
+                                if ($user_role === 'staff' && $b['id'] != $user_branch) continue;
+                                $selected = ($user_role === 'staff' && $b['id'] == $user_branch) ? "selected" : "";
+                                echo "<option value='{$b['id']}' $selected>" . htmlspecialchars($b['name']) . "</option>";
                             }
                             ?>
                         </select>
@@ -141,7 +101,8 @@ $result = $conn->query($query);
     <div class="card mb-5">
         <div class="card-header d-flex justify-content-between align-items-center">
             <span>📋 Product List</span>
-            <!-- ✅ Branch filter dropdown -->
+            <?php if ($user_role !== 'staff'): ?>
+            <!-- Branch filter dropdown for admin/manager -->
             <form method="GET" class="d-flex align-items-center">
                 <label class="me-2 fw-bold">Filter by Branch:</label>
                 <select name="branch" class="form-control" onchange="this.form.submit()">
@@ -155,13 +116,14 @@ $result = $conn->query($query);
                     ?>
                 </select>
             </form>
+            <?php endif; ?>
         </div>
         <div class="card-body">
             <table class="table table-bordered table-striped align-middle text-center">
                 <thead class="table-dark">
                     <tr>
                         <th>#</th>
-                        <?php if (empty($selected_branch)) echo "<th>Branch</th>"; ?>
+                        <?php if (empty($selected_branch) && $user_role !== 'staff') echo "<th>Branch</th>"; ?>
                         <th>Name</th>
                         <th>Selling Price</th>
                         <th>Buying Price</th>
@@ -171,22 +133,12 @@ $result = $conn->query($query);
                 </thead>
                 <tbody>
                     <?php
-                    // ✅ Join with branch table only when fetching
-                    $query = "
-                        SELECT p.*, b.name AS branch_name 
-                        FROM products p 
-                        LEFT JOIN branch b ON p.`branch-id` = b.id 
-                        $whereClause 
-                        ORDER BY p.id DESC
-                    ";
-                    $result = $conn->query($query);
-
                     if ($result->num_rows > 0) {
                         $i = 1;
                         while ($row = $result->fetch_assoc()) {
                             echo "<tr>
                                 <td>{$i}</td>";
-                            if (empty($selected_branch)) {
+                            if (empty($selected_branch) && $user_role !== 'staff') {
                                 echo "<td>" . htmlspecialchars($row['branch_name'] ?? 'Unknown') . "</td>";
                             }
                             echo "<td>" . htmlspecialchars($row['name']) . "</td>
@@ -201,7 +153,7 @@ $result = $conn->query($query);
                             $i++;
                         }
                     } else {
-                        $colspan = empty($selected_branch) ? 7 : 6;
+                        $colspan = (empty($selected_branch) && $user_role !== 'staff') ? 7 : 6;
                         echo "<tr><td colspan='$colspan' class='text-center text-muted'>No products found.</td></tr>";
                     }
                     ?>
@@ -210,5 +162,20 @@ $result = $conn->query($query);
         </div>
     </div>
 </div>
+
+<!-- Custom Styling -->
+<style>
+.page-title { font-size: 28px; font-weight: 600; color: #2c3e50; margin-bottom: 25px; animation: fadeInDown 0.8s; }
+.card { border-radius: 12px; box-shadow: 0px 4px 12px rgba(0,0,0,0.08); transition: transform 0.2s ease-in-out; }
+.card:hover { transform: translateY(-2px); }
+.card-header { font-weight: 600; background: linear-gradient(135deg, #007bff, #0056b3); color: white; border-radius: 12px 12px 0 0 !important; }
+.form-control { border-radius: 8px; }
+.btn-primary { border-radius: 8px; padding: 8px 18px; font-weight: 500; box-shadow: 0px 3px 8px rgba(0,0,0,0.2); }
+.btn-warning, .btn-danger { border-radius: 6px; font-size: 13px; padding: 5px 12px; }
+table { border-radius: 10px; overflow: hidden; }
+thead.table-dark th { background: #2c3e50 !important; color: #fff; text-transform: uppercase; font-size: 13px; }
+tbody tr:hover { background-color: #f8f9fa; transition: 0.3s; }
+@keyframes fadeInDown { from {opacity: 0; transform: translateY(-15px);} to {opacity: 1; transform: translateY(0);} }
+</style>
 
 <?php include '../includes/footer.php'; ?>
