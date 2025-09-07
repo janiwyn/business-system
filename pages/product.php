@@ -20,7 +20,6 @@ if (isset($_POST['add_product'])) {
     $cost = trim($_POST['cost'] ?? "");
     $stock = trim($_POST['stock'] ?? "");
     $branch_id = $_POST['branch_id'];
-    
 
     $stmt = $conn->prepare("INSERT INTO products (name, `selling-price`, `buying-price`, stock, `branch-id`) VALUES (?, ?, ?, ?, ?)");
     $stmt->bind_param("sddii", $name, $price, $cost, $stock, $branch_id);
@@ -31,6 +30,38 @@ if (isset($_POST['add_product'])) {
         $message = "<div class='alert alert-danger shadow-sm'> Error adding product: " . $stmt->error . "</div>";
     }
 }
+
+// ==========================
+// Pagination setup
+// ==========================
+$limit = 10;
+$page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
+if ($page < 1) $page = 1;
+$offset = ($page - 1) * $limit;
+
+// Branch filter
+$where = "";
+if (!empty($_GET['branch'])) {
+    $selected_branch = (int)$_GET['branch'];
+    $where = "WHERE products.`branch-id` = $selected_branch";
+} else {
+    $selected_branch = null;
+}
+
+// Count products
+$countRes = $conn->query("SELECT COUNT(*) AS total FROM products $where");
+$total_products = ($countRes->fetch_assoc())['total'] ?? 0;
+$total_pages = ceil($total_products / $limit);
+
+// Fetch products with branch name
+$result = $conn->query("
+    SELECT products.*, branch.name AS branch_name 
+    FROM products 
+    JOIN branch ON products.`branch-id` = branch.id 
+    $where 
+    ORDER BY products.id DESC 
+    LIMIT $offset,$limit
+");
 ?>
 
 <!-- Custom Styling -->
@@ -116,18 +147,17 @@ if (isset($_POST['add_product'])) {
                         <input type="number" name="stock" id="stock" class="form-control" placeholder="0" required>
                     </div>
                     <div class="col-md-3">
-    <label for="branch" class="form-label">Branch</label>
-    <select name="branch_id" id="branch" class="form-control" required>
-        <option value="">-- Select Branch --</option>
-        <?php
-        $branches = $conn->query("SELECT id, name FROM branch");
-        while ($b = $branches->fetch_assoc()) {
-            echo "<option value='{$b['id']}'>" . htmlspecialchars($b['name']) . "</option>";
-        }
-        ?>
-    </select>
-</div>
-
+                        <label for="branch" class="form-label">Branch</label>
+                        <select name="branch_id" id="branch" class="form-control" required>
+                            <option value="">-- Select Branch --</option>
+                            <?php
+                            $branches = $conn->query("SELECT id, name FROM branch");
+                            while ($b = $branches->fetch_assoc()) {
+                                echo "<option value='{$b['id']}'>" . htmlspecialchars($b['name']) . "</option>";
+                            }
+                            ?>
+                        </select>
+                    </div>
                 </div>
                 <div class="mt-3">
                     <button type="submit" name="add_product" class="btn btn-primary">➕ Add Product</button>
@@ -171,19 +201,18 @@ if (isset($_POST['add_product'])) {
                 </thead>
                 <tbody>
                     <?php
-                    $result = $conn->query("SELECT * FROM products ORDER BY id DESC");
                     if ($result->num_rows > 0) {
                         $i = $offset + 1;
                         while ($row = $result->fetch_assoc()) {
                             echo "<tr>
                                 <td>{$i}</td>";
                             if (empty($selected_branch) && $user_role !== 'staff') {
-                                echo "<td>" . htmlspecialchars($row['branch_name'] ?? 'Unknown') . "</td>";
+                                echo "<td>" . htmlspecialchars($row['branch_name']) . "</td>";
                             }
                             echo "<td>" . htmlspecialchars($row['name']) . "</td>
-                                <td>$" . number_format($row['selling-price'], 2) . "</td>
-                                <td>$" . number_format($row['buying-price'], 2) . "</td>
-                                <td>{$row['total_stock']}</td>
+                                <td>UGX " . number_format($row['selling-price'], 2) . "</td>
+                                <td>UGX " . number_format($row['buying-price'], 2) . "</td>
+                                <td>{$row['stock']}</td>
                                 <td>
                                     <a href='edit_product.php?id={$row['id']}' class='btn btn-sm btn-warning me-1'>✏️ Edit</a>
                                     <a href='delete_product.php?id={$row['id']}' class='btn btn-sm btn-danger' onclick='return confirm(\"Are you sure you want to delete this product?\")'>🗑️ Delete</a>
