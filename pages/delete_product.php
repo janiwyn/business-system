@@ -6,8 +6,8 @@ include '../includes/auth.php';
 // Correct usage: roles as an array
 require_role(["manager", "admin"]);
 
-if (!isset($_GET['id']) || !is_numeric($_GET['id'])) {
-    echo "Invalid product ID.";
+if (!isset($_GET['id'])) {
+    echo "No product selected.";
     exit;
 }
 

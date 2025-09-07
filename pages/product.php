@@ -14,62 +14,80 @@ $user_branch = $_SESSION['branch_id'] ?? null;
 
 // Add product form
 if (isset($_POST['add_product'])) {
-    $name      = $_POST['name'];
-    $price     = $_POST['price'];
-    $cost      = $_POST['cost'];
-    $stock     = $_POST['stock'];
+    $name = $_POST['name'];
+    $category = trim($_POST['category'] ?? "");
+    $price = trim($_POST['price'] ?? "");
+    $cost = trim($_POST['cost'] ?? "");
+    $stock = trim($_POST['stock'] ?? "");
     $branch_id = $_POST['branch_id'];
+    
 
     $stmt = $conn->prepare("INSERT INTO products (name, `selling-price`, `buying-price`, stock, `branch-id`) VALUES (?, ?, ?, ?, ?)");
     $stmt->bind_param("sddii", $name, $price, $cost, $stock, $branch_id);
-    $stmt->execute();
-    $message = $stmt->affected_rows > 0 ? "<div class='alert alert-success'>Product added successfully!</div>" : "<div class='alert alert-danger'>Error: ".$stmt->error."</div>";
-    $stmt->close();
+
+    if ($stmt->execute()) {
+        $message = "<div class='alert alert-success shadow-sm'> Product added successfully!</div>";
+    } else {
+        $message = "<div class='alert alert-danger shadow-sm'> Error adding product: " . $stmt->error . "</div>";
+    }
 }
-
-// Branch filter (admin/manager only)
-$selected_branch = '';
-if ($user_role === 'staff') {
-    $whereClause = "WHERE p.`branch-id` = " . intval($user_branch);
-} else {
-    $selected_branch = $_GET['branch'] ?? '';
-    $whereClause = $selected_branch ? "WHERE p.`branch-id` = ".intval($selected_branch) : "";
-}
-
-// Pagination setup
-$items_per_page = 10;
-$page = isset($_GET['page']) ? max(1, intval($_GET['page'])) : 1;
-$offset = ($page - 1) * $items_per_page;
-
-// Count total products
-$count_query = "SELECT COUNT(*) as total FROM products p LEFT JOIN branch b ON p.`branch-id` = b.id $whereClause";
-$total_result = $conn->query($count_query);
-$total_row = $total_result->fetch_assoc();
-$total_items = $total_row['total'];
-$total_pages = ceil($total_items / $items_per_page);
-
-// Fetch products for current page
-$query = "SELECT p.*, b.name AS branch_name 
-          FROM products p 
-          LEFT JOIN branch b ON p.`branch-id` = b.id 
-          $whereClause 
-          ORDER BY p.id DESC
-          LIMIT $items_per_page OFFSET $offset";
-$result = $conn->query($query);
 ?>
 
+<!-- Custom Styling -->
 <style>
-.page-title { font-size: 28px; font-weight: 600; color: #2c3e50; margin-bottom: 25px; animation: fadeInDown 0.8s; }
-.card { border-radius: 12px; box-shadow: 0px 4px 12px rgba(0,0,0,0.08); transition: transform 0.2s ease-in-out; }
-.card:hover { transform: translateY(-2px); }
-.card-header { font-weight: 600; background: linear-gradient(135deg, #007bff, #0056b3); color: white; border-radius: 12px 12px 0 0 !important; }
-.form-control { border-radius: 8px; }
-.btn-primary { border-radius: 8px; padding: 8px 18px; font-weight: 500; box-shadow: 0px 3px 8px rgba(0,0,0,0.2); }
-.btn-warning, .btn-danger { border-radius: 6px; font-size: 13px; padding: 5px 12px; }
-table { border-radius: 10px; overflow: hidden; }
-thead.table-dark th { background: #2c3e50 !important; color: #fff; text-transform: uppercase; font-size: 13px; }
-tbody tr:hover { background-color: #f8f9fa; transition: 0.3s; }
-@keyframes fadeInDown { from {opacity: 0; transform: translateY(-15px);} to {opacity: 1; transform: translateY(0);} }
+    .page-title {
+        font-size: 28px;
+        font-weight: 600;
+        color: #2c3e50;
+        margin-bottom: 25px;
+        animation: fadeInDown 0.8s;
+    }
+    .card {
+        border-radius: 12px;
+        box-shadow: 0px 4px 12px rgba(0,0,0,0.08);
+        transition: transform 0.2s ease-in-out;
+    }
+    .card:hover {
+        transform: translateY(-2px);
+    }
+    .card-header {
+        font-weight: 600;
+        background: linear-gradient(135deg, #007bff, #0056b3);
+        color: white;
+        border-radius: 12px 12px 0 0 !important;
+    }
+    .form-control {
+        border-radius: 8px;
+    }
+    .btn-primary {
+        border-radius: 8px;
+        padding: 8px 18px;
+        font-weight: 500;
+        box-shadow: 0px 3px 8px rgba(0,0,0,0.2);
+    }
+    .btn-warning, .btn-danger {
+        border-radius: 6px;
+        font-size: 13px;
+        padding: 5px 12px;
+    }
+    table {
+        border-radius: 10px;
+        overflow: hidden;
+    }
+    thead.table-dark th {
+        background: #2c3e50 !important;
+        color: #fff;
+        text-transform: uppercase;
+        font-size: 13px;
+    }
+    tbody tr:hover {
+        background-color: #f8f9fa;
+        transition: 0.3s;
+    }
+    @keyframes fadeInDown {
+        from {opacity: 0; transform: translateY(-15px);}
+        to {opacity: 1; transform: translateY(0);}
+    }
 </style>
 
 <div class="container mt-5">
@@ -98,19 +116,18 @@ tbody tr:hover { background-color: #f8f9fa; transition: 0.3s; }
                         <input type="number" name="stock" id="stock" class="form-control" placeholder="0" required>
                     </div>
                     <div class="col-md-3">
-                        <label for="branch" class="form-label">Branch</label>
-                        <select name="branch_id" id="branch" class="form-control" required>
-                            <option value="">-- Select Branch --</option>
-                            <?php
-                            $branches = $conn->query("SELECT id, name FROM branch");
-                            while ($b = $branches->fetch_assoc()) {
-                                if ($user_role === 'staff' && $b['id'] != $user_branch) continue;
-                                $selected = ($user_role === 'staff' && $b['id'] == $user_branch) ? "selected" : "";
-                                echo "<option value='{$b['id']}' $selected>" . htmlspecialchars($b['name']) . "</option>";
-                            }
-                            ?>
-                        </select>
-                    </div>
+    <label for="branch" class="form-label">Branch</label>
+    <select name="branch_id" id="branch" class="form-control" required>
+        <option value="">-- Select Branch --</option>
+        <?php
+        $branches = $conn->query("SELECT id, name FROM branch");
+        while ($b = $branches->fetch_assoc()) {
+            echo "<option value='{$b['id']}'>" . htmlspecialchars($b['name']) . "</option>";
+        }
+        ?>
+    </select>
+</div>
+
                 </div>
                 <div class="mt-3">
                     <button type="submit" name="add_product" class="btn btn-primary">➕ Add Product</button>
@@ -154,6 +171,7 @@ tbody tr:hover { background-color: #f8f9fa; transition: 0.3s; }
                 </thead>
                 <tbody>
                     <?php
+                    $result = $conn->query("SELECT * FROM products ORDER BY id DESC");
                     if ($result->num_rows > 0) {
                         $i = $offset + 1;
                         while ($row = $result->fetch_assoc()) {
@@ -165,7 +183,7 @@ tbody tr:hover { background-color: #f8f9fa; transition: 0.3s; }
                             echo "<td>" . htmlspecialchars($row['name']) . "</td>
                                 <td>$" . number_format($row['selling-price'], 2) . "</td>
                                 <td>$" . number_format($row['buying-price'], 2) . "</td>
-                                <td>{$row['stock']}</td>
+                                <td>{$row['total_stock']}</td>
                                 <td>
                                     <a href='edit_product.php?id={$row['id']}' class='btn btn-sm btn-warning me-1'>✏️ Edit</a>
                                     <a href='delete_product.php?id={$row['id']}' class='btn btn-sm btn-danger' onclick='return confirm(\"Are you sure you want to delete this product?\")'>🗑️ Delete</a>

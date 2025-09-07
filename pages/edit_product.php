@@ -5,34 +5,51 @@ require_role(['manager','admin']);
 include '../pages/sidebar.php';
 include '../includes/header.php';
 
-if (!isset($_GET['id'])) {
-    echo "No product selected.";
-    exit;
+$product = [
+    'name' => '',
+    'buying-price' => '',
+    'selling-price' => '',
+    'stock' => ''
+];
+
+$id = 0;
+if (isset($_GET['id'])) {
+    $id = intval($_GET['id']); // sanitize
+
+    // Fetch product if id is given
+    $query = "SELECT * FROM products WHERE id = $id";
+    $result = $conn->query($query);
+
+    if ($result && $result->num_rows > 0) {
+        $product = $result->fetch_assoc();
+    }
 }
 
-$id = $_GET['id'];
-$query = $conn->prepare("SELECT * FROM products WHERE id = ?");
-$query->bind_param("i", $id);
-$query->execute();
-$result = $query->get_result();
-$product = $result->fetch_assoc();
+// Fetch all products for dropdown
+$products_result = $conn->query("SELECT id, name FROM products ORDER BY name ASC");
 
-if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    $name = $_POST['name'];
-    //$category = $_POST['category'];
-    $price = $_POST['selling-price'];
-    $cost = $_POST['buying-price'];
-    $stock = $_POST['stock'];
-    
-    $stmt = $conn->prepare("UPDATE products SET name=?, `buying-price`=?, `selling-price`=?, stock=? WHERE id=?");
-    $stmt->bind_param("sddii", $name, $buying_price, $selling_price, $stock, $id);
+// Handle update
+if ($_SERVER['REQUEST_METHOD'] == 'POST' && $id > 0) {
+    $name = $conn->real_escape_string($_POST['name']);
+    $buying_price = floatval($_POST['buying-price']);
+    $selling_price = floatval($_POST['selling-price']);
+    $stock = intval($_POST['stock']);
 
-    if ($stmt->execute()) {
-        header("Location: product.php");
-        exit;
-    } else {
-        echo "Failed to update product.";
-    }
+    $update = "
+        UPDATE products 
+        SET name = '$name', 
+            `buying-price` = $buying_price, 
+            `selling-price` = $selling_price, 
+            stock = $stock 
+        WHERE id = $id
+    ";
+if ($conn->query($update)) {
+    echo "<script>window.location.href='product.php';</script>";
+    exit;
+} else {
+    echo "Failed to update product: " . $conn->error;
+}
+
 }
 ?>
 
@@ -44,25 +61,45 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 </head>
 <body class="container">
     <h2 class="mt-4">Edit Product</h2>
+
+    <!-- Product selector -->
+    <form method="get" class="mb-4">
+        <label>Select Product to Edit:</label>
+        <select name="id" class="form-select" onchange="this.form.submit()">
+            <option value="">-- Choose a product --</option>
+            <?php while ($row = $products_result->fetch_assoc()): ?>
+                <option value="<?= $row['id'] ?>" <?= ($row['id'] == $id ? 'selected' : '') ?>>
+                    <?= htmlspecialchars($row['name']) ?>
+                </option>
+            <?php endwhile; ?>
+        </select>
+    </form>
+
+    <!-- Product form -->
     <form method="POST">
         <div class="mb-3">
             <label>Product Name:</label>
-            <input type="text" name="name" class="form-control" value="<?= $product['name'] ?>" required>
+            <input type="text" name="name" class="form-control" 
+                   value="<?= htmlspecialchars($product['name']) ?>" required>
         </div>
         <div class="mb-3">
             <label>Buying Price:</label>
-            <input type="number" step="0.01" name="buying-price" class="form-control" value="<?= $product['buying-price'] ?>" required>
+            <input type="number" step="0.01" name="buying-price" class="form-control" 
+                   value="<?= htmlspecialchars($product['buying-price']) ?>" required>
         </div>
         <div class="mb-3">
             <label>Selling Price:</label>
-            <input type="number" step="0.01" name="selling-price" class="form-control" value="<?= $product['selling-price'] ?>" required>
+            <input type="number" step="0.01" name="selling-price" class="form-control" 
+                   value="<?= htmlspecialchars($product['selling-price']) ?>" required>
         </div>
         <div class="mb-3">
             <label>Stock:</label>
-            <input type="number" name="stock" class="form-control" value="<?= $product['stock'] ?>" required>
+            <input type="number" name="stock" class="form-control" 
+                   value="<?= htmlspecialchars($product['stock']) ?>" required>
         </div>
-        <button type="submit" class="btn btn-primary">Update Product</button>
+        <button type="submit" class="btn btn-primary" <?= $id == 0 ? 'disabled' : '' ?>>
+            Update Product
+        </button>
     </form>
-<?php
-    include '../includes/footer.php';
-?>
+
+<?php include '../includes/footer.php'; ?>
