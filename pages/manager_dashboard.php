@@ -106,7 +106,7 @@ body.dark-mode .welcome-text {
     text-shadow: 0 2px 8px rgba(44,62,80,0.18);
 }
 
-/* Table Styling (like report.php/expense.php) */
+/* Table Styling (like admin_dashboard recent transactions) */
 .transactions-table table {
     width: 100%;
     border-collapse: collapse;
@@ -238,38 +238,39 @@ body.dark-mode .card-header {
                     </select>
                 </form>
             </div>
-            <div class="card-body table-responsive">
-                <table class="table table-hover align-middle">
-                    <thead class="table-dark">
-                        <tr>
-                            <th>Date</th>
-                            <th>Product</th>
-                            <th>Qty</th>
-                            <th>Total</th>
-                            <th>Sold By</th>
-                            <th>Branch</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                    <?php if ($sales_result->num_rows > 0): ?>
-                        <?php while($row = mysqli_fetch_assoc($sales_result)): ?>
+            <div class="card-body">
+                <div class="transactions-table">
+                    <table>
+                        <thead>
                             <tr>
-                                <td><?= $row['date'] ?></td>
-                                <td><?= htmlspecialchars($row['product_name']) ?></td>
-                                <td><?= $row['quantity'] ?></td>
-                                <td>UGX <?= number_format($row['amount']) ?></td>
-                                <td><?= htmlspecialchars($row['username']) ?></td>
-                                <td><?= htmlspecialchars($row['branch_name']) ?></td>
+                                <th>Date</th>
+                                <th>Product</th>
+                                <th>Qty</th>
+                                <th>Total</th>
+                                <th>Sold By</th>
+                                <th>Branch</th>
                             </tr>
-                        <?php endwhile; ?>
-                    <?php else: ?>
-                        <tr>
-                            <td colspan="6" class="text-center text-muted">No sales found.</td>
-                        </tr>
-                    <?php endif; ?>
-                    </tbody>
-                </table>
-
+                        </thead>
+                        <tbody>
+                        <?php if ($sales_result->num_rows > 0): ?>
+                            <?php while($row = mysqli_fetch_assoc($sales_result)): ?>
+                                <tr>
+                                    <td><?= $row['date'] ?></td>
+                                    <td><?= htmlspecialchars($row['product_name']) ?></td>
+                                    <td><?= $row['quantity'] ?></td>
+                                    <td>UGX <?= number_format($row['amount']) ?></td>
+                                    <td><?= htmlspecialchars($row['username']) ?></td>
+                                    <td><?= htmlspecialchars($row['branch_name']) ?></td>
+                                </tr>
+                            <?php endwhile; ?>
+                        <?php else: ?>
+                            <tr>
+                                <td colspan="6" class="text-center text-muted">No sales found.</td>
+                            </tr>
+                        <?php endif; ?>
+                        </tbody>
+                    </table>
+                </div>
                 <!-- Pagination -->
                 <?php if ($total_pages > 1): ?>
                     <nav aria-label="Sales pagination">
@@ -290,37 +291,39 @@ body.dark-mode .card-header {
             <div class="card-header bg-gradient-danger text-white fw-bold">
                 <i class="bi bi-cash-coin me-2"></i> Recent Expenses
             </div>
-            <div class="card-body table-responsive">
-                <table class="table table-hover align-middle">
-                    <thead class="table-dark">
-                        <tr>
-                            <th>Date</th>
-                            <th>Type</th>
-                            <th>Amount</th>
-                            <th>Spent By</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                    <?php
-                    $sql = "
-                        SELECT e.date, e.category, e.amount, u.username 
-                        FROM expenses e 
-                        JOIN users u ON e.`spent-by` = u.id 
-                        ORDER BY e.date DESC 
-                        LIMIT 5
-                    ";
-                    $result = mysqli_query($conn, $sql);
-                    while($row = mysqli_fetch_assoc($result)) {
-                        echo "<tr>
-                            <td>{$row['date']}</td>
-                            <td>{$row['category']}</td>
-                            <td>UGX ".number_format($row['amount'])."</td>
-                            <td>{$row['username']}</td>
-                        </tr>";
-                    }
-                    ?>
-                    </tbody>
-                </table>
+            <div class="card-body">
+                <div class="transactions-table">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Type</th>
+                                <th>Amount</th>
+                                <th>Spent By</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                        <?php
+                        $sql = "
+                            SELECT e.date, e.category, e.amount, u.username 
+                            FROM expenses e 
+                            JOIN users u ON e.`spent-by` = u.id 
+                            ORDER BY e.date DESC 
+                            LIMIT 5
+                        ";
+                        $result = mysqli_query($conn, $sql);
+                        while($row = mysqli_fetch_assoc($result)) {
+                            echo "<tr>
+                                <td>{$row['date']}</td>
+                                <td>{$row['category']}</td>
+                                <td>UGX ".number_format($row['amount'])."</td>
+                                <td>{$row['username']}</td>
+                            </tr>";
+                        }
+                        ?>
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
 
