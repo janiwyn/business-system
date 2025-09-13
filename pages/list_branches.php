@@ -72,6 +72,9 @@ body.dark-mode .transactions-table tbody tr:nth-child(even) {
 body.dark-mode .transactions-table tbody td {
     color: #ffffff !important;
 }
+body.dark-mode .transactions-table tbody td .text-muted {
+    color: #cccccc !important;
+}
 body.dark-mode .transactions-table tbody tr:hover {
     background-color: rgba(255,255,255,0.1) !important;
 }
