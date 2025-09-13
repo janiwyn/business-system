@@ -214,6 +214,23 @@ body.dark-mode .transactions-table tbody tr:hover {
   display: flex;
   align-items: center;
   justify-content: flex-start;
+  position: relative;
+  overflow: hidden;
+}
+.welcome-balls {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  z-index: 1;
+  pointer-events: none;
+}
+.welcome-ball {
+  position: absolute;
+  border-radius: 50%;
+  opacity: 0.18;
+  transition: background 0.3s;
+  box-shadow: 0 2px 12px rgba(44,62,80,0.12);
+  will-change: left, top;
 }
 .welcome-text {
   color: #fff;
