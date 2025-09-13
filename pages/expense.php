@@ -44,30 +44,53 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
+// Filters
+$branch_filter = $_GET['branch'] ?? '';
+$date_from = $_GET['date_from'] ?? '';
+$date_to = $_GET['date_to'] ?? '';
+
+// Build WHERE clause for filters
+$where = [];
+if ($branch_filter) {
+    $where[] = "e.`branch-id` = " . intval($branch_filter);
+}
+if ($date_from) {
+    $where[] = "DATE(e.date) >= '" . $conn->real_escape_string($date_from) . "'";
+}
+if ($date_to) {
+    $where[] = "DATE(e.date) <= '" . $conn->real_escape_string($date_to) . "'";
+}
+$whereClause = count($where) ? "WHERE " . implode(' AND ', $where) : "";
+
 // Pagination setup for expenses table
 $items_per_page = 30;
 $page = isset($_GET['page']) ? max(1, intval($_GET['page'])) : 1;
 $offset = ($page - 1) * $items_per_page;
 
-// Get total expenses count for pagination
-$count_result = $conn->query("SELECT COUNT(*) AS total FROM expenses");
+// Get total expenses count for pagination (filtered)
+$count_result = $conn->query("SELECT COUNT(*) AS total FROM expenses e $whereClause");
 $count_row = $count_result->fetch_assoc();
 $total_items = $count_row['total'];
 $total_pages = ceil($total_items / $items_per_page);
 
-// Fetch expenses for current page
+// Fetch expenses for current page (filtered)
 $expenses = $conn->query("
-    SELECT e.*, u.username 
+    SELECT e.*, u.username, b.name AS branch_name
     FROM expenses e 
     LEFT JOIN users u ON e.`spent-by` = u.id 
+    LEFT JOIN branch b ON e.`branch-id` = b.id
+    $whereClause
     ORDER BY e.date DESC
     LIMIT $items_per_page OFFSET $offset
 ");
 
-// Get total expenses
-$total_result = $conn->query("SELECT SUM(amount) AS total_expenses FROM expenses");
+// Get total expenses (filtered)
+$total_result = $conn->query("SELECT SUM(e.amount) AS total_expenses FROM expenses e $whereClause");
 $total_data = $total_result->fetch_assoc();
 $total_expenses = $total_data['total_expenses'] ?? 0;
+
+// Fetch branches for filter
+$branches = $conn->query("SELECT id, name FROM branch");
 ?>
 
 <!-- Custom Styling -->
@@ -181,6 +204,31 @@ body.dark-mode .transactions-table tbody td {
 body.dark-mode .transactions-table tbody tr:hover {
     background-color: rgba(255,255,255,0.1) !important;
 }
+/* Calendar icon light in dark mode */
+body.dark-mode input[type="date"]::-webkit-calendar-picker-indicator {
+    filter: invert(1);
+}
+body.dark-mode input[type="date"]::-moz-calendar-picker-indicator {
+    filter: invert(1);
+}
+body.dark-mode input[type="date"]::-ms-input-placeholder {
+    color: #fff !important;
+}
+body.dark-mode input[type="date"] {
+    background-color: #23243a !important;
+    color: #fff !important;
+    border: 1px solid #444 !important;
+}
+/* Expenses value in red */
+.expense-value {
+    color: #e74c3c !important;
+    font-weight: 600;
+}
+.total-expenses-value {
+    color: #e74c3c !important;
+    font-weight: 700;
+    font-size: 1.2rem;
+}
 </style>
 
 <div class="container-fluid mt-5">
@@ -234,20 +282,36 @@ body.dark-mode .transactions-table tbody tr:hover {
         </div>
     </div>
 
-    <!-- Total Expenses -->
-    <div class="alert alert-secondary">
-        <strong>Total Expenses:</strong> UGX <?php echo number_format($total_expenses, 2); ?>
-    </div>
-
-    <!-- Expense Table -->
+    <!-- Filter & Table -->
     <div class="card mb-5">
-        <div class="card-header title-card">📋 All Expenses</div>
+        <div class="card-header bg-light text-black d-flex flex-wrap justify-content-between align-items-center" style="border-radius:12px 12px 0 0;">
+            <span class="fw-bold title-card"><i class="fa-solid fa-wallet"></i> All Expenses</span>
+            <form method="GET" class="d-flex align-items-center flex-wrap gap-2" style="gap:1rem;">
+                <label class="fw-bold me-2">From:</label>
+                <input type="date" name="date_from" class="form-select me-2" value="<?= htmlspecialchars($date_from) ?>" style="width:150px;">
+                <label class="fw-bold me-2">To:</label>
+                <input type="date" name="date_to" class="form-select me-2" value="<?= htmlspecialchars($date_to) ?>" style="width:150px;">
+                <label class="fw-bold me-2">Branch:</label>
+                <select name="branch" class="form-select me-2" onchange="this.form.submit()" style="width:180px;">
+                    <option value="">-- All Branches --</option>
+                    <?php
+                    $branches = $conn->query("SELECT id, name FROM branch");
+                    while ($b = $branches->fetch_assoc()):
+                        $selected = ($branch_filter == $b['id']) ? 'selected' : '';
+                        echo "<option value='{$b['id']}' $selected>{$b['name']}</option>";
+                    endwhile;
+                    ?>
+                </select>
+                <button type="submit" class="btn btn-primary ms-2">Filter</button>
+            </form>
+        </div>
         <div class="card-body p-0">
             <div class="transactions-table">
                 <table>
                     <thead>
                         <tr>
                             <th>#</th>
+                            <?php if (empty($branch_filter)) echo "<th>Branch</th>"; ?>
                             <th>Category</th>
                             <th>Amount (UGX)</th>
                             <th>Description</th>
@@ -260,15 +324,18 @@ body.dark-mode .transactions-table tbody tr:hover {
                             <?php $i = $offset + 1; while ($row = $expenses->fetch_assoc()): ?>
                                 <tr>
                                     <td><?php echo $i++; ?></td>
+                                    <?php if (empty($branch_filter)) echo "<td>" . htmlspecialchars($row['branch_name']) . "</td>"; ?>
                                     <td><?php echo htmlspecialchars($row['category']); ?></td>
-                                    <td><?php echo number_format($row['amount'], 2); ?></td>
+                                    <td><span class="expense-value"><?php echo number_format($row['amount'], 2); ?></span></td>
                                     <td><?php echo htmlspecialchars($row['description']); ?></td>
                                     <td><?php echo $row['date']; ?></td>
                                     <td><?php echo htmlspecialchars($row['username']); ?></td>
                                 </tr>
                             <?php endwhile; ?>
                         <?php else: ?>
-                            <tr><td colspan="6" class="text-center text-muted">No expenses recorded yet.</td></tr>
+                            <tr>
+                                <td colspan="<?php echo empty($branch_filter) ? 7 : 6; ?>" class="text-center text-muted">No expenses recorded yet.</td>
+                            </tr>
                         <?php endif; ?>
                     </tbody>
                 </table>
@@ -279,12 +346,16 @@ body.dark-mode .transactions-table tbody tr:hover {
                 <ul class="pagination justify-content-center mt-3">
                     <?php for ($p = 1; $p <= $total_pages; $p++): ?>
                         <li class="page-item <?= ($p == $page) ? 'active' : '' ?>">
-                            <a class="page-link" href="?page=<?= $p ?>"><?= $p ?></a>
+                            <a class="page-link" href="?page=<?= $p ?><?= ($branch_filter ? '&branch=' . $branch_filter : '') ?><?= ($date_from ? '&date_from=' . $date_from : '') ?><?= ($date_to ? '&date_to=' . $date_to : '') ?>"><?= $p ?></a>
                         </li>
                     <?php endfor; ?>
                 </ul>
             </nav>
             <?php endif; ?>
+            <!-- Total Expenses Sum -->
+            <div class="mt-4 text-end">
+                <h5 class="fw-bold">Total Expenses: <span class="total-expenses-value">UGX <?= number_format($total_expenses, 2) ?></span></h5>
+            </div>
         </div>
     </div>
 </div>
