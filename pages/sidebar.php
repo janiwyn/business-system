@@ -5,6 +5,17 @@ if (!isset($_SESSION['role'])) {
     exit();
 }
 $role = $_SESSION['role'];
+
+// Redirect to correct sidebar if not staff
+if ($role === 'admin') {
+    include __DIR__ . '/sidebar_admin.php';
+    // Do not render this sidebar, exit after including admin sidebar
+    return;
+} elseif ($role === 'manager') {
+    include __DIR__ . '/sidebar_manager.php';
+    // Do not render this sidebar, exit after including manager sidebar
+    return;
+}
 ?>
 <div class="d-flex">
   <div class="sidebar bg-dark text-white p-3 shadow-lg" style="width: 250px; min-height: 100vh; border-top-right-radius: 9px; border-bottom-right-radius: 12px;">
