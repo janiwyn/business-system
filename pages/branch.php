@@ -422,7 +422,7 @@ body.dark-mode .card-header {
         <div class="col-md-6">
             <div class="card h-100">
                 <div class="card-header">Sales Chart</div>
-                <div class="card-body p-4">
+                <div class="card-body p-4 d-flex flex-column align-items-center justify-content-center">
                     <canvas id="salesChart"></canvas>
                 </div>
             </div>
@@ -430,8 +430,8 @@ body.dark-mode .card-header {
         <div class="col-md-6">
             <div class="card h-100">
                 <div class="card-header">Top Products Donut</div>
-                <div class="card-body p-4">
-                    <canvas id="donutChart"></canvas>
+                <div class="card-body p-4 d-flex flex-column align-items-center justify-content-center">
+                    <canvas id="donutChart" style="max-width:320px;max-height:320px;width:100%;height:auto;display:block;"></canvas>
                 </div>
             </div>
         </div>
@@ -539,6 +539,12 @@ function renderBranchCharts() {
 }
 renderBranchCharts();
 document.getElementById('themeToggle')?.addEventListener('change', renderBranchCharts);
+
+// Set donut chart size smaller via JS as well for extra safety
+if (donutChartElem) {
+    donutChartElem.width = 320;
+    donutChartElem.height = 320;
+}
 </script>
 <?php endif; ?>
 
