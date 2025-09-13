@@ -474,6 +474,25 @@ body.dark-mode .transactions-table tbody td {
 body.dark-mode .transactions-table tbody tr:hover {
     background-color: rgba(255,255,255,0.1) !important;
 }
+body.dark-mode .card .card-header.bg-light {
+    background-color: #2c3e50 !important;
+    color: #fff !important;
+    border-bottom: none;
+}
+body.dark-mode .card .card-header.bg-light label,
+body.dark-mode .card .card-header.bg-light select,
+body.dark-mode .card .card-header.bg-light span {
+    color: #fff !important;
+}
+body.dark-mode .card .card-header.bg-light .form-select {
+    background-color: #23243a !important;
+    color: #fff !important;
+    border: 1px solid #444 !important;
+}
+body.dark-mode .card .card-header.bg-light .form-select:focus {
+    background-color: #23243a !important;
+    color: #fff !important;
+}
 .print-report-btn {
     background: var(--primary-color) !important;
     color: #fff !important;
