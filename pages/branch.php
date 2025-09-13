@@ -335,6 +335,26 @@ body.dark-mode .card-header {
         </div>
     </div>
 
+    <!-- Charts (move above Top Selling Products) -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card h-100">
+                <div class="card-header">Sales Chart</div>
+                <div class="card-body p-4 d-flex flex-column align-items-center justify-content-center">
+                    <canvas id="salesChart"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card h-100">
+                <div class="card-header">Top Products Donut</div>
+                <div class="card-body p-4 d-flex flex-column align-items-center justify-content-center">
+                    <canvas id="donutChart" style="max-width:320px;max-height:320px;width:100%;height:auto;display:block;"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Top Selling Products -->
     <div class="card mb-4">
         <div class="card-header">Top Selling Products</div>
@@ -414,26 +434,6 @@ body.dark-mode .card-header {
                 </ul>
             </nav>
             <?php endif; ?>
-        </div>
-    </div>
-
-    <!-- Charts -->
-    <div class="row mb-5">
-        <div class="col-md-6">
-            <div class="card h-100">
-                <div class="card-header">Sales Chart</div>
-                <div class="card-body p-4 d-flex flex-column align-items-center justify-content-center">
-                    <canvas id="salesChart"></canvas>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-6">
-            <div class="card h-100">
-                <div class="card-header">Top Products Donut</div>
-                <div class="card-body p-4 d-flex flex-column align-items-center justify-content-center">
-                    <canvas id="donutChart" style="max-width:320px;max-height:320px;width:100%;height:auto;display:block;"></canvas>
-                </div>
-            </div>
         </div>
     </div>
 
