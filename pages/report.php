@@ -170,7 +170,7 @@ $sales_main = $conn->query("
 
     <!-- Print Button -->
     <div class="mb-3 text-end">
-        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#printModal">Print Report</button>
+        <button class="btn print-report-btn" data-bs-toggle="modal" data-bs-target="#printModal">Print Report</button>
     </div>
 
     <!-- Print Modal -->
@@ -473,6 +473,20 @@ body.dark-mode .transactions-table tbody td {
 }
 body.dark-mode .transactions-table tbody tr:hover {
     background-color: rgba(255,255,255,0.1) !important;
+}
+.print-report-btn {
+    background: var(--primary-color) !important;
+    color: #fff !important;
+    border: none;
+    font-weight: 600;
+    padding: 0.5rem 1.5rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(44,62,80,0.08);
+    transition: background 0.2s;
+}
+.print-report-btn:hover, .print-report-btn:focus {
+    background: #159c8c !important;
+    color: #fff !important;
 }
 </style>
 
