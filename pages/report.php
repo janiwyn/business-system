@@ -2,8 +2,8 @@
 include '../includes/db.php';
 include '../includes/auth.php';
 require_role(["admin","manager"]);
-include '../pages/sidebar.php';
-include '../includes/header.php';
+include '../pages/sidebar_admin.php'; // Use admin sidebar
+include '../includes/header.php';     // Use modern header
 
 // ==========================
 // Summary Cards Data
@@ -110,28 +110,40 @@ $sales_main = $conn->query("
     LIMIT $start,$limit
 ");
 ?>
-
-<div class="container mt-4">
-    <h2 class="mb-4">📊 Business Report</h2>
-
+<div class="container-fluid mt-4">
     <!-- Summary Cards -->
     <div class="row mb-4">
-        <div class="col-md-4">
-            <div class="summary-card bg-success text-white p-4 mb-3">
-                <h5>Total Sales 💰</h5>
-                <h3>UGX <?= number_format($sales_total) ?></h3>
+        <div class="col-md-4 mb-3">
+            <div class="card stat-card gradient-success">
+                <div class="card-body d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6>Total Sales 💰</h6>
+                        <h3>UGX <?= number_format($sales_total) ?></h3>
+                    </div>
+                    <i class="fa-solid fa-coins stat-icon"></i>
+                </div>
             </div>
         </div>
-        <div class="col-md-4">
-            <div class="summary-card bg-danger text-white p-4 mb-3">
-                <h5>Total Expenses 💸</h5>
-                <h3>UGX <?= number_format($expenses_total) ?></h3>
+        <div class="col-md-4 mb-3">
+            <div class="card stat-card gradient-danger">
+                <div class="card-body d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6>Total Expenses 💸</h6>
+                        <h3>UGX <?= number_format($expenses_total) ?></h3>
+                    </div>
+                    <i class="fa-solid fa-wallet stat-icon"></i>
+                </div>
             </div>
         </div>
-        <div class="col-md-4">
-            <div class="summary-card bg-info text-white p-4 mb-3">
-                <h5>Net Profit 📈</h5>
-                <h3>UGX <?= number_format($profit_total) ?></h3>
+        <div class="col-md-4 mb-3">
+            <div class="card stat-card gradient-info">
+                <div class="card-body d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6>Net Profit 📈</h6>
+                        <h3>UGX <?= number_format($profit_total) ?></h3>
+                    </div>
+                    <i class="fa-solid fa-chart-line stat-icon"></i>
+                </div>
             </div>
         </div>
     </div>
@@ -139,13 +151,19 @@ $sales_main = $conn->query("
     <!-- Charts Section -->
     <div class="row mb-4">
         <div class="col-md-6">
-            <div class="chart-card p-3 bg-white mb-3">
-                <canvas id="salesChart"></canvas>
+            <div class="card chart-card">
+                <div class="card-body">
+                    <h5 class="title-card">Sales</h5>
+                    <canvas id="salesChart"></canvas>
+                </div>
             </div>
         </div>
         <div class="col-md-6">
-            <div class="chart-card p-3 bg-white mb-3">
-                <canvas id="expensesChart"></canvas>
+            <div class="card chart-card">
+                <div class="card-body">
+                    <h5 class="title-card">Expenses</h5>
+                    <canvas id="expensesChart"></canvas>
+                </div>
             </div>
         </div>
     </div>
@@ -194,32 +212,34 @@ $sales_main = $conn->query("
                 <div style="clear:both;"></div>
             </div>
             <div class="card-body table-responsive">
-                <table class="table table-striped table-bordered">
-                    <thead class="table-dark">
-                        <tr>
-                            <th>Date</th>
-                            <th>Product</th>
-                            <th>Qty</th>
-                            <th>Price</th>
-                            <th>Total</th>
-                            <th>Sold By</th>
-                            <th>Branch</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php foreach($preview_sales as $s): ?>
+                <div class="transactions-table">
+                    <table>
+                        <thead>
                             <tr>
-                                <td><?= $s['date'] ?></td>
-                                <td><?= htmlspecialchars($s['product_name']) ?></td>
-                                <td><?= $s['quantity'] ?></td>
-                                <td>UGX <?= number_format($s['amount']) ?></td>
-                                <td>UGX <?= number_format($s['quantity']*$s['amount']) ?></td>
-                                <td><?= htmlspecialchars($s['sold-by']) ?></td>
-                                <td><?= htmlspecialchars($s['branch_name']) ?></td>
+                                <th>Date</th>
+                                <th>Product</th>
+                                <th>Qty</th>
+                                <th>Price</th>
+                                <th>Total</th>
+                                <th>Sold By</th>
+                                <th>Branch</th>
                             </tr>
-                        <?php endforeach; ?>
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody>
+                            <?php foreach($preview_sales as $s): ?>
+                                <tr>
+                                    <td><?= $s['date'] ?></td>
+                                    <td><?= htmlspecialchars($s['product_name']) ?></td>
+                                    <td><?= $s['quantity'] ?></td>
+                                    <td>UGX <?= number_format($s['amount']) ?></td>
+                                    <td>UGX <?= number_format($s['quantity']*$s['amount']) ?></td>
+                                    <td><?= htmlspecialchars($s['sold-by']) ?></td>
+                                    <td><?= htmlspecialchars($s['branch_name']) ?></td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
                 <h5 class="text-end">Total Sales: UGX <?= number_format($preview_total) ?></h5>
                 <div class="text-end mt-3">
                     <button class="btn btn-success" onclick="printSection('printableReport')">Print</button>
@@ -247,33 +267,34 @@ $sales_main = $conn->query("
             </form>
         </div>
         <div class="card-body table-responsive">
-            <table class="table table-striped table-bordered">
-                <thead class="table-dark">
-                    <tr>
-                        <th>Date</th>
-                        <th>Product</th>
-                        <th>Qty</th>
-                        <th>Price</th>
-                        <th>Total</th>
-                        <th>Sold By</th>
-                        <th>Branch</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php while($s = $sales_main->fetch_assoc()): ?>
+            <div class="transactions-table">
+                <table>
+                    <thead>
                         <tr>
-                            <td><?= $s['date'] ?></td>
-                            <td><?= htmlspecialchars($s['product_name']) ?></td>
-                            <td><?= $s['quantity'] ?></td>
-                            <td>UGX <?= number_format($s['amount']) ?></td>
-                            <td>UGX <?= number_format($s['quantity']*$s['amount']) ?></td>
-                            <td><?= htmlspecialchars($s['sold-by']) ?></td>
-                            <td><?= htmlspecialchars($s['branch_name']) ?></td>
+                            <th>Date</th>
+                            <th>Product</th>
+                            <th>Qty</th>
+                            <th>Price</th>
+                            <th>Total</th>
+                            <th>Sold By</th>
+                            <th>Branch</th>
                         </tr>
-                    <?php endwhile; ?>
-                </tbody>
-            </table>
-
+                    </thead>
+                    <tbody>
+                        <?php while($s = $sales_main->fetch_assoc()): ?>
+                            <tr>
+                                <td><?= $s['date'] ?></td>
+                                <td><?= htmlspecialchars($s['product_name']) ?></td>
+                                <td><?= $s['quantity'] ?></td>
+                                <td>UGX <?= number_format($s['amount']) ?></td>
+                                <td>UGX <?= number_format($s['quantity']*$s['amount']) ?></td>
+                                <td><?= htmlspecialchars($s['sold-by']) ?></td>
+                                <td><?= htmlspecialchars($s['branch_name']) ?></td>
+                            </tr>
+                        <?php endwhile; ?>
+                    </tbody>
+                </table>
+            </div>
             <!-- Pagination -->
             <nav>
                 <ul class="pagination justify-content-center">
@@ -290,15 +311,93 @@ $sales_main = $conn->query("
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-const salesChart = new Chart(document.getElementById('salesChart'), {
-    type: 'bar',
-    data: { labels: <?= json_encode($months) ?>, datasets:[{label:'Sales',data:<?= json_encode($salesData) ?>,backgroundColor:'rgba(40,167,69,0.7)',borderRadius:10}]},
-    options:{responsive:true,plugins:{legend:{display:false}}}
-});
-const expensesChart = new Chart(document.getElementById('expensesChart'), {
-    type: 'bar',
-    data: { labels: <?= json_encode($expenseMonths) ?>, datasets:[{label:'Expenses',data:<?= json_encode($expenseData) ?>,backgroundColor:'rgba(220,53,69,0.7)',borderRadius:10}]},
-    options:{responsive:true,plugins:{legend:{display:false}}}
+function isDarkMode() {
+    return document.body.classList.contains('dark-mode');
+}
+function getChartFontColor() {
+    return isDarkMode() ? '#fff' : '#2c3e50';
+}
+function getChartGridColor() {
+    return isDarkMode() ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)';
+}
+
+function renderCharts() {
+    // Remove old canvases if re-rendering
+    if (window.salesChartInstance) window.salesChartInstance.destroy();
+    if (window.expensesChartInstance) window.expensesChartInstance.destroy();
+
+    const fontColor = getChartFontColor();
+    const gridColor = getChartGridColor();
+
+    window.salesChartInstance = new Chart(document.getElementById('salesChart'), {
+        type: 'bar',
+        data: {
+            labels: <?= json_encode($months) ?>,
+            datasets: [{
+                label: 'Sales',
+                data: <?= json_encode($salesData) ?>,
+                backgroundColor: 'rgba(40,167,69,0.7)',
+                borderRadius: 10
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { display: false },
+                title: { display: false }
+            },
+            scales: {
+                x: {
+                    ticks: { color: fontColor },
+                    grid: { color: gridColor }
+                },
+                y: {
+                    beginAtZero: true,
+                    ticks: { color: fontColor },
+                    grid: { color: gridColor }
+                }
+            }
+        }
+    });
+
+    window.expensesChartInstance = new Chart(document.getElementById('expensesChart'), {
+        type: 'bar',
+        data: {
+            labels: <?= json_encode($expenseMonths) ?>,
+            datasets: [{
+                label: 'Expenses',
+                data: <?= json_encode($expenseData) ?>,
+                backgroundColor: 'rgba(220,53,69,0.7)',
+                borderRadius: 10
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { display: false },
+                title: { display: false }
+            },
+            scales: {
+                x: {
+                    ticks: { color: fontColor },
+                    grid: { color: gridColor }
+                },
+                y: {
+                    beginAtZero: true,
+                    ticks: { color: fontColor },
+                    grid: { color: gridColor }
+                }
+            }
+        }
+    });
+}
+
+// Initial render
+renderCharts();
+
+// Re-render charts on dark mode toggle
+document.getElementById('themeToggle')?.addEventListener('change', () => {
+    renderCharts();
 });
 
 function printSection(sectionId) {
@@ -315,8 +414,66 @@ function printSection(sectionId) {
 </script>
 
 <style>
-.summary-card { border-radius:15px; box-shadow:0 4px 20px rgba(0,0,0,0.1); transition:0.3s ease; }
-.chart-card { border-radius:15px; box-shadow:0 4px 15px rgba(0,0,0,0.1); padding:20px; background:#fff; }
+.stat-card {
+    border: none;
+    border-radius: 15px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+    transition: transform 0.2s ease-in-out;
+    color: #fff;
+}
+.stat-card:hover { transform: translateY(-5px); }
+.stat-icon {
+    font-size: 2rem;
+    opacity: 0.8;
+}
+.gradient-success { background: linear-gradient(135deg, #56ccf2, #2f80ed); }
+.gradient-danger  { background: linear-gradient(135deg, #eb3349, #f45c43); }
+.gradient-info    { background: linear-gradient(135deg, #00c6ff, #0072ff); }
+.transactions-table table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--card-bg);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 4px 12px var(--card-shadow);
+}
+.transactions-table thead {
+    background: var(--primary-color);
+    color: #fff;
+}
+.transactions-table tbody td {
+    color: var(--text-color);
+    padding: 0.75rem 1rem;
+}
+.transactions-table tbody tr {
+    background-color: #fff;
+    transition: background 0.2s;
+}
+.transactions-table tbody tr:nth-child(even) {
+    background-color: #f4f6f9;
+}
+.transactions-table tbody tr:hover {
+    background-color: rgba(0,0,0,0.05);
+}
+body.dark-mode .transactions-table table {
+    background: var(--card-bg);
+}
+body.dark-mode .transactions-table thead {
+    background-color: #1abc9c;
+    color: #ffffff;
+}
+body.dark-mode .transactions-table tbody tr {
+    background-color: #2c2c3a !important;
+}
+body.dark-mode .transactions-table tbody tr:nth-child(even) {
+    background-color: #272734 !important;
+}
+body.dark-mode .transactions-table tbody td {
+    color: #ffffff !important;
+}
+body.dark-mode .transactions-table tbody tr:hover {
+    background-color: rgba(255,255,255,0.1) !important;
+}
 </style>
 
 <?php include '../includes/footer.php'; ?>
