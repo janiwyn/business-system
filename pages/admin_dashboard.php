@@ -223,8 +223,7 @@ $username = $_SESSION['username'];
   <!-- Recent Transactions -->
 <div class="transactions-table mt-5">
   <h5 class="transactions-title">Recent Transactions</h5>
-  <table class="table table-striped table-hover">
-
+  <table>
       <thead>
         <tr>
           <th>#</th>
@@ -363,4 +362,5 @@ document.querySelector('.dark-toggle').addEventListener('click', () => {
   createBarChart();
   createLineChart();
 });
+</script>
 </script>

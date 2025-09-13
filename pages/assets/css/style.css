@@ -158,6 +158,14 @@ h1,h2,h3,h4,h5,h6 { margin: 0; }
 }
 .transactions-table tbody td {
   color: var(--text-color);
+  padding: 0.75rem 1rem;
+}
+.transactions-table tbody tr {
+  background-color: #fff;
+  transition: background 0.2s;
+}
+.transactions-table tbody tr:nth-child(even) {
+  background-color: #f4f6f9;
 }
 .transactions-table tbody tr:hover {
   background-color: rgba(0,0,0,0.05);
@@ -183,11 +191,6 @@ body.dark-mode .transactions-table tbody tr:nth-child(even) {
 
 body.dark-mode .transactions-table tbody td {
   color: #ffffff !important; /* content white */
-}
-
-/* Override Bootstrap striped background */
-body.dark-mode .transactions-table .table-striped tbody tr:nth-of-type(odd) {
-  background-color: #2c2c3a !important;
 }
 
 body.dark-mode .transactions-table tbody tr:hover {
