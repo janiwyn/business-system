@@ -3,7 +3,7 @@ session_start();
 include '../includes/db.php';
 include '../includes/auth.php';
 require_role(["admin", "manager", "staff"]);
-include '../pages/sidebar.php';
+include '../pages/sidebar_admin.php';
 include '../includes/header.php';
 
 $message = "";
