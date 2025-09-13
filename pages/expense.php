@@ -229,6 +229,72 @@ body.dark-mode input[type="date"] {
     font-weight: 700;
     font-size: 1.2rem;
 }
+
+/* Light mode: All Expenses title and icon color, filter area background, filter label color */
+.card .card-header.bg-light {
+    background-color: #f8f9fa !important;
+    color: #222 !important;
+    border-bottom: none;
+}
+.card .card-header.bg-light .title-card,
+.card .card-header.bg-light .title-card i {
+    color: var(--primary-color) !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    border: none !important;
+    padding: 0 !important;
+}
+.card .card-header.bg-light .title-card {
+    font-weight: 700;
+    font-size: 1.1rem;
+    letter-spacing: 1px;
+    display: flex;
+    align-items: center;
+    background: transparent !important;
+}
+.card .card-header.bg-light label,
+.card .card-header.bg-light select,
+.card .card-header.bg-light span {
+    color: #222 !important;
+}
+.card .card-header.bg-light .form-select,
+.card .card-header.bg-light input[type="date"] {
+    color: #222 !important;
+    background-color: #fff !important;
+    border: 1px solid #dee2e6 !important;
+}
+.card .card-header.bg-light .form-select:focus,
+.card .card-header.bg-light input[type="date"]:focus {
+    color: #222 !important;
+    background-color: #fff !important;
+}
+
+/* Dark mode: All Expenses title, icon, and filter labels white */
+body.dark-mode .card .card-header.bg-light {
+    background-color: #2c3e50 !important;
+    color: #fff !important;
+    border-bottom: none;
+}
+body.dark-mode .card .card-header.bg-light .title-card,
+body.dark-mode .card .card-header.bg-light .title-card i {
+    color: #fff !important;
+}
+body.dark-mode .card .card-header.bg-light label,
+body.dark-mode .card .card-header.bg-light select,
+body.dark-mode .card .card-header.bg-light span {
+    color: #fff !important;
+}
+body.dark-mode .card .card-header.bg-light .form-select,
+body.dark-mode .card .card-header.bg-light input[type="date"] {
+    color: #fff !important;
+    background-color: #23243a !important;
+    border: 1px solid #444 !important;
+}
+body.dark-mode .card .card-header.bg-light .form-select:focus,
+body.dark-mode .card .card-header.bg-light input[type="date"]:focus {
+    color: #fff !important;
+    background-color: #23243a !important;
+}
 </style>
 
 <div class="container-fluid mt-5">
