@@ -194,8 +194,8 @@ body.dark-mode .transactions-table tbody tr:nth-child(even) {
 body.dark-mode .transactions-table tbody td {
     color: #ffffff !important;
 }
-body.dark-mode .transactions-table tbody tr:hover {
-    background-color: rgba(255,255,255,0.1) !important;
+body.dark-mode .transactions-table tbody td small.text-muted {
+    color: #ffffff !important;
 }
 body.dark-mode .card .card-header.bg-light {
     background-color: #2c3e50 !important;
@@ -214,6 +214,23 @@ body.dark-mode .card .card-header.bg-light .form-select {
 }
 body.dark-mode .card .card-header.bg-light .form-select:focus {
     background-color: #23243a !important;
+    color: #fff !important;
+}
+body.dark-mode .card .card-header.bg-light input[type="date"]::-webkit-input-placeholder {
+    color: #fff !important;
+}
+body.dark-mode .card .card-header.bg-light input[type="date"] {
+    background-color: #23243a !important;
+    color: #fff !important;
+    border: 1px solid #444 !important;
+}
+body.dark-mode .card .card-header.bg-light input[type="date"]::-webkit-calendar-picker-indicator {
+    filter: invert(1);
+}
+body.dark-mode .card .card-header.bg-light input[type="date"]::-moz-calendar-picker-indicator {
+    filter: invert(1);
+}
+body.dark-mode .card .card-header.bg-light input[type="date"]::-ms-input-placeholder {
     color: #fff !important;
 }
 .title-card {
