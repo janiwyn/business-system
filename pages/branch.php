@@ -199,6 +199,90 @@ body.dark-mode .card-header {
         ORDER BY total_sold DESC 
         LIMIT 5
     ");
+
+    // Pagination for Top Selling Products
+    $top_products_page = isset($_GET['top_products_page']) ? max(1, intval($_GET['top_products_page'])) : 1;
+    $top_products_per_page = 10;
+    $top_products_offset = ($top_products_page - 1) * $top_products_per_page;
+
+    // Get total count for top products
+    $total_top_products_result = $conn->query("
+        SELECT COUNT(DISTINCT s.`product-id`) AS total
+        FROM sales s
+        WHERE s.`branch-id` = $branch_id
+    ");
+    $total_top_products = $total_top_products_result->fetch_assoc()['total'] ?? 0;
+    $total_top_products_pages = ceil($total_top_products / $top_products_per_page);
+
+    // Paginated top products
+    $top_products_result = $conn->query("
+        SELECT p.name, SUM(s.quantity) AS total_sold 
+        FROM sales s 
+        JOIN products p ON s.`product-id` = p.id 
+        WHERE s.`branch-id` = $branch_id 
+        GROUP BY s.`product-id` 
+        ORDER BY total_sold DESC 
+        LIMIT $top_products_per_page OFFSET $top_products_offset
+    ");
+
+    // For donut chart (top 5 products)
+    $donut_products_result = $conn->query("
+        SELECT p.name, SUM(s.quantity) AS total_sold 
+        FROM sales s 
+        JOIN products p ON s.`product-id` = p.id 
+        WHERE s.`branch-id` = $branch_id 
+        GROUP BY s.`product-id` 
+        ORDER BY total_sold DESC 
+        LIMIT 5
+    ");
+    $donut_labels = [];
+    $donut_data = [];
+    while ($row = $donut_products_result->fetch_assoc()) {
+        $donut_labels[] = $row['name'] ?? 'Unknown';
+        $donut_data[] = $row['total_sold'] ?? 0;
+    }
+
+    // For bar chart (top 5 products)
+    // IMPORTANT: Only run this query ONCE and use the result for both the table and the chart
+    // If you run $top_products_result->fetch_assoc() in the table, the pointer is at the end for the chart
+    // So, fetch the data for the table into an array, and reuse it for the chart
+
+    // Rewind the pointer for the paginated table (already used above)
+    // But for the chart, we need a separate query for top 5 products only
+    $bar_products_result = $conn->query("
+        SELECT p.name, SUM(s.quantity) AS total_sold 
+        FROM sales s 
+        JOIN products p ON s.`product-id` = p.id 
+        WHERE s.`branch-id` = $branch_id 
+        GROUP BY s.`product-id` 
+        ORDER BY total_sold DESC 
+        LIMIT 5
+    ");
+    $bar_labels = [];
+    $bar_data = [];
+    while ($row = $bar_products_result->fetch_assoc()) {
+        $bar_labels[] = $row['name'] ?? 'Unknown';
+        $bar_data[] = $row['total_sold'] ?? 0;
+    }
+
+    // Pagination for Staff
+    $staff_page = isset($_GET['staff_page']) ? max(1, intval($_GET['staff_page'])) : 1;
+    $staff_per_page = 10;
+    $staff_offset = ($staff_page - 1) * $staff_per_page;
+
+    // Get total staff count
+    $staff_count_stmt = $conn->prepare("SELECT COUNT(*) AS total FROM users WHERE `branch-id` = ? AND role = 'staff'");
+    $staff_count_stmt->bind_param("i", $branch_id);
+    $staff_count_stmt->execute();
+    $staff_count_result = $staff_count_stmt->get_result()->fetch_assoc();
+    $total_staff = $staff_count_result['total'] ?? 0;
+    $total_staff_pages = ceil($total_staff / $staff_per_page);
+
+    // Paginated staff
+    $staff_stmt = $conn->prepare("SELECT username, role FROM users WHERE `branch-id` = ? AND role = 'staff' LIMIT ? OFFSET ?");
+    $staff_stmt->bind_param("iii", $branch_id, $staff_per_page, $staff_offset);
+    $staff_stmt->execute();
+    $staff_result = $staff_stmt->get_result();
 ?>
 
     <!-- Branch Information -->
@@ -273,6 +357,18 @@ body.dark-mode .card-header {
                     </tbody>
                 </table>
             </div>
+            <!-- Pagination for Top Products -->
+            <?php if ($total_top_products_pages > 1): ?>
+            <nav aria-label="Top Products Pagination">
+                <ul class="pagination justify-content-center mt-3">
+                    <?php for ($p = 1; $p <= $total_top_products_pages; $p++): ?>
+                        <li class="page-item <?= ($p == $top_products_page) ? 'active' : '' ?>">
+                            <a class="page-link" href="?id=<?= $branch_id ?>&top_products_page=<?= $p ?><?= ($staff_page > 1 ? '&staff_page=' . $staff_page : '') ?>"><?= $p ?></a>
+                        </li>
+                    <?php endfor; ?>
+                </ul>
+            </nav>
+            <?php endif; ?>
         </div>
     </div>
 
@@ -306,14 +402,38 @@ body.dark-mode .card-header {
                     </tbody>
                 </table>
             </div>
+            <!-- Pagination for Staff -->
+            <?php if ($total_staff_pages > 1): ?>
+            <nav aria-label="Staff Pagination">
+                <ul class="pagination justify-content-center mt-3">
+                    <?php for ($p = 1; $p <= $total_staff_pages; $p++): ?>
+                        <li class="page-item <?= ($p == $staff_page) ? 'active' : '' ?>">
+                            <a class="page-link" href="?id=<?= $branch_id ?>&staff_page=<?= $p ?><?= ($top_products_page > 1 ? '&top_products_page=' . $top_products_page : '') ?>"><?= $p ?></a>
+                        </li>
+                    <?php endfor; ?>
+                </ul>
+            </nav>
+            <?php endif; ?>
         </div>
     </div>
 
     <!-- Charts -->
-    <div class="card mb-5">
-        <div class="card-header">Sales Chart</div>
-        <div class="card-body p-4">
-            <canvas id="salesChart"></canvas>
+    <div class="row mb-5">
+        <div class="col-md-6">
+            <div class="card h-100">
+                <div class="card-header">Sales Chart</div>
+                <div class="card-body p-4">
+                    <canvas id="salesChart"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card h-100">
+                <div class="card-header">Top Products Donut</div>
+                <div class="card-body p-4">
+                    <canvas id="donutChart"></canvas>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -323,27 +443,17 @@ body.dark-mode .card-header {
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <?php if ($branch): ?>
 <script>
-const ctx = document.getElementById('salesChart');
-<?php
-// Prepare chart data
-$top_products_result = $conn->query("
-    SELECT p.name, SUM(s.quantity) AS total_sold 
-    FROM sales s 
-    JOIN products p ON s.`product-id` = p.id 
-    WHERE s.`branch-id` = $branch_id 
-    GROUP BY s.`product-id` 
-    ORDER BY total_sold DESC 
-    LIMIT 5
-");
-$labels = [];
-$data = [];
-while ($row = $top_products_result->fetch_assoc()) {
-    $labels[] = $row['name'] ?? 'Unknown';
-    $data[] = $row['total_sold'] ?? 0;
-}
-?>
-const branchChartLabels = <?= json_encode($labels) ?>;
-const branchChartData = <?= json_encode($data) ?>;
+const salesChartElem = document.getElementById('salesChart');
+const donutChartElem = document.getElementById('donutChart');
+
+// Defensive: Only get context if canvas exists
+const ctx = salesChartElem ? salesChartElem.getContext('2d') : null;
+const donutCtx = donutChartElem ? donutChartElem.getContext('2d') : null;
+
+const branchChartLabels = <?= json_encode($bar_labels) ?>;
+const branchChartData = <?= json_encode($bar_data) ?>;
+const donutLabels = <?= json_encode($donut_labels) ?>;
+const donutData = <?= json_encode($donut_data) ?>;
 
 function isDarkMode() {
     return document.body.classList.contains('dark-mode');
@@ -355,47 +465,80 @@ function getChartGridColor() {
     return isDarkMode() ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)';
 }
 
-function renderBranchChart() {
-    if (window.branchSalesChart) window.branchSalesChart.destroy();
-    window.branchSalesChart = new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels: branchChartLabels,
-            datasets: [{
-                label: 'Quantity Sold',
-                data: branchChartData,
-                backgroundColor: [
-                    'rgba(75, 192, 192, 0.7)',
-                    'rgba(54, 162, 235, 0.7)',
-                    'rgba(255, 206, 86, 0.7)',
-                    'rgba(255, 99, 132, 0.7)',
-                    'rgba(153, 102, 255, 0.7)'
-                ],
-                borderRadius: 6,
-                borderWidth: 1
-            }]
-        },
-        options: {
-            responsive: true,
-            plugins: {
-                legend: { display: false }
+function renderBranchCharts() {
+    if (window.branchSalesChart && typeof window.branchSalesChart.destroy === 'function') window.branchSalesChart.destroy();
+    if (window.donutChart && typeof window.donutChart.destroy === 'function') window.donutChart.destroy();
+
+    // Only render if canvas/context exists
+    if (ctx) {
+        window.branchSalesChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: branchChartLabels,
+                datasets: [{
+                    label: 'Quantity Sold',
+                    data: branchChartData,
+                    backgroundColor: [
+                        'rgba(75, 192, 192, 0.7)',
+                        'rgba(54, 162, 235, 0.7)',
+                        'rgba(255, 206, 86, 0.7)',
+                        'rgba(255, 99, 132, 0.7)',
+                        'rgba(153, 102, 255, 0.7)'
+                    ],
+                    borderRadius: 6,
+                    borderWidth: 1
+                }]
             },
-            scales: {
-                x: {
-                    ticks: { color: getChartFontColor() },
-                    grid: { color: getChartGridColor() }
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: { display: false }
                 },
-                y: {
-                    beginAtZero: true,
-                    ticks: { color: getChartFontColor() },
-                    grid: { color: getChartGridColor() }
+                scales: {
+                    x: {
+                        ticks: { color: getChartFontColor() },
+                        grid: { color: getChartGridColor() }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        ticks: { color: getChartFontColor() },
+                        grid: { color: getChartGridColor() }
+                    }
                 }
             }
-        }
-    });
+        });
+    }
+
+    if (donutCtx) {
+        window.donutChart = new Chart(donutCtx, {
+            type: 'doughnut',
+            data: {
+                labels: donutLabels,
+                datasets: [{
+                    data: donutData,
+                    backgroundColor: [
+                        'rgba(75, 192, 192, 0.7)',
+                        'rgba(54, 162, 235, 0.7)',
+                        'rgba(255, 206, 86, 0.7)',
+                        'rgba(255, 99, 132, 0.7)',
+                        'rgba(153, 102, 255, 0.7)'
+                    ],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        labels: { color: getChartFontColor() }
+                    }
+                }
+            }
+        });
+    }
 }
-renderBranchChart();
-document.getElementById('themeToggle')?.addEventListener('change', renderBranchChart);
+renderBranchCharts();
+document.getElementById('themeToggle')?.addEventListener('change', renderBranchCharts);
 </script>
 <?php endif; ?>
 
