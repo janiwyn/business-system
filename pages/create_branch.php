@@ -2,7 +2,7 @@
 include '../includes/db.php';
 include '../includes/auth.php';
 require_role(["admin"]);
-include '../pages/sidebar_admin.php'; // Use admin sidebar
+include '../pages/sidebar.php';
 include '../includes/header.php';
 
 $message = "";

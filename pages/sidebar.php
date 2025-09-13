@@ -6,15 +6,17 @@ if (!isset($_SESSION['role'])) {
 }
 $role = $_SESSION['role'];
 
-// Redirect to correct sidebar if not staff
+// Only include the correct sidebar for the current user role
 if ($role === 'admin') {
     include __DIR__ . '/sidebar_admin.php';
-    // Do not render this sidebar, exit after including admin sidebar
+    // Prevent further sidebar rendering
     return;
 } elseif ($role === 'manager') {
     include __DIR__ . '/sidebar_manager.php';
-    // Do not render this sidebar, exit after including manager sidebar
+    // Prevent further sidebar rendering
     return;
+} elseif ($role === 'staff') {
+    // Staff sidebar code (if any) goes here, or fall through to default below
 }
 ?>
 <div class="d-flex">

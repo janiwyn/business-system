@@ -2,7 +2,7 @@
 include '../includes/db.php';
 include '../includes/auth.php';
 require_role(["admin", "manager"]);
-include '../pages/sidebar_admin.php';
+include '../pages/sidebar.php'; // Use this for role-based sidebar
 include '../includes/header.php';
 
 // Branch ID can be passed via GET
@@ -505,8 +505,7 @@ function renderBranchCharts() {
                         grid: { color: getChartGridColor() }
                     }
                 }
-            }
-        });
+            });
     }
 
     if (donutCtx) {
@@ -548,4 +547,5 @@ if (donutChartElem) {
 </script>
 <?php endif; ?>
 
+<?php include '../includes/footer.php'; ?>
 <?php include '../includes/footer.php'; ?>

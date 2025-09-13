@@ -3,7 +3,7 @@ ob_start();
 include '../includes/auth.php';
 require_role(['admin', 'manager']);
 include '../includes/db.php';
-include '../pages/sidebar_admin.php';
+include '../pages/sidebar.php';
 include '../includes/header.php';
 
 // Fetch branch info
