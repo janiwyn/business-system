@@ -206,7 +206,7 @@ $sales_main = $conn->query("
     <!-- Preview Report -->
     <?php if(!empty($preview_sales)): ?>
         <div id="printableReport" class="card mb-4 chart-card">
-            <div class="card-header bg-info text-white">
+            <div class="card-header preview-report-header text-white">
                 <img src="../uploads/logo.png" alt="Company Logo" style="height:50px; float:left; margin-right:10px;">
                 <h5>Sales Report - <?= htmlspecialchars($_POST['report_date']) ?> (<?= $_POST['branch']=='all' ? 'All Branches' : 'Selected Branch' ?>)</h5>
                 <div style="clear:both;"></div>
@@ -506,6 +506,23 @@ body.dark-mode .card .card-header.bg-light .form-select:focus {
 .print-report-btn:hover, .print-report-btn:focus {
     background: #159c8c !important;
     color: #fff !important;
+}
+.preview-report-header {
+    background-color: #2c3e50 !important;
+    color: #fff !important;
+    border-bottom: none;
+}
+body.dark-mode .preview-report-header {
+    background-color: #2c3e50 !important;
+    color: #fff !important;
+}
+.preview-report-header h5 {
+    color: #fff !important;
+}
+.preview-report-header img {
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(44,62,80,0.12);
 }
 </style>
 

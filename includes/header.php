@@ -72,7 +72,7 @@
       box-shadow: 0 2px 8px rgba(44,62,80,0.18);
     }
     body.dark-mode .main-header .logo-text {
-      color: #ffd200;
+      color: #1abc9c; 
       text-shadow: 0 2px 8px rgba(44,62,80,0.18);
     }
     body.dark-mode .theme-switch label {
