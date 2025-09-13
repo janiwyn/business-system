@@ -2,8 +2,9 @@
 include '../includes/db.php';
 include '../includes/auth.php';
 require_role(["admin"]);
-include '../pages/sidebar.php';
-include '../includes/header.php';
+include '../pages/sidebar_admin.php'; // Admin sidebar
+include '../includes/header.php';      // Header
+
 
 $message = "";
 
@@ -70,7 +71,6 @@ $branchData = $conn->query("
     GROUP BY b.name
 ");
 
-
 $branchLabels = [];
 $sales = [];
 $profits = [];
@@ -120,57 +120,10 @@ $user_id = $_SESSION['user_id'];
 $username = $_SESSION['username'];
 ?>
 
-<style>
-  /* General */
-  body {
-    background: #f4f6f9;
-  }
-  h3, h5 {
-    font-weight: 600;
-    color: #2c3e50;
-  }
-
-  /* Cards */
-  .stat-card {
-    border: none;
-    border-radius: 15px;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.08);
-    transition: transform 0.2s ease-in-out;
-    color: #fff;
-  }
-  .stat-card:hover { transform: translateY(-5px); }
-  .stat-icon {
-    font-size: 2rem;
-    opacity: 0.8;
-  }
-  .gradient-primary { background: linear-gradient(135deg, #1d976c, #2ecc71); }
-  .gradient-success { background: linear-gradient(135deg, #56ccf2, #2f80ed); }
-  .gradient-warning { background: linear-gradient(135deg, #f7971e, #ffd200); }
-  .gradient-danger  { background: linear-gradient(135deg, #eb3349, #f45c43); }
-  .gradient-info    { background: linear-gradient(135deg, #00c6ff, #0072ff); }
-  .gradient-secondary { background: linear-gradient(135deg, #757f9a, #d7dde8); }
-
-  /* Table */
-  .table {
-    background: #fff;
-    border-radius: 12px;
-    overflow: hidden;
-    box-shadow: 0 3px 12px rgba(0,0,0,0.05);
-  }
-  .table thead {
-    background: #34495e;
-    color: #fff;
-  }
-  .table tbody tr:hover {
-    background: rgba(0,0,0,0.03);
-    cursor: pointer;
-  }
-</style>
-
 <div class="container-fluid mt-4">
   <h3 class="mb-4">Welcome, <?= htmlspecialchars($username); ?> 👋</h3>
-<?php
-?>
+
+
   <!-- Summary Cards -->
   <div class="row text-white mb-4">
     <div class="col-md-3 mb-3">
@@ -224,7 +177,7 @@ $username = $_SESSION['username'];
     <div class="col-md-6">
       <div class="card">
         <div class="card-body">
-          <h5>Sales vs Profits</h5>
+          <h5 class="title-card">Sales vs Profits</h5>
           <canvas id="barChart"></canvas>
         </div>
       </div>
@@ -232,7 +185,7 @@ $username = $_SESSION['username'];
     <div class="col-md-6">
       <div class="card">
         <div class="card-body">
-          <h5>Sales Per Month</h5>
+          <h5 class="title-card">Sales Per Month</h5>
           <canvas id="lineChart"></canvas>
         </div>
       </div>
@@ -245,7 +198,7 @@ $username = $_SESSION['username'];
       <div class="card stat-card gradient-info">
         <div class="card-body">
           <h6>Most Selling Product</h6>
-          <p><?= $topProduct['name']?? 'N/A' ?> (<?= $topProduct['total_sold'] ?? '0' ?> sold)</p>
+          <p><?= $topProduct['name'] ?? 'N/A' ?> (<?= $topProduct['total_sold'] ?? '0' ?> sold)</p>
         </div>
       </div>
     </div>
@@ -268,9 +221,10 @@ $username = $_SESSION['username'];
   </div>
 
   <!-- Recent Transactions -->
-  <div class="mt-5">
-    <h5>Recent Transactions</h5>
-    <table class="table table-striped table-hover">
+<div class="transactions-table mt-5">
+  <h5 class="transactions-title">Recent Transactions</h5>
+  <table class="table table-striped table-hover">
+
       <thead>
         <tr>
           <th>#</th>
@@ -298,7 +252,7 @@ $username = $_SESSION['username'];
             <td><?= $row['product_name'] ?></td>
             <td><?= $row['quantity'] ?></td>
             <td>$<?= number_format($row['amount'], 2) ?></td>
-            <td><?= $row['date'] ?></td>
+            <td><?= date('d-M-Y', strtotime($row['date'])) ?></td>
             <td><?= $row['sold-by'] ?></td>
           </tr>
         <?php endwhile; ?>
@@ -307,62 +261,106 @@ $username = $_SESSION['username'];
   </div>
 </div>
 
-<!-- Load Chart.js -->
+<?php include '../includes/footer.php'; ?>
+
+<!-- Chart.js -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
 <script>
-  const branchLabels = <?= json_encode($branchLabels) ?>;
-  const salesData    = <?= json_encode($sales) ?>;
-  const profitData   = <?= json_encode($profits) ?>;
+const branchLabels = <?= json_encode($branchLabels) ?>;
+const salesData    = <?= json_encode($sales) ?>;
+const profitData   = <?= json_encode($profits) ?>;
+const months       = <?= json_encode($months) ?>;
+const monthlyTotals = <?= json_encode($monthlyTotals) ?>;
 
-  // Bar Chart
+function isDarkMode() {
+  return document.body.classList.contains('dark-mode');
+}
+
+function getChartColors() {
+  if (isDarkMode()) {
+    return {
+      salesColor: 'rgba(54, 162, 235, 0.8)',
+      profitColor: 'rgba(46, 204, 113, 0.8)',
+      monthlyLine: 'rgba(231,76,60,0.9)',
+      monthlyFill: 'rgba(231,76,60,0.2)',
+      fontColor: '#f4f4f4',
+      gridColor: 'rgba(255,255,255,0.2)'
+    };
+  } else {
+    return {
+      salesColor: 'rgba(54, 162, 235, 0.7)',
+      profitColor: 'rgba(46, 204, 113, 0.7)',
+      monthlyLine: 'rgba(231,76,60,0.9)',
+      monthlyFill: 'rgba(231,76,60,0.2)',
+      fontColor: '#2c3e50',
+      gridColor: 'rgba(0,0,0,0.1)'
+    };
+  }
+}
+
+function createBarChart() {
+  const colors = getChartColors();
   new Chart(document.getElementById('barChart'), {
     type: 'bar',
     data: {
       labels: branchLabels,
       datasets: [
-        {
-          label: 'Sales',
-          data: salesData,
-          backgroundColor: 'rgba(54, 162, 235, 0.7)'
-        },
-        {
-          label: 'Profits',
-          data: profitData,
-          backgroundColor: 'rgba(46, 204, 113, 0.7)'
-        }
+        { label: 'Sales', data: salesData, backgroundColor: colors.salesColor },
+        { label: 'Profits', data: profitData, backgroundColor: colors.profitColor }
       ]
     },
     options: {
       responsive: true,
-      plugins: { legend: { position: 'top' } },
-      scales: { y: { beginAtZero: true } }
+      plugins: { legend: { labels: { color: colors.fontColor } } },
+      scales: {
+        x: { ticks: { color: colors.fontColor }, grid: { color: colors.gridColor } },
+        y: { ticks: { color: colors.fontColor }, grid: { color: colors.gridColor }, beginAtZero: true }
+      }
     }
   });
+}
 
-  // Line Chart
+function createLineChart() {
+  const colors = getChartColors();
   new Chart(document.getElementById('lineChart'), {
     type: 'line',
     data: {
-      labels: <?= json_encode($months) ?>,
+      labels: months,
       datasets: [{
         label: 'Monthly Sales',
-        data: <?= json_encode($monthlyTotals) ?>,
-        borderColor: '#e74c3c',
-        backgroundColor: 'rgba(231, 76, 60, 0.2)',
+        data: monthlyTotals,
+        borderColor: colors.monthlyLine,
+        backgroundColor: colors.monthlyFill,
         fill: true,
-        tension: 0.4,
-        pointBackgroundColor: '#fff',
-        pointBorderColor: '#e74c3c',
-        pointHoverRadius: 6
+        tension: 0.4
       }]
     },
     options: {
       responsive: true,
-      plugins: { legend: { display: false } },
-      scales: { y: { beginAtZero: true } }
+      plugins: { legend: { labels: { color: colors.fontColor } } },
+      scales: {
+        x: { ticks: { color: colors.fontColor }, grid: { color: colors.gridColor } },
+        y: { ticks: { color: colors.fontColor }, grid: { color: colors.gridColor }, beginAtZero: true }
+      }
     }
   });
-</script>
+}
 
-<?php include '../includes/footer.php'; ?>
+// Initialize charts
+createBarChart();
+createLineChart();
+
+// Re-render charts on dark mode toggle
+document.querySelector('.dark-toggle').addEventListener('click', () => {
+  document.querySelectorAll('canvas').forEach(canvas => canvas.remove());
+  // Re-add canvas elements
+  const barDiv = document.createElement('canvas'); barDiv.id = 'barChart';
+  document.getElementById('barChart').parentNode.appendChild(barDiv);
+
+  const lineDiv = document.createElement('canvas'); lineDiv.id = 'lineChart';
+  document.getElementById('lineChart').parentNode.appendChild(lineDiv);
+
+  createBarChart();
+  createLineChart();
+});
+</script>
