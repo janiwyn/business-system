@@ -168,6 +168,51 @@ body.dark-mode .card-header {
     background-color: #2c3e50 !important;
     color: #fff !important;
 }
+
+/* Summary Cards Styling (like admin_dashboard, but keep manager content) */
+.summary-card {
+    border: none;
+    border-radius: 15px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+    transition: transform 0.2s ease-in-out;
+    color: #fff;
+    padding: 1.25rem 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 120px;
+}
+.summary-card:hover { transform: translateY(-5px);}
+.summary-icon {
+    font-size: 2.2rem;
+    opacity: 0.85;
+    margin-left: 0.5rem;
+}
+.gradient-primary { background: linear-gradient(135deg, #3498db, #2980b9); }
+.gradient-success { background: linear-gradient(135deg, #2ecc71, #27ae60); }
+.gradient-warning { background: linear-gradient(135deg, #f1c40f, #f39c12); }
+.gradient-danger  { background: linear-gradient(135deg, #e74c3c, #c0392b); }
+.gradient-info    { background: linear-gradient(135deg, #00c6ff, #0072ff); }
+body.dark-mode .summary-card,
+body.dark-mode .gradient-primary,
+body.dark-mode .gradient-success,
+body.dark-mode .gradient-warning,
+body.dark-mode .gradient-danger,
+body.dark-mode .gradient-info {
+    color: #fff !important;
+}
+.summary-card .summary-label {
+    font-size: 1.05rem;
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+    letter-spacing: 0.5px;
+}
+.summary-card .summary-value {
+    font-size: 2rem;
+    font-weight: 700;
+    margin-bottom: 0;
+    letter-spacing: 1px;
+}
 </style>
 
 <div class="container-fluid mt-4">
@@ -180,42 +225,42 @@ body.dark-mode .card-header {
     </div>
 
     <div class="container my-5">
-        <!-- Summary Cards -->
+        <!-- Summary Cards (styled like admin_dashboard, but manager content/icons) -->
         <div class="row g-4 mb-5">
             <div class="col-md-3">
-                <div class="card shadow-sm rounded border-0 text-white bg-gradient-success hover-scale h-100">
-                    <div class="card-body text-center">
-                        <i class="bi bi-currency-dollar fs-1 mb-2"></i>
-                        <h5 class="card-title">Sales Today</h5>
-                        <p class="card-text fs-5 fw-bold">UGX <?= number_format($sales_today); ?></p>
+                <div class="summary-card gradient-success h-100">
+                    <div>
+                        <div class="summary-label">Sales Today</div>
+                        <div class="summary-value">UGX <?= number_format($sales_today); ?></div>
                     </div>
+                    <i class="fa-solid fa-coins summary-icon"></i>
                 </div>
             </div>
             <div class="col-md-3">
-                <div class="card shadow-sm rounded border-0 text-white bg-gradient-danger hover-scale h-100">
-                    <div class="card-body text-center">
-                        <i class="bi bi-wallet2 fs-1 mb-2"></i>
-                        <h5 class="card-title">Expenses Today</h5>
-                        <p class="card-text fs-5 fw-bold">UGX <?= number_format($expenses_today); ?></p>
+                <div class="summary-card gradient-danger h-100">
+                    <div>
+                        <div class="summary-label">Expenses Today</div>
+                        <div class="summary-value">UGX <?= number_format($expenses_today); ?></div>
                     </div>
+                    <i class="fa-solid fa-wallet summary-icon"></i>
                 </div>
             </div>
             <div class="col-md-3">
-                <div class="card shadow-sm rounded border-0 text-white bg-gradient-info hover-scale h-100">
-                    <div class="card-body text-center">
-                        <i class="bi bi-box-seam fs-1 mb-2"></i>
-                        <h5 class="card-title">Products in Stock</h5>
-                        <p class="card-text fs-5 fw-bold"><?= $total_products; ?> items</p>
+                <div class="summary-card gradient-info h-100">
+                    <div>
+                        <div class="summary-label">Products in Stock</div>
+                        <div class="summary-value"><?= $total_products; ?> items</div>
                     </div>
+                    <i class="fa-solid fa-boxes-stacked summary-icon"></i>
                 </div>
             </div>
             <div class="col-md-3">
-                <div class="card shadow-sm rounded border-0 text-white bg-gradient-primary hover-scale h-100">
-                    <div class="card-body text-center">
-                        <i class="bi bi-people fs-1 mb-2"></i>
-                        <h5 class="card-title">Branch Staff</h5>
-                        <p class="card-text fs-5 fw-bold"><?= $total_staff; ?> staff</p>
+                <div class="summary-card gradient-primary h-100">
+                    <div>
+                        <div class="summary-label">Branch Staff</div>
+                        <div class="summary-value"><?= $total_staff; ?> staff</div>
                     </div>
+                    <i class="fa-solid fa-users summary-icon"></i>
                 </div>
             </div>
         </div>
