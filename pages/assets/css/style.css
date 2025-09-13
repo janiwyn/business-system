@@ -203,6 +203,36 @@ body.dark-mode .transactions-table tbody tr:hover {
 .main-footer { padding: 1rem; text-align: center; background: #34495e; color: #fff; margin-top: 2rem; }
 
 /* ===============================
+   Welcome Banner
+================================= */
+.welcome-banner {
+  background: linear-gradient(90deg, #1abc9c 0%, #56ccf2 100%);
+  border-radius: 14px;
+  padding: 1.5rem 2rem;
+  box-shadow: 0 2px 12px var(--card-shadow);
+  margin-bottom: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+}
+.welcome-text {
+  color: #fff;
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+  margin: 0;
+  text-shadow: 0 2px 8px rgba(44,62,80,0.12);
+}
+body.dark-mode .welcome-banner {
+  background: linear-gradient(90deg, #23243a 0%, #1abc9c 100%);
+  box-shadow: 0 2px 12px rgba(44,62,80,0.18);
+}
+body.dark-mode .welcome-text {
+  color: #ffd200;
+  text-shadow: 0 2px 8px rgba(44,62,80,0.18);
+}
+
+/* ===============================
    Responsive
 ================================= */
 @media(max-width:768px){

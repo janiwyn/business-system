@@ -121,9 +121,9 @@ $username = $_SESSION['username'];
 ?>
 
 <div class="container-fluid mt-4">
-  <h3 class="mb-4">Welcome, <?= htmlspecialchars($username); ?> 👋</h3>
-
-
+  <div class="welcome-banner mb-4">
+    <h3 class="welcome-text">Welcome, <?= htmlspecialchars($username); ?> 👋</h3>
+  </div>
   <!-- Summary Cards -->
   <div class="row text-white mb-4">
     <div class="col-md-3 mb-3">
