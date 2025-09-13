@@ -201,7 +201,6 @@ $result = $conn->query("
 </style>
 
 <div class="container mt-5">
-    <h2 class="page-title">📦 Product Management</h2>
 
     <div class="card mb-4">
         <div class="card-header title-card">➕ Add New Product</div>
