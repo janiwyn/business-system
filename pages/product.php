@@ -83,6 +83,11 @@ $result = $conn->query("
     .card:hover {
         transform: translateY(-2px);
     }
+    .card-header,
+    .title-card {
+        color: #fff !important;
+        background: var(--primary-color);
+    }
     .card-header {
         font-weight: 600;
         background: var(--primary-color);
@@ -160,20 +165,29 @@ $result = $conn->query("
     body.dark-mode .transactions-table tbody tr:hover {
         background-color: rgba(255,255,255,0.1) !important;
     }
-    body.dark-mode .card-header {
+    body.dark-mode .card-header,
+    body.dark-mode .title-card {
+        color: #fff !important;
         background-color: #2c3e50 !important;
+    }
+    body.dark-mode .card .card-header {
+        color: #fff !important;
+        background-color: #2c3e50 !important;
+    }
+    body.dark-mode .form-label,
+    body.dark-mode .fw-semibold,
+    body.dark-mode label,
+    body.dark-mode .card-body {
         color: #fff !important;
     }
-    body.dark-mode .btn-primary {
-        background: #1abc9c !important;
-        color: #fff !important;
-    }
-    body.dark-mode .form-control, body.dark-mode .form-select {
+    body.dark-mode .form-control,
+    body.dark-mode .form-select {
         background-color: #23243a !important;
         color: #fff !important;
         border: 1px solid #444 !important;
     }
-    body.dark-mode .form-control:focus, body.dark-mode .form-select:focus {
+    body.dark-mode .form-control:focus,
+    body.dark-mode .form-select:focus {
         background-color: #23243a !important;
         color: #fff !important;
     }
