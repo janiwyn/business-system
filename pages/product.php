@@ -68,11 +68,13 @@ $result = $conn->query("
 <!-- Custom Styling -->
 <style>
     .page-title {
-        font-size: 28px;
-        font-weight: 600;
-        color: #2c3e50;
-        margin-bottom: 25px;
-        animation: fadeInDown 0.8s;
+        font-size: 2rem;
+        font-weight: 700;
+        color: var(--primary-color);
+        margin-bottom: 2rem;
+        text-align: center;
+        letter-spacing: 1px;
+        /* animation: fadeInDown 0.8s; */
     }
     .card {
         border-radius: 12px;
@@ -82,74 +84,150 @@ $result = $conn->query("
     .card:hover {
         transform: translateY(-2px);
     }
+    .card-header,
+    .title-card {
+        color: #fff !important;
+        background: var(--primary-color);
+    }
     .card-header {
         font-weight: 600;
-        background: linear-gradient(135deg, #007bff, #0056b3);
-        color: white;
+        background: var(--primary-color);
+        color: #fff;
         border-radius: 12px 12px 0 0 !important;
+        font-size: 1.1rem;
+        letter-spacing: 1px;
     }
-    .form-control {
+    .form-control, .form-select {
         border-radius: 8px;
     }
     .btn-primary {
+        background: var(--primary-color) !important;
+        border: none;
         border-radius: 8px;
         padding: 8px 18px;
-        font-weight: 500;
+        font-weight: 600;
         box-shadow: 0px 3px 8px rgba(0,0,0,0.2);
+        color: #fff !important;
+        transition: background 0.2s;
+    }
+    .btn-primary:hover, .btn-primary:focus {
+        background: #159c8c !important;
+        color: #fff !important;
     }
     .btn-warning, .btn-danger {
         border-radius: 6px;
         font-size: 13px;
         padding: 5px 12px;
     }
-    table {
-        border-radius: 10px;
+    .transactions-table table {
+        width: 100%;
+        border-collapse: collapse;
+        background: var(--card-bg);
+        border-radius: 12px;
         overflow: hidden;
+        box-shadow: 0 4px 12px var(--card-shadow);
     }
-    thead.table-dark th {
-        background: #2c3e50 !important;
+    .transactions-table thead {
+        background: var(--primary-color);
         color: #fff;
         text-transform: uppercase;
         font-size: 13px;
     }
-    tbody tr:hover {
-        background-color: #f8f9fa;
-        transition: 0.3s;
+    .transactions-table tbody td {
+        color: var(--text-color);
+        padding: 0.75rem 1rem;
     }
-    @keyframes fadeInDown {
-        from {opacity: 0; transform: translateY(-15px);}
-        to {opacity: 1; transform: translateY(0);}
+    .transactions-table tbody tr {
+        background-color: #fff;
+        transition: background 0.2s;
+    }
+    .transactions-table tbody tr:nth-child(even) {
+        background-color: #f4f6f9;
+    }
+    .transactions-table tbody tr:hover {
+        background-color: rgba(0,0,0,0.05);
+    }
+    body.dark-mode .transactions-table table {
+        background: var(--card-bg);
+    }
+    body.dark-mode .transactions-table thead {
+        background-color: #1abc9c;
+        color: #ffffff;
+    }
+    body.dark-mode .transactions-table tbody tr {
+        background-color: #2c2c3a !important;
+    }
+    body.dark-mode .transactions-table tbody tr:nth-child(even) {
+        background-color: #272734 !important;
+    }
+    body.dark-mode .transactions-table tbody td {
+        color: #ffffff !important;
+    }
+    body.dark-mode .transactions-table tbody tr:hover {
+        background-color: rgba(255,255,255,0.1) !important;
+    }
+    body.dark-mode .card-header,
+    body.dark-mode .title-card {
+        color: #fff !important;
+        background-color: #2c3e50 !important;
+    }
+    body.dark-mode .card .card-header {
+        color: #fff !important;
+        background-color: #2c3e50 !important;
+    }
+    body.dark-mode .form-label,
+    body.dark-mode .fw-semibold,
+    body.dark-mode label,
+    body.dark-mode .card-body {
+        color: #fff !important;
+    }
+    body.dark-mode .form-control,
+    body.dark-mode .form-select {
+        background-color: #23243a !important;
+        color: #fff !important;
+        border: 1px solid #444 !important;
+    }
+    body.dark-mode .form-control:focus,
+    body.dark-mode .form-select:focus {
+        background-color: #23243a !important;
+        color: #fff !important;
+    }
+    .title-card {
+        color: var(--primary-color);
+        font-weight: 600;
+        font-size: 1.1rem;
+        margin-bottom: 0;
+        text-align: left;
     }
 </style>
 
 <div class="container mt-5">
-    <h2 class="page-title text-center">📦 Product Management</h2>
 
     <div class="card mb-4">
-        <div class="card-header">➕ Add New Product</div>
+        <div class="card-header title-card">➕ Add New Product</div>
         <div class="card-body">
             <?= isset($message) ? $message : "" ?>
             <form method="POST" action="">
                 <div class="row g-3">
                     <div class="col-md-3">
-                        <label for="name" class="form-label">Product Name</label>
+                        <label for="name" class="form-label fw-semibold">Product Name</label>
                         <input type="text" name="name" id="name" class="form-control" placeholder="e.g. Coca-Cola 500ml" required>
                     </div>
                     <div class="col-md-3">
-                        <label for="price" class="form-label">Selling Price</label>
+                        <label for="price" class="form-label fw-semibold">Selling Price</label>
                         <input type="number" step="0.01" name="price" id="price" class="form-control" placeholder="0.00" required>
                     </div>
                     <div class="col-md-3">
-                        <label for="cost" class="form-label">Buying Price</label>
+                        <label for="cost" class="form-label fw-semibold">Buying Price</label>
                         <input type="number" step="0.01" name="cost" id="cost" class="form-control" placeholder="0.00" required>
                     </div>
                     <div class="col-md-3">
-                        <label for="stock" class="form-label">Stock Quantity</label>
+                        <label for="stock" class="form-label fw-semibold">Stock Quantity</label>
                         <input type="number" name="stock" id="stock" class="form-control" placeholder="0" required>
                     </div>
                     <div class="col-md-3">
-                        <label for="branch" class="form-label">Branch</label>
-                        <select name="branch_id" id="branch" class="form-control" required>
+                        <label for="branch" class="form-label fw-semibold">Branch</label>
+                        <select name="branch_id" id="branch" class="form-select" required>
                             <option value="">-- Select Branch --</option>
                             <?php
                             $branches = $conn->query("SELECT id, name FROM branch");
@@ -169,12 +247,12 @@ $result = $conn->query("
 
     <!-- Product List -->
     <div class="card mb-5">
-        <div class="card-header d-flex justify-content-between align-items-center">
+        <div class="card-header d-flex justify-content-between align-items-center title-card">
             <span>📋 Product List</span>
             <?php if ($user_role !== 'staff'): ?>
             <form method="GET" class="d-flex align-items-center">
                 <label class="me-2 fw-bold">Filter by Branch:</label>
-                <select name="branch" class="form-control" onchange="this.form.submit()">
+                <select name="branch" class="form-select" onchange="this.form.submit()">
                     <option value="">-- All Branches --</option>
                     <?php
                     $branches = $conn->query("SELECT id, name FROM branch");
@@ -189,58 +267,45 @@ $result = $conn->query("
         </div>
         <div class="card-body">
             <table class="table table-bordered table-striped align-middle text-center">
-              <thead class="table-dark">
-<tr>
-    <th>#</th>
-    <?php if (empty($selected_branch) && $user_role !== 'staff') echo "<th>Branch</th>"; ?>
-    <th>Name</th>
-    <th>Selling Price</th>
-    <th>Buying Price</th>
-    <th>Stock</th>
-    <th>Expiry Date</th> <!-- new column -->
-    <th>Actions</th>
-</tr>
-</thead>
-<tbody>
-<?php
-if ($result->num_rows > 0) {
-    $i = $offset + 1;
-    while ($row = $result->fetch_assoc()) {
-        // Highlight expiring products
-        $highlight = "";
-        foreach($expiring_products as $exp){
-            if($row['id'] == $exp['id']){
-                $highlight = "style='background-color: #ffcccc;'"; // light red
-                break;
-            }
-        }
-
-        echo "<tr $highlight>
-            <td>{$i}</td>";
-        if (empty($selected_branch) && $user_role !== 'staff') {
-            echo "<td>" . htmlspecialchars($row['branch_name']) . "</td>";
-        }
-        echo "<td>" . htmlspecialchars($row['name']) . "</td>
-            <td>UGX " . number_format($row['selling-price'], 2) . "</td>
-            <td>UGX " . number_format($row['buying-price'], 2) . "</td>
-            <td>{$row['stock']}</td>
-            <td>{$row['expiry_date']}</td> <!-- show expiry -->
-            <td>
-                <a href='edit_product.php?id={$row['id']}' class='btn btn-sm btn-warning me-1'>✏️ Edit</a>
-                <a href='delete_product.php?id={$row['id']}' class='btn btn-sm btn-danger' onclick='return confirm(\"Are you sure you want to delete this product?\")'>🗑️ Delete</a>
-            </td>
-        </tr>";
-        $i++;
-    }
-} else {
-    $colspan = (empty($selected_branch) && $user_role !== 'staff') ? 8 : 7; // adjust for new column
-    echo "<tr><td colspan='$colspan' class='text-center text-muted'>No products found.</td></tr>";
-}
-?>
-</tbody>
-
+                <thead class="table-dark">
+                    <tr>
+                        <th>#</th>
+                        <?php if (empty($selected_branch) && $user_role !== 'staff') echo "<th>Branch</th>"; ?>
+                        <th>Name</th>
+                        <th>Selling Price</th>
+                        <th>Buying Price</th>
+                        <th>Stock</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php
+                    if ($result->num_rows > 0) {
+                        $i = $offset + 1;
+                        while ($row = $result->fetch_assoc()) {
+                            echo "<tr>
+                                <td>{$i}</td>";
+                            if (empty($selected_branch) && $user_role !== 'staff') {
+                                echo "<td>" . htmlspecialchars($row['branch_name']) . "</td>";
+                            }
+                            echo "<td>" . htmlspecialchars($row['name']) . "</td>
+                                <td>UGX " . number_format($row['selling-price'], 2) . "</td>
+                                <td>UGX " . number_format($row['buying-price'], 2) . "</td>
+                                <td>{$row['stock']}</td>
+                                <td>
+                                    <a href='edit_product.php?id={$row['id']}' class='btn btn-sm btn-warning me-1'>✏️ Edit</a>
+                                    <a href='delete_product.php?id={$row['id']}' class='btn btn-sm btn-danger' onclick='return confirm(\"Are you sure you want to delete this product?\")'>🗑️ Delete</a>
+                                </td>
+                            </tr>";
+                            $i++;
+                        }
+                    } else {
+                        $colspan = (empty($selected_branch) && $user_role !== 'staff') ? 7 : 6;
+                        echo "<tr><td colspan='$colspan' class='text-center text-muted'>No products found.</td></tr>";
+                    }
+                    ?>
+                </tbody>
             </table>
-        
 
             <!-- Pagination -->
             <?php if ($total_pages > 1): ?>

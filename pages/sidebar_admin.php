@@ -1,10 +1,3 @@
-<?php
-if (!isset($_SESSION['role'])) {
-    header("Location: ../auth/login.php");
-    exit();
-}
-$role = $_SESSION['role'];
-?>
 <div class="d-flex">
   <!-- Sidebar -->
   <div class="sidebar bg-dark text-white p-3 shadow-lg" style="width: 250px; min-height: 100vh; border-top-right-radius: 12px; border-bottom-right-radius: 12px;">
@@ -45,11 +38,6 @@ $role = $_SESSION['role'];
           <i class="fa-solid fa-chart-line me-2"></i> Reports
         </a>
       </li>
-       <li class="nav-item mb-2">
-        <a class="nav-link text-white d-flex align-items-center hover-effect" href="../pages/payroll.php">
-          <i class="fa-solid fa-chart-line me-2"></i> Payroll
-        </a>
-      </li>
       <li class="nav-item mb-2">
         <a class="nav-link text-white d-flex align-items-center hover-effect" href="../pages/admin_dashboard.php">
           <i class="fa-solid fa-crown me-2"></i> Admin Dashboard
@@ -63,6 +51,4 @@ $role = $_SESSION['role'];
     </ul>
   </div>
 
-
-  <!-- Main Content -->
-  <div class="flex-grow-1 p-4">
+  <div class="flex-grow-1 main-container">

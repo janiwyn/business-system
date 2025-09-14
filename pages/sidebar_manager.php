@@ -34,11 +34,6 @@ $role = $_SESSION['role'];
         <a class="nav-link text-white d-flex align-items-center hover-effect" href="../pages/product.php">
           <i class="fa-solid fa-cubes me-2"></i> Products
         </a>
-        <li class="nav-item mb-2">
-        <a class="nav-link text-white d-flex align-items-center hover-effect" href="../pages/payroll.php">
-          <i class="fa-solid fa-chart-line me-2"></i> Payroll
-        </a>
-      </li>
       </li>
       <li class="nav-item mb-2">
         <a class="nav-link text-white d-flex align-items-center hover-effect" href="../pages/sales.php">
@@ -61,8 +56,5 @@ $role = $_SESSION['role'];
         </a>
       </li>
     </ul>
-  </div>
-
-
-  <!-- Main Content -->
-  <div class="flex-grow-1 p-4">
+</div>
+<div class="main-container">

@@ -11,62 +11,32 @@ $message = "";
 $user_role   = $_SESSION['role'];
 $user_branch = $_SESSION['branch_id'] ?? null;
 
-// Handle sale submission
-if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    $product_id = $_POST["product-id"] ?? null;
-    $quantity   = $_POST["quantity"] ?? null;
-    $sold_by    = $_POST["sold-by"] ?? null;
+// Filters
+$selected_branch = $_GET['branch'] ?? '';
+$date_from = $_GET['date_from'] ?? '';
+$date_to = $_GET['date_to'] ?? '';
 
-    $branch_id  = ($user_role === 'staff') ? $user_branch : ($_POST['branch-id'] ?? 1);
-
-    $query = $conn->prepare("SELECT stock, `selling-price`, `buying-price` FROM products WHERE id = ? AND (? IS NULL OR `branch-id` = ?)");
-    $query->bind_param("iii", $product_id, $branch_id, $branch_id);
-    $query->execute();
-    $result = $query->get_result();
-    $product = $result->fetch_assoc();
-
-    if (!$product) {
-        $message = "❌ Product not found or not in this branch!";
-    } elseif ($product['stock'] < $quantity) {
-        $message = "⚠️ Not enough stock available!";
-    } else {
-        $new_stock   = $product['stock'] - $quantity;
-        $total_price = $product['selling-price'] * $quantity;
-        $cost_price  = $product['buying-price'] * $quantity;
-
-        $insert = $conn->prepare("
-            INSERT INTO sales (`product-id`, `branch-id`, quantity, amount, `sold-by`, `cost-price`, date) 
-            VALUES (?, ?, ?, ?, ?, ?, NOW())
-        ");
-        $insert->bind_param("iiidsd", $product_id, $branch_id, $quantity, $total_price, $sold_by, $cost_price);
-        $insert->execute();
-
-        $update = $conn->prepare("UPDATE products SET stock = ? WHERE id = ?");
-        $update->bind_param("ii", $new_stock, $product_id);
-        $update->execute();
-
-        $message = "✅ Sale recorded successfully!";
-    }
-}
-
-// Branch filter for admin/manager
-$selected_branch = '';
-$whereClause = '';
+// Build WHERE clause for filters
+$where = [];
 if ($user_role === 'staff') {
-    $whereClause = "WHERE sales.`branch-id` = $user_branch";
-} else {
-    $selected_branch = $_GET['branch'] ?? '';
-    if ($selected_branch) {
-        $whereClause = "WHERE sales.`branch-id` = ".intval($selected_branch);
-    }
+    $where[] = "sales.`branch-id` = $user_branch";
+} elseif ($selected_branch) {
+    $where[] = "sales.`branch-id` = " . intval($selected_branch);
 }
+if ($date_from) {
+    $where[] = "DATE(sales.date) >= '" . $conn->real_escape_string($date_from) . "'";
+}
+if ($date_to) {
+    $where[] = "DATE(sales.date) <= '" . $conn->real_escape_string($date_to) . "'";
+}
+$whereClause = count($where) ? "WHERE " . implode(' AND ', $where) : "";
 
 // Pagination setup
-$items_per_page = 10;
+$items_per_page = 60;
 $page = isset($_GET['page']) ? max(1, intval($_GET['page'])) : 1;
 $offset = ($page - 1) * $items_per_page;
 
-// Count total sales
+// Count total sales for pagination
 $count_query = "SELECT COUNT(*) as total FROM sales JOIN products ON sales.`product-id` = products.id $whereClause";
 $total_result = $conn->query($count_query);
 $total_row = $total_result->fetch_assoc();
@@ -85,76 +55,33 @@ $sales_query = "
 ";
 $sales = $conn->query($sales_query);
 
-// Fetch products for dropdown
-$products = ($user_role === 'staff') 
-    ? $conn->query("SELECT id, name FROM products WHERE `branch-id` = $user_branch") 
-    : $conn->query("SELECT id, name FROM products");
-
 // Fetch branches for admin/manager filter
 $branches = ($user_role !== 'staff') ? $conn->query("SELECT id, name FROM branch") : [];
+
+// Calculate total sum of sales (filtered)
+$sum_query = "
+    SELECT SUM(sales.amount) AS total_sales
+    FROM sales
+    JOIN products ON sales.`product-id` = products.id
+    $whereClause
+";
+$sum_result = $conn->query($sum_query);
+$sum_row = $sum_result->fetch_assoc();
+$total_sales_sum = $sum_row['total_sales'] ?? 0;
 ?>
 
-<body class="bg-light">
-<div class="container mt-5">
-
-    <?php if ($message): ?>
-        <div class="alert alert-info text-center fw-bold"><?= $message ?></div>
-    <?php endif; ?>
-
-    <!-- Record Sale Card -->
-    <div class="card shadow-lg border-0 rounded-4 p-4">
-        <h3 class="text-center mb-4">
-            <i class="bi bi-cash-coin text-success"></i> 🛒 Record a Sale
-        </h3>
-
-        <form method="POST" action="sales.php">
-            <div class="mb-3">
-                <label class="form-label fw-semibold"><i class="bi bi-box-seam"></i> Product</label>
-                <select name="product-id" class="form-select" required>
-                    <option value="">-- Select Product --</option>
-                    <?php while ($row = $products->fetch_assoc()): ?>
-                        <option value="<?= $row['id'] ?>"><?= $row['name'] ?></option>
-                    <?php endwhile; ?>
-                </select>
-            </div>
-
-            <?php if ($user_role !== 'staff'): ?>
-            <div class="mb-3">
-                <label class="form-label fw-semibold"><i class="bi bi-building"></i> Branch</label>
-                <select name="branch-id" class="form-select" required>
-                    <?php while ($b = $branches->fetch_assoc()): ?>
-                        <option value="<?= $b['id'] ?>" <?= ($selected_branch == $b['id']) ? 'selected' : '' ?>><?= $b['name'] ?></option>
-                    <?php endwhile; ?>
-                </select>
-            </div>
-            <?php endif; ?>
-
-            <div class="mb-3">
-                <label class="form-label fw-semibold"><i class="bi bi-cart-check"></i> Quantity</label>
-                <input type="number" name="quantity" class="form-control" required min="1">
-            </div>
-
-            <div class="mb-3">
-                <label class="form-label fw-semibold"><i class="bi bi-person-badge"></i> Sold By</label>
-                <input type="text" name="sold-by" class="form-control" required>
-            </div>
-
-            <div class="d-grid">
-                <button type="submit" class="btn btn-success btn-lg rounded-3 shadow">
-                    <i class="bi bi-check-circle-fill"></i> Submit Sale
-                </button>
-            </div>
-        </form>
-    </div>
-
-    <!-- Recent Sales Table -->
-    <div class="card shadow mt-5 border-0 rounded-4">
-        <div class="card-header bg-success text-white fw-bold rounded-top-4 d-flex justify-content-between align-items-center">
-            <span><i class="bi bi-receipt-cutoff"></i> Recent Sales</span>
-            <?php if ($user_role !== 'staff'): ?>
-            <form method="GET" class="d-flex align-items-center">
-                <label class="me-2 fw-bold">Filter by Branch:</label>
-                <select name="branch" class="form-control" onchange="this.form.submit()">
+<div class="container-fluid mt-4">
+    <div class="card mb-4 chart-card">
+        <div class="card-header bg-light text-black d-flex flex-wrap justify-content-between align-items-center" style="border-radius:12px 12px 0 0;">
+            <span class="fw-bold title-card"><i class="fa-solid fa-receipt"></i> Recent Sales</span>
+            <form method="GET" class="d-flex align-items-center flex-wrap gap-2" style="gap:1rem;">
+                <label class="fw-bold me-2">From:</label>
+                <input type="date" name="date_from" class="form-select me-2" value="<?= htmlspecialchars($date_from) ?>" style="width:150px;">
+                <label class="fw-bold me-2">To:</label>
+                <input type="date" name="date_to" class="form-select me-2" value="<?= htmlspecialchars($date_to) ?>" style="width:150px;">
+                <?php if ($user_role !== 'staff'): ?>
+                <label class="fw-bold me-2">Branch:</label>
+                <select name="branch" class="form-select me-2" onchange="this.form.submit()" style="width:180px;">
                     <option value="">-- All Branches --</option>
                     <?php
                     $branches = $conn->query("SELECT id, name FROM branch");
@@ -164,57 +91,156 @@ $branches = ($user_role !== 'staff') ? $conn->query("SELECT id, name FROM branch
                     endwhile;
                     ?>
                 </select>
+                <?php endif; ?>
+                <button type="submit" class="btn btn-primary ms-2">Filter</button>
             </form>
-            <?php endif; ?>
         </div>
-        <div class="card-body">
-            <table class="table table-hover align-middle text-center">
-                <thead class="table-light">
-                    <tr>
-                        <th>#</th>
-                        <?php if ($user_role !== 'staff' && empty($selected_branch)) echo "<th>Branch</th>"; ?>
-                        <th>Product</th>
-                        <th>Quantity</th>
-                        <th>Total Price</th>
-                        <th>Sold At</th>
-                        <th>Sold By</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php
-                    $i = $offset + 1;
-                    while ($row = $sales->fetch_assoc()):
-                    ?>
+        <div class="card-body table-responsive">
+            <div class="transactions-table">
+                <table>
+                    <thead>
                         <tr>
-                            <td><?= $i++ ?></td>
-                            <?php if ($user_role !== 'staff' && empty($selected_branch)) echo "<td>" . htmlspecialchars($row['branch_name']) . "</td>"; ?>
-                            <td><span class="badge bg-primary"><?= htmlspecialchars($row['product-name']) ?></span></td>
-                            <td><?= $row['quantity'] ?></td>
-                            <td><span class="fw-bold text-success">$<?= number_format($row['amount'], 2) ?></span></td>
-                            <td><small class="text-muted"><?= $row['date'] ?></small></td>
-                            <td><?= htmlspecialchars($row['sold-by']) ?></td>
+                            <th>#</th>
+                            <?php if ($user_role !== 'staff' && empty($selected_branch)) echo "<th>Branch</th>"; ?>
+                            <th>Product</th>
+                            <th>Quantity</th>
+                            <th>Total Price</th>
+                            <th>Sold At</th>
+                            <th>Sold By</th>
                         </tr>
-                    <?php endwhile; ?>
-                    <?php if ($sales->num_rows === 0): ?>
-                        <tr><td colspan="<?= ($user_role !== 'staff' && empty($selected_branch)) ? 7 : 6 ?>" class="text-center text-muted">No sales found.</td></tr>
-                    <?php endif; ?>
-                </tbody>
-            </table>
-
+                    </thead>
+                    <tbody>
+                        <?php
+                        $i = $offset + 1;
+                        while ($row = $sales->fetch_assoc()):
+                        ?>
+                            <tr>
+                                <td><?= $i++ ?></td>
+                                <?php if ($user_role !== 'staff' && empty($selected_branch)) echo "<td>" . htmlspecialchars($row['branch_name']) . "</td>"; ?>
+                                <td><span class="badge bg-primary"><?= htmlspecialchars($row['product-name']) ?></span></td>
+                                <td><?= $row['quantity'] ?></td>
+                                <td><span class="fw-bold text-success">$<?= number_format($row['amount'], 2) ?></span></td>
+                                <td><small class="text-muted"><?= $row['date'] ?></small></td>
+                                <td><?= htmlspecialchars($row['sold-by']) ?></td>
+                            </tr>
+                        <?php endwhile; ?>
+                        <?php if ($sales->num_rows === 0): ?>
+                            <tr><td colspan="<?= ($user_role !== 'staff' && empty($selected_branch)) ? 7 : 6 ?>" class="text-center text-muted">No sales found.</td></tr>
+                        <?php endif; ?>
+                    </tbody>
+                </table>
+            </div>
             <!-- Pagination -->
             <?php if ($total_pages > 1): ?>
             <nav aria-label="Page navigation">
                 <ul class="pagination justify-content-center mt-3">
                     <?php for ($p = 1; $p <= $total_pages; $p++): ?>
                         <li class="page-item <?= ($p == $page) ? 'active' : '' ?>">
-                            <a class="page-link" href="?page=<?= $p ?><?= ($selected_branch ? '&branch=' . $selected_branch : '') ?>"><?= $p ?></a>
+                            <a class="page-link" href="?page=<?= $p ?><?= ($selected_branch ? '&branch=' . $selected_branch : '') ?><?= ($date_from ? '&date_from=' . $date_from : '') ?><?= ($date_to ? '&date_to=' . $date_to : '') ?>"><?= $p ?></a>
                         </li>
                     <?php endfor; ?>
                 </ul>
             </nav>
             <?php endif; ?>
+            <!-- Total Sales Sum -->
+            <div class="mt-4 text-end">
+                <h5 class="fw-bold">Total Sales Value: <span class="text-success">$<?= number_format($total_sales_sum, 2) ?></span></h5>
+            </div>
         </div>
     </div>
 </div>
+
+<style>
+/* ...existing code... */
+.transactions-table table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--card-bg);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 4px 12px var(--card-shadow);
+}
+.transactions-table thead {
+    background: var(--primary-color);
+    color: #fff;
+}
+.transactions-table tbody td {
+    color: var(--text-color);
+    padding: 0.75rem 1rem;
+}
+.transactions-table tbody tr {
+    background-color: #fff;
+    transition: background 0.2s;
+}
+.transactions-table tbody tr:nth-child(even) {
+    background-color: #f4f6f9;
+}
+.transactions-table tbody tr:hover {
+    background-color: rgba(0,0,0,0.05);
+}
+body.dark-mode .transactions-table table {
+    background: var(--card-bg);
+}
+body.dark-mode .transactions-table thead {
+    background-color: #1abc9c;
+    color: #ffffff;
+}
+body.dark-mode .transactions-table tbody tr {
+    background-color: #2c2c3a !important;
+}
+body.dark-mode .transactions-table tbody tr:nth-child(even) {
+    background-color: #272734 !important;
+}
+body.dark-mode .transactions-table tbody td {
+    color: #ffffff !important;
+}
+body.dark-mode .transactions-table tbody td small.text-muted {
+    color: #ffffff !important;
+}
+body.dark-mode .card .card-header.bg-light {
+    background-color: #2c3e50 !important;
+    color: #fff !important;
+    border-bottom: none;
+}
+body.dark-mode .card .card-header.bg-light label,
+body.dark-mode .card .card-header.bg-light select,
+body.dark-mode .card .card-header.bg-light span {
+    color: #fff !important;
+}
+body.dark-mode .card .card-header.bg-light .form-select {
+    background-color: #23243a !important;
+    color: #fff !important;
+    border: 1px solid #444 !important;
+}
+body.dark-mode .card .card-header.bg-light .form-select:focus {
+    background-color: #23243a !important;
+    color: #fff !important;
+}
+body.dark-mode .card .card-header.bg-light input[type="date"]::-webkit-input-placeholder {
+    color: #fff !important;
+}
+body.dark-mode .card .card-header.bg-light input[type="date"] {
+    background-color: #23243a !important;
+    color: #fff !important;
+    border: 1px solid #444 !important;
+}
+body.dark-mode .card .card-header.bg-light input[type="date"]::-webkit-calendar-picker-indicator {
+    filter: invert(1);
+}
+body.dark-mode .card .card-header.bg-light input[type="date"]::-moz-calendar-picker-indicator {
+    filter: invert(1);
+}
+body.dark-mode .card .card-header.bg-light input[type="date"]::-ms-input-placeholder {
+    color: #fff !important;
+}
+.title-card {
+    color: var(--primary-color);
+    font-weight: 600;
+    font-size: 1.1rem;
+    margin-bottom: 0;
+    text-align: left;
+}
+/* ...existing code... */
+</style>
 
 <?php include '../includes/footer.php'; ?>

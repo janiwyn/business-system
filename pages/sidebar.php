@@ -5,6 +5,19 @@ if (!isset($_SESSION['role'])) {
     exit();
 }
 $role = $_SESSION['role'];
+
+// Only include the correct sidebar for the current user role
+if ($role === 'admin') {
+    include __DIR__ . '/sidebar_admin.php';
+    // Prevent further sidebar rendering
+    return;
+} elseif ($role === 'manager') {
+    include __DIR__ . '/sidebar_manager.php';
+    // Prevent further sidebar rendering
+    return;
+} elseif ($role === 'staff') {
+    // Staff sidebar code (if any) goes here, or fall through to default below
+}
 ?>
 <div class="d-flex">
   <div class="sidebar bg-dark text-white p-3 shadow-lg" style="width: 250px; min-height: 100vh; border-top-right-radius: 9px; border-bottom-right-radius: 12px;">

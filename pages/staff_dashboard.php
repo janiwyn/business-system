@@ -1,8 +1,10 @@
 <?php
 session_start();
 include '../includes/db.php';
-include '../includes/header.php';
+include '../includes/auth.php';
+require_role(['staff']);
 include '../pages/sidebar.php';
+include '../includes/header.php';
 
 if ($_SESSION['role'] !== 'staff') {
     header("Location: ../auth/login.php");
@@ -113,33 +115,232 @@ $sales_result = $sales_stmt->get_result();
 $sales_stmt->close();
 ?>
 
-<!-- HTML omitted for brevity; same as your previous staff_dashboard.php -->
-<!-- Just ensure dropdown loops over $product_query for staff branch only -->
-
-
-
 <style>
-.dashboard-header {
-    background: linear-gradient(135deg, #4e73df, #224abe);
-    color: white;
-    padding: 20px;
-    border-radius: 12px;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-    margin-bottom: 25px;
-    animation: fadeInDown 0.8s ease-in-out;
+/* Sidebar styling to match sidebar_admin */
+.sidebar {
+    width: 250px;
+    min-height: 100vh;
+    background: #2c3e50;
+    color: #fff;
+    padding: 1rem;
+    transition: width 0.3s ease;
+    position: fixed;
+    top: 0; left: 0;
+    z-index: 10;
+    border-top-right-radius: 12px;
+    border-bottom-right-radius: 12px;
 }
-.dashboard-header h3 { margin: 0; font-weight: 600; }
-.card { border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); transition: transform 0.2s ease; }
-.card:hover { transform: translateY(-3px); }
-table th { background: #f8f9fc; }
-.low-stock { color: red; font-weight: bold; }
-@keyframes fadeInDown { from {opacity: 0; transform: translateY(-20px);} to {opacity: 1; transform: translateY(0);} }
+.sidebar-title {
+    text-align: center;
+    margin-bottom: 1.5rem;
+    font-weight: 700;
+    font-size: 1.4rem;
+    color: #1abc9c;
+    letter-spacing: 1px;
+}
+.sidebar-nav {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+.sidebar-nav li {
+    margin: 0.5rem 0;
+}
+.sidebar-nav li a {
+    display: flex;
+    align-items: center;
+    padding: 0.5rem;
+    border-radius: 6px;
+    font-size: 1rem;
+    color: #fff;
+    transition: background 0.2s, color 0.2s;
+    gap: 0.5rem;
+}
+.sidebar-nav li a i {
+    margin-right: 0.5rem;
+    font-size: 1.1rem;
+}
+.sidebar-nav li a:hover,
+.sidebar-nav li a.active {
+    background: var(--primary-color, #1abc9c);
+    color: #fff;
+    text-decoration: none;
+}
+.sidebar-nav li a.text-danger {
+    color: #e74c3c !important;
+}
+.sidebar-nav li a.text-danger:hover {
+    background: #e74c3c !important;
+    color: #fff !important;
+}
+@media (max-width: 768px) {
+    .sidebar { width: 100%; min-height: auto; position: relative; border-radius: 0; }
+}
+
+/* Welcome Banner (same as admin_dashboard) */
+.welcome-banner {
+    background: linear-gradient(90deg, #1abc9c 0%, #56ccf2 100%);
+    border-radius: 14px;
+    padding: 1.5rem 2rem;
+    box-shadow: 0 2px 12px var(--card-shadow);
+    margin-bottom: 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    position: relative;
+    overflow: hidden;
+}
+.welcome-balls {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    z-index: 1;
+    pointer-events: none;
+}
+.welcome-ball {
+    position: absolute;
+    border-radius: 50%;
+    opacity: 0.18;
+    transition: background 0.3s;
+    box-shadow: 0 2px 12px rgba(44,62,80,0.12);
+    will-change: left, top;
+}
+.welcome-text {
+    color: #fff;
+    font-size: 2rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    margin: 0;
+    text-shadow: 0 2px 8px rgba(44,62,80,0.12);
+}
+body.dark-mode .welcome-banner {
+    background: linear-gradient(90deg, #23243a 0%, #1abc9c 100%);
+    box-shadow: 0 2px 12px rgba(44,62,80,0.18);
+}
+body.dark-mode .welcome-text {
+    color: #ffd200;
+    text-shadow: 0 2px 8px rgba(44,62,80,0.18);
+}
+
+/* Table Styling (like manager_dashboard) */
+.transactions-table table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--card-bg);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 4px 12px var(--card-shadow);
+}
+.transactions-table thead {
+    background: var(--primary-color);
+    color: #fff;
+    text-transform: uppercase;
+    font-size: 13px;
+}
+.transactions-table tbody td {
+    color: var(--text-color);
+    padding: 0.75rem 1rem;
+}
+.transactions-table tbody tr {
+    background-color: #fff;
+    transition: background 0.2s;
+}
+.transactions-table tbody tr:nth-child(even) {
+    background-color: #f4f6f9;
+}
+.transactions-table tbody tr:hover {
+    background-color: rgba(0,0,0,0.05);
+}
+body.dark-mode .transactions-table table {
+    background: var(--card-bg);
+}
+body.dark-mode .transactions-table thead {
+    background-color: #1abc9c;
+    color: #ffffff;
+}
+body.dark-mode .transactions-table tbody tr {
+    background-color: #2c2c3a !important;
+}
+body.dark-mode .transactions-table tbody tr:nth-child(even) {
+    background-color: #272734 !important;
+}
+body.dark-mode .transactions-table tbody td {
+    color: #ffffff !important;
+}
+body.dark-mode .transactions-table tbody tr:hover {
+    background-color: rgba(255,255,255,0.1) !important;
+}
+
+/* Card header theme for tables */
+.card-header {
+    font-weight: 600;
+    background: var(--primary-color);
+    color: #fff !important;
+    border-radius: 12px 12px 0 0 !important;
+    font-size: 1.1rem;
+    letter-spacing: 1px;
+}
+body.dark-mode .card-header {
+    background-color: #2c3e50 !important;
+    color: #fff !important;
+}
+
+/* Form styling */
+.form-control, .form-select {
+    border-radius: 8px;
+}
+body.dark-mode .form-label,
+body.dark-mode label,
+body.dark-mode .card-body {
+    color: #fff !important;
+}
+body.dark-mode .form-control,
+body.dark-mode .form-select {
+    background-color: #23243a !important;
+    color: #fff !important;
+    border: 1px solid #444 !important;
+}
+body.dark-mode .form-control:focus,
+body.dark-mode .form-select:focus {
+    background-color: #23243a !important;
+    color: #fff !important;
+}
+.btn-primary {
+    background: var(--primary-color) !important;
+    border: none;
+    border-radius: 8px;
+    padding: 8px 18px;
+    font-weight: 600;
+    box-shadow: 0px 3px 8px rgba(0,0,0,0.2);
+    color: #fff !important;
+    transition: background 0.2s;
+}
+.btn-primary:hover, .btn-primary:focus {
+    background: #159c8c !important;
+    color: #fff !important;
+}
 </style>
 
-<div class="container mt-4">
-    <div class="dashboard-header d-flex justify-content-between align-items-center">
-        <h3>👋 Welcome, <?= htmlspecialchars($username); ?> </h3>
-        <span class="small">Staff Dashboard</span>
+<!-- Sidebar -->
+<div class="sidebar">
+    <div class="sidebar-title">Staff Dashboard</div>
+    <ul class="sidebar-nav">
+        <li><a href="../pages/staff_dashboard.php"><i class="fa-solid fa-crown"></i> Dashboard</a></li>
+        <li><a href="../pages/product.php"><i class="fa-solid fa-cubes"></i> Products</a></li>
+        <li><a href="../pages/sales.php"><i class="fa-solid fa-cart-shopping"></i> Sales</a></li>
+        <li style="margin-top:2rem;">
+            <a href="../auth/logout.php" class="text-danger fw-bold"><i class="fa-solid fa-right-from-bracket"></i> Logout</a>
+        </li>
+    </ul>
+</div>
+
+<!-- Main Content -->
+<div class="main-container">
+    <div class="welcome-banner mb-4" style="position:relative;overflow:hidden;">
+        <div class="welcome-balls"></div>
+        <h3 class="welcome-text" style="position:relative;z-index:2;">
+            Welcome, <?= htmlspecialchars($_SESSION['username']); ?> 👋
+        </h3>
     </div>
 
     <?php if ($message): ?>
@@ -148,7 +349,7 @@ table th { background: #f8f9fc; }
 
     <!-- Sale Entry Form -->
     <div class="card mb-4">
-        <div class="card-header bg-primary text-white">➕ Add Sale</div>
+        <div class="card-header">Add Sale</div>
         <div class="card-body">
             <form method="POST" action="" class="row g-3">
                 <div class="col-md-6">
@@ -173,7 +374,7 @@ table th { background: #f8f9fc; }
                     <input type="number" class="form-control" name="quantity" id="quantity" required min="1">
                 </div>
                 <div class="col-md-2 d-flex align-items-end">
-                    <button type="submit" name="add_sale" class="btn btn-success w-100">
+                    <button type="submit" name="add_sale" class="btn btn-primary w-100">
                         <i class="bi bi-cart-check"></i> Save
                     </button>
                 </div>
@@ -202,28 +403,28 @@ table th { background: #f8f9fc; }
 
     <!-- Recent Sales Table -->
     <div class="card">
-        <div class="card-header bg-secondary text-white">📊 Recent Sales (Branch <?= $branch_id; ?>)</div>
+        <div class="card-header">Recent Sales</div>
         <div class="card-body">
             <?php if ($sales_result->num_rows > 0): ?>
-                <div class="table-responsive">
-                    <table class="table table-hover align-middle">
-                        <thead class="table-light">
+                <div class="transactions-table">
+                    <table>
+                        <thead>
                             <tr>
-                                <th>#</th>
-                                <th>Product</th>
-                                <th>Quantity</th>
-                                <th>Total Price</th>
                                 <th>Date</th>
+                                <th>Product</th>
+                                <th>Qty</th>
+                                <th>Total</th>
+                                <th>Sold By</th>
                             </tr>
                         </thead>
                         <tbody>
                             <?php while ($sale = $sales_result->fetch_assoc()): ?>
                                 <tr>
-                                    <td><?= $sale['id']; ?></td>
+                                    <td><?= date("M d, Y H:i", strtotime($sale['date'])); ?></td>
                                     <td><i class="bi bi-box"></i> <?= htmlspecialchars($sale['name']); ?></td>
                                     <td><?= $sale['quantity']; ?></td>
                                     <td><span class="badge bg-success">UGX <?= number_format($sale['amount'], 2); ?></span></td>
-                                    <td><?= date("M d, Y H:i", strtotime($sale['date'])); ?></td>
+                                    <td><?= htmlspecialchars($username); ?></td>
                                 </tr>
                             <?php endwhile; ?>
                         </tbody>
@@ -235,5 +436,81 @@ table th { background: #f8f9fc; }
         </div>
     </div>
 </div>
+
+<script>
+// Welcome balls animation (same as admin_dashboard)
+(function() {
+  const banner = document.querySelector('.welcome-banner');
+  const ballsContainer = document.querySelector('.welcome-balls');
+  if (!banner || !ballsContainer) return;
+
+  function getColors() {
+    if (document.body.classList.contains('dark-mode')) {
+      return ['#ffd200', '#1abc9c', '#56ccf2', '#23243a', '#fff'];
+    } else {
+      return ['#1abc9c', '#56ccf2', '#ffd200', '#3498db', '#fff'];
+    }
+  }
+
+  ballsContainer.innerHTML = '';
+  ballsContainer.style.position = 'absolute';
+  ballsContainer.style.top = 0;
+  ballsContainer.style.left = 0;
+  ballsContainer.style.width = '100%';
+  ballsContainer.style.height = '100%';
+  ballsContainer.style.zIndex = 1;
+  ballsContainer.style.pointerEvents = 'none';
+
+  const balls = [];
+  const colors = getColors();
+  const numBalls = 7;
+  for (let i = 0; i < numBalls; i++) {
+    const ball = document.createElement('div');
+    ball.className = 'welcome-ball';
+    ball.style.position = 'absolute';
+    ball.style.borderRadius = '50%';
+    ball.style.opacity = '0.18';
+    ball.style.background = colors[i % colors.length];
+    ball.style.width = ball.style.height = (32 + Math.random() * 32) + 'px';
+    ball.style.top = (10 + Math.random() * 60) + '%';
+    ball.style.left = (5 + Math.random() * 85) + '%';
+    ballsContainer.appendChild(ball);
+    balls.push({
+      el: ball,
+      x: parseFloat(ball.style.left),
+      y: parseFloat(ball.style.top),
+      r: Math.random() * 0.5 + 0.2,
+      dx: (Math.random() - 0.5) * 0.2,
+      dy: (Math.random() - 0.5) * 0.2
+    });
+  }
+
+  function animateBalls() {
+    balls.forEach(ball => {
+      ball.x += ball.dx;
+      ball.y += ball.dy;
+      if (ball.x < 0 || ball.x > 95) ball.dx *= -1;
+      if (ball.y < 5 || ball.y > 80) ball.dy *= -1;
+      ball.el.style.left = ball.x + '%';
+      ball.el.style.top = ball.y + '%';
+    });
+    requestAnimationFrame(animateBalls);
+  }
+  animateBalls();
+
+  window.addEventListener('storage', () => {
+    const newColors = getColors();
+    balls.forEach((ball, i) => {
+      ball.el.style.background = newColors[i % newColors.length];
+    });
+  });
+  document.getElementById('themeToggle')?.addEventListener('change', () => {
+    const newColors = getColors();
+    balls.forEach((ball, i) => {
+      ball.el.style.background = newColors[i % newColors.length];
+    });
+  });
+})();
+</script>
 
 <?php include '../includes/footer.php'; ?>

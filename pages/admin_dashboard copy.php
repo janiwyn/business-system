@@ -168,6 +168,7 @@ $username = $_SESSION['username'];
     cursor: pointer;
   }
 </style>
+
 <?php
 var_dump($sales);
 var_dump($profits);
