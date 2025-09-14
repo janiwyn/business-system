@@ -14,13 +14,13 @@ $user_branch = $_SESSION['branch_id'] ?? null;
 require(__DIR__ . '/../fpdf/fpdf.php');
 
 
-$id = intval($_GET['id']); // sanitize input
+$id = isset($_GET['id']) ? intval($_GET['id']) : 0; // Fix: avoid undefined array key
 
-// 
+// Fix SQL: use correct column names for payroll and employees/user join
 $sql = "SELECT p.*, u.username AS name 
         FROM payroll p 
-        JOIN employees e ON p.user_id = e.user_id 
-        JOIN users u ON e.user_id = u.id
+        JOIN employees e ON p.`user-id` = e.id 
+        JOIN users u ON e.`user-id` = u.id
         WHERE p.id='$id'";
 
 $result = mysqli_query($conn, $sql);
