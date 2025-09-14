@@ -43,13 +43,12 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && $id > 0) {
             stock = $stock 
         WHERE id = $id
     ";
-if ($conn->query($update)) {
-    echo "<script>window.location.href='product.php';</script>";
-    exit;
-} else {
-    echo "Failed to update product: " . $conn->error;
-}
-
+    if ($conn->query($update)) {
+        echo "<script>window.location.href='product.php';</script>";
+        exit;
+    } else {
+        echo "<div class='alert alert-danger'>Failed to update product: " . $conn->error . "</div>";
+    }
 }
 ?>
 
@@ -83,6 +82,7 @@ body {
     box-shadow: 0px 4px 12px rgba(0,0,0,0.08);
     transition: transform 0.2s ease-in-out;
     background: var(--card-bg);
+    border: none;
 }
 .card-header {
     font-weight: 600;
@@ -160,7 +160,7 @@ body.dark-mode .form-select:focus {
                     <input type="number" step="0.01" name="buying-price" class="form-control" 
                         value="<?= htmlspecialchars($product['buying-price']) ?>" required>
                 </div>
-                <div class="mb-3"></div>
+                <div class="mb-3">
                     <label class="form-label fw-semibold">Selling Price:</label>
                     <input type="number" step="0.01" name="selling-price" class="form-control" 
                         value="<?= htmlspecialchars($product['selling-price']) ?>" required>
