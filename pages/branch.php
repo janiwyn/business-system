@@ -334,6 +334,7 @@ new Chart(document.getElementById('donutChart'), {
         } 
     }
 });
+//removed duplicate code
 
 // Custom legend for donut
 const legendContainer = document.getElementById("donutLegendList");
