@@ -32,6 +32,7 @@ $branch = $branch_stmt->get_result()->fetch_assoc();
     font-size: 2rem;
     opacity: 0.8;
 }
+
 .gradient-success { background: linear-gradient(135deg, #56ccf2, #2f80ed); }
 .gradient-danger  { background: linear-gradient(135deg, #eb3349, #f45c43); }
 .gradient-info    { background: linear-gradient(135deg, #00c6ff, #0072ff); }
@@ -173,17 +174,11 @@ body.dark-mode .card-header {
 
 <?php else:
 
-    // Continue loading the dashboard only if branch exists
-   // $staff_result = $conn->query("SELECT * FROM users WHERE `branch-id` = $branch_id");
-   // display the staff name
-// Fetch staff for the current branch
-$stmt = $conn->prepare("SELECT username, role, `branch-id` FROM users WHERE `branch-id` = ? AND role = 'staff'");
-$stmt->bind_param("i", $branch_id);
-$stmt->execute();
-$staff_result = $stmt->get_result();
-
-print_r($staff_result->fetch_all(MYSQLI_ASSOC));
-echo "</pre>";
+    // Fetch staff for the current branch
+    $stmt = $conn->prepare("SELECT username, role FROM users WHERE `branch-id` = ? AND role = 'staff'");
+    $stmt->bind_param("i", $branch_id);
+    $stmt->execute();
+    $staff_result = $stmt->get_result();
 
     $inventory_result = $conn->query("SELECT COUNT(*) AS total_products, COALESCE(SUM(stock), 0) AS stock FROM products WHERE `branch-id` = $branch_id");
     $inventory = $inventory_result->fetch_assoc();
