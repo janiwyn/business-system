@@ -21,7 +21,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $_SESSION['user_id'] = $user['id'];
         $_SESSION['username'] = $user['username'];
         $_SESSION['role'] = strtolower(trim($user['role']));
-        $_SESSION['branch_id'] = $user['branch-id'];  // ✅ normalized
+        $_SESSION['branch_id'] = $user['branch-id'];
+
+        // ✅ If role is staff or manager, insert into employees table if not exists
+        if ($_SESSION['role'] === 'staff' || $_SESSION['role'] === 'manager') {
+            $checkEmployee = $conn->prepare("SELECT id FROM employees WHERE `user-id` = ?");
+            $checkEmployee->bind_param("i", $user['id']);
+            $checkEmployee->execute();
+            $checkEmployee->store_result();
+
+            if ($checkEmployee->num_rows === 0) {
+                $checkEmployee->close();
+
+                $insertEmployee = $conn->prepare("INSERT INTO employees (`user-id`, `branch-id`, base_salary) VALUES (?, ?, ?)");
+                $defaultSalary = 0.00; // ✅ You can set default salary here
+                $insertEmployee->bind_param("iid", $user['id'], $user['branch-id'], $defaultSalary);
+                $insertEmployee->execute();
+                $insertEmployee->close();
+            } else {
+                $checkEmployee->close();
+            }
+        }
 
         // Redirect based on role
         if ($_SESSION['role'] === 'admin') {
@@ -39,6 +59,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 ?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>

@@ -78,7 +78,7 @@ $stmt->execute();
 $staff_result = $stmt->get_result();
 
 print_r($staff_result->fetch_all(MYSQLI_ASSOC));
-echo "</pre>";
+//echo "</pre>";
 
     $inventory_result = $conn->query("SELECT COUNT(*) AS total_products, COALESCE(SUM(stock), 0) AS stock FROM products WHERE `branch-id` = $branch_id");
     $inventory = $inventory_result->fetch_assoc();

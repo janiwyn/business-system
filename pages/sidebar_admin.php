@@ -45,6 +45,11 @@ $role = $_SESSION['role'];
           <i class="fa-solid fa-chart-line me-2"></i> Reports
         </a>
       </li>
+       <li class="nav-item mb-2">
+        <a class="nav-link text-white d-flex align-items-center hover-effect" href="../pages/payroll.php">
+          <i class="fa-solid fa-chart-line me-2"></i> Payroll
+        </a>
+      </li>
       <li class="nav-item mb-2">
         <a class="nav-link text-white d-flex align-items-center hover-effect" href="../pages/admin_dashboard.php">
           <i class="fa-solid fa-crown me-2"></i> Admin Dashboard
