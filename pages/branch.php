@@ -28,10 +28,7 @@ $branch = $branch_stmt->get_result()->fetch_assoc();
     color: #fff;
 }
 .stat-card:hover { transform: translateY(-5px); }
-.stat-icon {
-    font-size: 2rem;
-    opacity: 0.8;
-}
+.stat-icon { font-size: 2rem; opacity: 0.8; }
 .gradient-success { background: linear-gradient(135deg, #56ccf2, #2f80ed); }
 .gradient-danger  { background: linear-gradient(135deg, #eb3349, #f45c43); }
 .gradient-info    { background: linear-gradient(135deg, #00c6ff, #0072ff); }
@@ -337,7 +334,6 @@ new Chart(document.getElementById('donutChart'), {
         } 
     }
 });
-//removed duplicate code
 
 // Custom legend for donut
 const legendContainer = document.getElementById("donutLegendList");

@@ -5,7 +5,6 @@ include '../includes/auth.php';
 require_role(["admin", "manager", "staff"]);
 include '../pages/sidebar.php';
 include '../includes/header.php';
-include 'expiry.php';
 
 $message = "";
 
@@ -266,47 +265,48 @@ $result = $conn->query("
             <?php endif; ?>
         </div>
         <div class="card-body">
-            <table class="table table-bordered table-striped align-middle text-center">
-                <thead class="table-dark">
-                    <tr>
-                        <th>#</th>
-                        <?php if (empty($selected_branch) && $user_role !== 'staff') echo "<th>Branch</th>"; ?>
-                        <th>Name</th>
-                        <th>Selling Price</th>
-                        <th>Buying Price</th>
-                        <th>Stock</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php
-                    if ($result->num_rows > 0) {
-                        $i = $offset + 1;
-                        while ($row = $result->fetch_assoc()) {
-                            echo "<tr>
-                                <td>{$i}</td>";
-                            if (empty($selected_branch) && $user_role !== 'staff') {
-                                echo "<td>" . htmlspecialchars($row['branch_name']) . "</td>";
+            <div class="transactions-table">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <?php if (empty($selected_branch) && $user_role !== 'staff') echo "<th>Branch</th>"; ?>
+                            <th>Name</th>
+                            <th>Selling Price</th>
+                            <th>Buying Price</th>
+                            <th>Stock</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php
+                        if ($result->num_rows > 0) {
+                            $i = $offset + 1;
+                            while ($row = $result->fetch_assoc()) {
+                                echo "<tr>
+                                    <td>{$i}</td>";
+                                if (empty($selected_branch) && $user_role !== 'staff') {
+                                    echo "<td>" . htmlspecialchars($row['branch_name']) . "</td>";
+                                }
+                                echo "<td>" . htmlspecialchars($row['name']) . "</td>
+                                    <td>UGX " . number_format($row['selling-price'], 2) . "</td>
+                                    <td>UGX " . number_format($row['buying-price'], 2) . "</td>
+                                    <td>{$row['stock']}</td>
+                                    <td>
+                                        <a href='edit_product.php?id={$row['id']}' class='btn btn-sm btn-warning me-1'>✏️ Edit</a>
+                                        <a href='delete_product.php?id={$row['id']}' class='btn btn-sm btn-danger' onclick='return confirm(\"Are you sure you want to delete this product?\")'>🗑️ Delete</a>
+                                    </td>
+                                </tr>";
+                                $i++;
                             }
-                            echo "<td>" . htmlspecialchars($row['name']) . "</td>
-                                <td>UGX " . number_format($row['selling-price'], 2) . "</td>
-                                <td>UGX " . number_format($row['buying-price'], 2) . "</td>
-                                <td>{$row['stock']}</td>
-                                <td>
-                                    <a href='edit_product.php?id={$row['id']}' class='btn btn-sm btn-warning me-1'>✏️ Edit</a>
-                                    <a href='delete_product.php?id={$row['id']}' class='btn btn-sm btn-danger' onclick='return confirm(\"Are you sure you want to delete this product?\")'>🗑️ Delete</a>
-                                </td>
-                            </tr>";
-                            $i++;
+                        } else {
+                            $colspan = (empty($selected_branch) && $user_role !== 'staff') ? 7 : 6;
+                            echo "<tr><td colspan='$colspan' class='text-center text-muted'>No products found.</td></tr>";
                         }
-                    } else {
-                        $colspan = (empty($selected_branch) && $user_role !== 'staff') ? 7 : 6;
-                        echo "<tr><td colspan='$colspan' class='text-center text-muted'>No products found.</td></tr>";
-                    }
-                    ?>
-                </tbody>
-            </table>
-
+                        ?>
+                    </tbody>
+                </table>
+            </div>
             <!-- Pagination -->
             <?php if ($total_pages > 1): ?>
             <nav aria-label="Page navigation">
