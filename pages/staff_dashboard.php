@@ -341,6 +341,21 @@ body.dark-mode .form-select:focus {
     box-sizing: border-box;
 }
 
+/* Add horizontal gap between sidebar and header/footer in staff dashboard */
+.main-header, .main-footer {
+    margin-left: 115px;
+    width: calc(100vw - 115px);
+    box-sizing: border-box;
+    /* Add horizontal gap */
+    padding-left: 10px;
+    padding-right: 10px;
+}
+
+/* Prevent horizontal scroll */
+body {
+    overflow-x: hidden;
+}
+
 /* Responsive: remove sidebar margin on mobile */
 @media (max-width: 768px) {
     .main-container { margin-left: 0; width: 100vw; padding: 1rem; }
