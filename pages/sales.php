@@ -2,7 +2,12 @@
 include '../includes/db.php';
 include '../includes/auth.php';
 require_role(["admin", "manager", "staff"]);
-include '../pages/sidebar.php';
+// Fix: Always use the correct sidebar for staff
+if ($_SESSION['role'] === 'staff') {
+    include '../pages/sidebar_staff.php';
+} else {
+    include '../pages/sidebar.php';
+}
 include '../includes/header.php';
 
 $message = "";
