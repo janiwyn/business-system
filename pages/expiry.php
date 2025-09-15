@@ -1,17 +1,12 @@
 <?php
 include '../includes/db.php';
 
-// PHPMailer autoload first
-require __DIR__ . '/../vendor/autoload.php'; // adjust path if needed
-
-use PHPMailer\PHPMailer\PHPMailer;
-use PHPMailer\PHPMailer\Exception;
-
-$alert_days = 7; // days before expiry to alert
+// Expiry alert settings
+$alert_days = 7; // days before expiry
 $today = date('Y-m-d');
 $alert_date = date('Y-m-d', strtotime("+$alert_days days"));
 
-// Get products that are about to expire
+// Get products about to expire
 $query = "SELECT * FROM products WHERE expiry_date BETWEEN '$today' AND '$alert_date'";
 $result = mysqli_query($conn, $query);
 
@@ -21,37 +16,51 @@ if(mysqli_num_rows($result) > 0){
         $expiring_products[] = $row;
     }
 }
+echo "<pre>";
+print_r($expiring_products);
+echo "</pre>";
 
-$admin_email = "admin@example.com"; // replace with actual admin email
+// Admin/Manager phone number
+$admin_phone = "0781710027"; // number
 
 if(!empty($expiring_products)){
-    $mail = new PHPMailer(true);
-    try {
-        $mail->isSMTP();
-        $mail->Host = 'smtp.example.com'; // your SMTP server
-        $mail->SMTPAuth = true;
-        $mail->Username = 'janefrancescanamutebi@gmail.com';
-        $mail->Password = '12345';
-        $mail->SMTPSecure = 'tls';
-        $mail->Port = 587;
-
-        $mail->setFrom('your_email@example.com', 'Inventory System');
-        $mail->addAddress($admin_email);
-
-        $mail->isHTML(true);
-        $mail->Subject = 'Product Expiry Alert';
-
-        $body = "<h3>Products About to Expire:</h3><ul>";
-        foreach($expiring_products as $prod){
-            $body .= "<li><b>{$prod['name']}</b> - Expiry Date: {$prod['expiry_date']}</li>";
-        }
-        $body .= "</ul>";
-
-        $mail->Body = $body;
-        $mail->send();
-        // echo "Expiry alert sent to admin!";
-    } catch (Exception $e) {
-        echo "Mailer Error: {$mail->ErrorInfo}";
+    // Create message text
+    $message_text = "Products about to expire:\n";
+    foreach($expiring_products as $prod){
+        $message_text .= "{$prod['name']} - {$prod['expiry_date']}\n";
     }
+
+    // Prepare payload for Aliesms API
+    $sms_payload = [
+        "user_id" => 1,
+        "batch_name" => "Expiry Alerts",
+        "message_text" => $message_text,
+        "receipients" => $admin_phone
+    ];
+ 
+
+
+    // Send SMS via cURL
+    $ch = curl_init('https://aliesmsapi.araknerd.com/message/batch/create');
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_POST, true);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($sms_payload));
+    curl_setopt($ch, CURLOPT_HTTPHEADER, [
+        'Content-Type: application/json',
+        'Authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJkYXRhIjp7ImlhdCI6MTc0MzQyMjY4NCwiZXhwIjoxNzQzNDIyNzQ0LCJ1c2VyX2lkIjoiMiIsInJvbGVfaWQiOiIzIiwidXNlcm5hbWUiOiJzdXBwb3J0QGFyYWtuZXJkLmNvbSJ9fQ.kyoC0aMICw1SIwFoHX0qvPtvk9YGw3QYv4kodYD3csw'
+    ]);
+
+    $response = curl_exec($ch);
+if(curl_errno($ch)){
+    echo 'SMS Error: ' . curl_error($ch);
+} else {
+    $resp_data = json_decode($response, true);
+    if(isset($resp_data['status']) && $resp_data['status'] == 'success'){
+        echo "SMS notification sent successfully!";
+    } else {
+        echo "SMS API responded with an error: " . $response;
+    }
+}
+curl_close($ch);
 }
 ?>
