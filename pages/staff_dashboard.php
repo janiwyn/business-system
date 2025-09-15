@@ -3,7 +3,7 @@ session_start();
 include '../includes/db.php';
 include '../includes/auth.php';
 require_role(['staff']);
-include '../pages/sidebar.php';
+include '../pages/sidebar_staff.php';
 include '../includes/header.php';
 
 if ($_SESSION['role'] !== 'staff') {
@@ -116,7 +116,7 @@ $sales_stmt->close();
 ?>
 
 <style>
-/* Sidebar styling to match sidebar_admin */
+/* Sidebar styling to match sidebar_admin
 .sidebar {
     width: 250px;
     min-height: 100vh;
@@ -175,7 +175,7 @@ $sales_stmt->close();
 }
 @media (max-width: 768px) {
     .sidebar { width: 100%; min-height: auto; position: relative; border-radius: 0; }
-}
+} */
 
 /* Welcome Banner (same as admin_dashboard) */
 .welcome-banner {
@@ -319,20 +319,34 @@ body.dark-mode .form-select:focus {
     background: #159c8c !important;
     color: #fff !important;
 }
-</style>
 
-<!-- Sidebar -->
-<div class="sidebar">
-    <div class="sidebar-title">Staff Dashboard</div>
-    <ul class="sidebar-nav">
-        <li><a href="../pages/staff_dashboard.php"><i class="fa-solid fa-crown"></i> Dashboard</a></li>
-        <li><a href="../pages/product.php"><i class="fa-solid fa-cubes"></i> Products</a></li>
-        <li><a href="../pages/sales.php"><i class="fa-solid fa-cart-shopping"></i> Sales</a></li>
-        <li style="margin-top:2rem;">
-            <a href="../auth/logout.php" class="text-danger fw-bold"><i class="fa-solid fa-right-from-bracket"></i> Logout</a>
-        </li>
-    </ul>
-</div>
+/* Make main content full width to match header */
+.main-container {
+    margin-left: 115px;
+    padding: 2rem 1.5rem 2rem 1.5rem;
+    min-height: 100vh;
+    max-width: 100vw;
+    
+    box-sizing: border-box;
+}
+
+/* Make cards and tables full width inside main-container */
+.card,
+.transactions-table,
+.welcome-banner {
+    width: 950%;
+    max-width: 100%;
+    margin-left: auto;
+    margin-right: auto;
+    box-sizing: border-box;
+}
+
+/* Responsive: remove sidebar margin on mobile */
+@media (max-width: 768px) {
+    .main-container { margin-left: 0; width: 100vw; padding: 1rem; }
+    .card, .transactions-table, .welcome-banner { width: 100%; }
+}
+</style>
 
 <!-- Main Content -->
 <div class="main-container">
@@ -514,3 +528,4 @@ body.dark-mode .form-select:focus {
 </script>
 
 <?php include '../includes/footer.php'; ?>
+
