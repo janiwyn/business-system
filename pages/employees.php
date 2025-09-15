@@ -23,19 +23,24 @@ if (isset($_POST['add_employee'])) {
         $sql = "UPDATE employees 
                 SET `base_salary`='$base_salary', `branch-id`='$branch_id', `position`='$position', `status`='$status'
                 WHERE `user-id` = $user_id";
-
         $result = mysqli_query($conn, $sql);
-        if ($result) {
+        if ($result && mysqli_affected_rows($conn) > 0) {
             echo "<script>alert('Employee details updated successfully!'); window.location='employees.php';</script>";
         } else {
-            die("Error updating employee: " . mysqli_error($conn));
+            // If not found, insert new record for system user
+            $sql = "INSERT INTO employees (`user-id`, `name`, `email`, `phone`, `branch-id`, `position`, `base_salary`, `hire_date`, `status`)
+                    VALUES ($user_id, '$name','$email','$phone','$branch_id','$position','$base_salary','$hire_date','$status')";
+            $result = mysqli_query($conn, $sql);
+            if ($result) {
+                echo "<script>alert('Employee added successfully!'); window.location='employees.php';</script>";
+            } else {
+                die("Error adding employee: " . mysqli_error($conn));
+            }
         }
-
     } else {
         // Not a system user → INSERT new employee
         $sql = "INSERT INTO employees (`user-id`, `name`, `email`, `phone`, `branch-id`, `position`, `base_salary`, `hire_date`, `status`)
                 VALUES (NULL, '$name','$email','$phone','$branch_id','$position','$base_salary','$hire_date','$status')";
-
         $result = mysqli_query($conn, $sql);
         if ($result) {
             echo "<script>alert('Employee added successfully!'); window.location='employees.php';</script>";
