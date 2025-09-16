@@ -351,7 +351,8 @@ body.dark-mode .cart-table tbody tr {
     font-size: 1.1rem;
 }
 .receipt-modal, .invoice-modal {
-
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
     background: rgba(44,62,80,0.18);
     z-index: 9999;
     display: flex;
@@ -390,21 +391,6 @@ body.dark-mode .receipt-content, body.dark-mode .invoice-content {
 @media (max-width: 500px) {
     .receipt-content, .invoice-content { min-width: 90vw; max-width: 98vw; padding: 1rem 0.5rem; }
 }
-
-/* Reuse receipt modal styles but adjust buttons */
-.confirm-content {
-    text-align: center;
-    max-width: 300px;
-    padding: 1.5rem;
-}
-
-.confirm-buttons {
-    margin-top: 1rem;
-    display: flex;
-    justify-content: center;
-    gap: 1rem;
-}
-
 </style>
 
 <!-- Main Content -->
@@ -508,33 +494,6 @@ body.dark-mode .receipt-content, body.dark-mode .invoice-content {
                     </div>
                 </form>
             </div>
-            <!-- Receipt Modal (hidden by default) -->
-            <div id="receiptModal" class="receipt-modal" style="display:none;">
-                <div class="receipt-content" id="receiptContent">
-                    <button class="receipt-close" onclick="closeReceipt()">&times;</button>
-                    <!-- Receipt content will be injected here -->
-                </div>
-            </div>
-            <!-- Invoice Modal (hidden by default) -->
-            <div id="invoiceModal" class="invoice-modal" style="display:none;">
-                <div class="invoice-content" id="invoiceContent">
-                    <button class="invoice-close" onclick="closeInvoice()">&times;</button>
-                    <!-- Invoice content will be injected here -->
-                </div>
-            </div>
-<div id="confirmModal" class="receipt-modal" style="display:none;">
-  <div class="receipt-content confirm-content">
-    <div class="modal-header">
-      <h5 id="confirmMessage">Are you sure?</h5>
-      <button onclick="closeConfirmModal()" class="btn btn-sm btn-danger">&times;</button>
-    </div>
-    <div class="confirm-buttons">
-      <button id="confirmYesBtn" class="btn btn-success">Yes</button>
-      <button id="confirmNoBtn" class="btn btn-danger">No</button>
-    </div>
-  </div>
-</div>
-
         </div>
     </div>
 
@@ -688,9 +647,6 @@ sellBtn.onclick = function() {
     const amountPaid = parseFloat(amountPaidInput.value) || 0;
     if (cart.length === 0) return;
     if (amountPaid >= cartTotal) {
-        // Show receipt
-        showReceipt(amountPaid, cartTotal, cart);
-        cart = [];
         updateCartTable();
         amountPaidInput.value = '';
     } else {
@@ -710,7 +666,6 @@ document.getElementById('recordDebtorBtn').onclick = function() {
         email: document.getElementById('debtor_email').value,
         terms: document.getElementById('debtor_terms').value
     };
-    showInvoice(debtor, cart, cartTotal, parseFloat(amountPaidInput.value) || 0);
     cart = [];
     updateCartTable();
     amountPaidInput.value = '';
@@ -718,106 +673,7 @@ document.getElementById('recordDebtorBtn').onclick = function() {
     // TODO: Save debtor to backend
 };
 
-// --- Receipt/Invoice Modal Logic ---
-function showReceipt(amountPaid, total, items) {
-    const now = new Date();
-    let html = `
-      <div class="modal-header">
-        <h5>Receipt</h5>
-        <div>
-          <button onclick="window.print()" class="btn btn-sm btn-success">Print</button>
-          <button onclick="saveReceiptAsImage('receiptContent')" class="btn btn-sm btn-primary">Save</button>
-          <button onclick="closeReceipt()" class="btn btn-sm btn-danger">&times;</button>
-        </div>
-      </div>
-      <div>
-        <div><b>Date:</b> ${now.toLocaleString()}</div>
-        <table style="width:100%;font-size:0.9rem;">
-          <thead><tr><th>Product</th><th>Qty</th><th>Cost</th></tr></thead>
-          <tbody>${items.map(i=>`<tr><td>${i.name}</td><td>${i.qty}</td><td>UGX ${i.price*i.qty}</td></tr>`).join('')}</tbody>
-        </table>
-        <hr>
-        <b>Total:</b> UGX ${total} <br>
-        <b>Paid:</b> UGX ${amountPaid} <br>
-        <b>Balance:</b> UGX ${(amountPaid-total)}
-      </div>
-    `;
-    document.getElementById('receiptContent').innerHTML = html;
-    receiptModal.style.display = '';
-}
-function closeReceipt() { receiptModal.style.display = 'none'; }
 
-function showInvoice(debtor, items, total, paid) {
-    const now = new Date();
-    let html = `
-      <div class="modal-header">
-        <h5>Invoice</h5>
-        <div>
-          <button onclick="window.print()" class="btn btn-sm btn-success">Print</button>
-          <button onclick="saveReceiptAsImage('invoiceContent')" class="btn btn-sm btn-primary">Save</button>
-          <button onclick="closeInvoice()" class="btn btn-sm btn-danger">&times;</button>
-        </div>
-      </div>
-      <div>
-        <div><b>Date:</b> ${now.toLocaleString()}</div>
-        <div><b>Debtor:</b> ${debtor.name}</div>
-        <div><b>Contact:</b> ${debtor.contact}</div>
-        <div><b>Email:</b> ${debtor.email}</div>
-        <table style="width:100%;font-size:0.9rem;">
-          <thead><tr><th>Product</th><th>Qty</th><th>Cost</th></tr></thead>
-          <tbody>${items.map(i=>`<tr><td>${i.name}</td><td>${i.qty}</td><td>UGX ${i.price*i.qty}</td></tr>`).join('')}</tbody>
-        </table>
-        <hr>
-        <b>Total:</b> UGX ${total} <br>
-        <b>Paid:</b> UGX ${paid} <br>
-        <b>Balance:</b> UGX ${(total-paid)}
-      </div>
-    `;
-    document.getElementById('invoiceContent').innerHTML = html;
-    invoiceModal.style.display = '';
-}
-function closeInvoice() { invoiceModal.style.display = 'none'; }
-
-// === Custom Confirmation Modal ===
-let confirmCallback = null;
-
-function openConfirmModal(message, callback) {
-    document.getElementById("confirmMessage").innerText = message;
-    document.getElementById("confirmModal").style.display = "";
-    confirmCallback = callback;
-}
-
-function closeConfirmModal() {
-    document.getElementById("confirmModal").style.display = "none";
-    confirmCallback = null;
-}
-
-document.getElementById("confirmYesBtn").onclick = function() {
-    if (confirmCallback) confirmCallback(true);
-    closeConfirmModal();
-};
-document.getElementById("confirmNoBtn").onclick = function() {
-    if (confirmCallback) confirmCallback(false);
-    closeConfirmModal();
-};
-
-// === Replace Old confirm() ===
-function confirmPrint(type, callback) {
-    openConfirmModal("Would you like to print the " + type + "?", callback);
-}
-
-
-
-// Save as image (simple implementation)
-function saveReceiptAsImage(contentId) {
-    const node = document.getElementById(contentId);
-    html2canvas(node).then(canvas => {
-        const link = document.createElement('a');
-        link.download = 'document.png';
-        link.href = canvas.toDataURL();
-        link.click();
-    });
-}
 
 // Load html2canvas for saving as image
 (function(){
