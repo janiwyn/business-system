@@ -320,51 +320,12 @@ body.dark-mode .form-select:focus {
     color: #fff !important;
 }
 
-/* Make main content full width to match header */
-.main-container {
-    margin-left: 115px;
-    padding: 2rem 1.5rem 2rem 1.5rem;
-    min-height: 100vh;
-    max-width: 100vw;
-    
-    box-sizing: border-box;
-}
 
-/* Make cards and tables full width inside main-container */
-.card,
-.transactions-table,
-.welcome-banner {
-    width: 950%;
-    max-width: 100%;
-    margin-left: auto;
-    margin-right: auto;
-    box-sizing: border-box;
-}
-
-/* Add horizontal gap between sidebar and header/footer in staff dashboard */
-.main-header, .main-footer {
-    margin-left: 115px;
-    width: calc(100vw - 115px);
-    box-sizing: border-box;
-    /* Add horizontal gap */
-    padding-left: 10px;
-    padding-right: 10px;
-}
-
-/* Prevent horizontal scroll */
-body {
-    overflow-x: hidden;
-}
-
-/* Responsive: remove sidebar margin on mobile */
-@media (max-width: 768px) {
-    .main-container { margin-left: 0; width: 100vw; padding: 1rem; }
-    .card, .transactions-table, .welcome-banner { width: 100%; }
-}
 </style>
 
 <!-- Main Content -->
-<div class="main-container">
+
+<br>
     <div class="welcome-banner mb-4" style="position:relative;overflow:hidden;">
         <div class="welcome-balls"></div>
         <h3 class="welcome-text" style="position:relative;z-index:2;">
@@ -464,7 +425,7 @@ body {
             <?php endif; ?>
         </div>
     </div>
-</div>
+
 
 <script>
 // Welcome balls animation (same as admin_dashboard)
