@@ -140,17 +140,37 @@ if (isset($_POST['record_debtor'])) {
     $branch         = $branch_id;
     $date           = date('Y-m-d H:i:s');
 
-    if ($debtor_name) {
-        $stmt = $conn->prepare("INSERT INTO debtors (debtor_name, debtor_contact, debtor_email, `branch-id`, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?)");
-        $stmt->bind_param("sssiss", $debtor_name, $debtor_contact, $debtor_email, $branch, $created_by, $date);
+    // Get cart and payment info from POST
+    $cart = json_decode($_POST['cart_data'] ?? '[]', true);
+    $amount_paid = floatval($_POST['amount_paid'] ?? 0);
+
+    // Calculate item_taken, quantity_taken, total_amount
+    $item_taken = '';
+    $quantity_taken = 0;
+    $total_amount = 0;
+    if ($cart && is_array($cart)) {
+        $item_names = [];
+        foreach ($cart as $item) {
+            $item_names[] = $item['name'];
+            $quantity_taken += intval($item['quantity']);
+            $total_amount += floatval($item['price']) * intval($item['quantity']);
+        }
+        $item_taken = implode(', ', $item_names);
+    }
+    $balance = $total_amount - $amount_paid;
+
+    // Only insert if all required fields are present
+    if ($debtor_name && $quantity_taken > 0 && $balance > 0 && !empty($item_taken)) {
+        $stmt = $conn->prepare("INSERT INTO debtors (debtor_name, debtor_contact, debtor_email, item_taken, quantity_taken, amount_paid, balance, `branch-id`, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+        $stmt->bind_param("ssssiddiss", $debtor_name, $debtor_contact, $debtor_email, $item_taken, $quantity_taken, $amount_paid, $balance, $branch, $created_by, $date);
         if ($stmt->execute()) {
             $message = "✅ Debtor recorded successfully!";
         } else {
-            $message = "❌ Failed to record debtor.";
+            $message = "❌ Failed to record debtor: " . $stmt->error;
         }
         $stmt->close();
     } else {
-        $message = "⚠️ Debtor name is required.";
+        $message = "⚠️ Debtor name, item taken, quantity, and balance are required.";
     }
 }
 ?>
@@ -175,7 +195,7 @@ if (isset($_POST['record_debtor'])) {
     margin-bottom: 1.5rem;
     font-weight: 700;
     font-size: 1.4rem;
-    color: #1abc9c;
+    color: #000000ff;
     letter-spacing: 1px;
 }
 .sidebar-nav {
@@ -475,10 +495,25 @@ body.dark-mode .form-select:focus {
         if (amountPaid >= total) {
             document.getElementById('cart_data').value = JSON.stringify(cart);
             document.getElementById('cart_amount_paid').value = amountPaid;
+            // Hide cart UI
+            document.getElementById('cartSection').style.display = 'none';
+            // Show Bootstrap notification
+            const notif = document.createElement('div');
+            notif.className = 'alert alert-success position-fixed top-0 end-0 m-4 shadow';
+            notif.style.zIndex = 9999;
+            notif.innerHTML = '<strong>Sale recorded successfully!</strong>';
+            document.body.appendChild(notif);
+            setTimeout(() => notif.remove(), 2500);
+            // Submit to PHP
             hiddenSaleForm.submit();
             debtorsFormCard.style.display = 'none';
+            cart = [];
+            updateCartUI();
         } else {
             document.getElementById('cartMessage').innerHTML = '<span class="text-warning">Amount paid is less than total. Please record debtor information below.</span>';
+            // Set hidden fields for debtor form
+            document.getElementById('debtor_cart_data').value = JSON.stringify(cart);
+            document.getElementById('debtor_amount_paid').value = amountPaid;
             debtorsFormCard.style.display = '';
             debtorsFormCard.scrollIntoView({behavior:'smooth'});
         }
@@ -534,6 +569,8 @@ body.dark-mode .form-select:focus {
         <div class="card-header">Record Debtor</div>
         <div class="card-body">
             <form method="POST" action="" class="row g-3">
+                <input type="hidden" name="cart_data" id="debtor_cart_data">
+                <input type="hidden" name="amount_paid" id="debtor_amount_paid">
                 <div class="col-md-4">
                     <label for="debtor_name" class="form-label">Debtor Name</label>
                     <input type="text" class="form-control" name="debtor_name" id="debtor_name" required>
@@ -794,6 +831,9 @@ body.dark-mode .form-select:focus {
             updateCartUI();
         } else {
             document.getElementById('cartMessage').innerHTML = '<span class="text-warning">Amount paid is less than total. Please record debtor information below.</span>';
+            // Set hidden fields for debtor form
+            document.getElementById('debtor_cart_data').value = JSON.stringify(cart);
+            document.getElementById('debtor_amount_paid').value = amountPaid;
             debtorsFormCard.style.display = '';
             debtorsFormCard.scrollIntoView({behavior:'smooth'});
         }
