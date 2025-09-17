@@ -203,19 +203,35 @@ $total_sales_sum = $sum_row['total_sales'] ?? 0;
                             <thead>
                                 <tr>
                                     <th>Date</th>
-                                    <th>Time</th>
-                                    <th>Invoice No.</th>
                                     <th>Debtor Name</th>
-                                    <th>Debtor Contact</th>
                                     <th>Debtor Email</th>
+                                    <th>Item Taken</th>
                                     <th>Quantity Taken</th>
                                     <th>Amount Paid</th>
                                     <th>Balance</th>
+                                    <th>Paid Status</th>
                                     <th>Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                <!-- You will later fetch and display debtor records here -->
+                                <!-- Example row for structure, replace with dynamic data -->
+                                <!--
+                                <tr>
+                                    <td>2024-06-01</td>
+                                    <td>John Doe</td>
+                                    <td>john@example.com</td>
+                                    <td>Coca-Cola 500ml</td>
+                                    <td>10</td>
+                                    <td>UGX 20,000</td>
+                                    <td>UGX 10,000</td>
+                                    <td><span class="badge bg-warning">Unpaid</span></td>
+                                    <td>
+                                        <button class="btn btn-success btn-sm">Mark as Paid</button>
+                                        <button class="btn btn-primary btn-sm">Pay</button>
+                                    </td>
+                                </tr>
+                                -->
+                                <!-- ...fetch and display debtor records here... -->
                             </tbody>
                         </table>
                     </div>
