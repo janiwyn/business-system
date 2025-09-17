@@ -575,37 +575,81 @@ body.dark-mode .form-select:focus {
         const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
         const amountPaid = parseInt(document.getElementById('amount_paid').value, 10) || 0;
         const debtorsFormCard = document.getElementById('debtorsFormCard');
+        const cartMessage = document.getElementById('cartMessage');
+
         if (cart.length === 0) {
-            document.getElementById('cartMessage').innerHTML = '<span class="text-danger">Cart is empty.</span>';
+            cartMessage.innerHTML = '<span class="text-danger">Cart is empty.</span>';
             debtorsFormCard.style.display = 'none';
             return;
         }
+
+        // Overpayment check
+        if (amountPaid > total) {
+            const balance = amountPaid - total;
+            showBalanceModal(balance, function() {
+                // After OK, proceed with sale as normal
+                document.getElementById('cart_data').value = JSON.stringify(cart);
+                document.getElementById('cart_amount_paid').value = amountPaid;
+                document.getElementById('cartSection').style.display = 'none';
+                hiddenSaleForm.submit();
+                debtorsFormCard.style.display = 'none';
+                cart = [];
+                updateCartUI();
+                // Reload page after short delay to ensure PHP processes sale and table updates
+                setTimeout(() => window.location.reload(), 600);
+            });
+            return;
+        }
+
         if (amountPaid >= total) {
             document.getElementById('cart_data').value = JSON.stringify(cart);
             document.getElementById('cart_amount_paid').value = amountPaid;
-            // Hide cart UI
             document.getElementById('cartSection').style.display = 'none';
-            // Show Bootstrap notification
-            const notif = document.createElement('div');
-            notif.className = 'alert alert-success position-fixed top-0 end-0 m-4 shadow';
-            notif.style.zIndex = 9999;
-            notif.innerHTML = '<strong>Sale recorded successfully!</strong>';
-            document.body.appendChild(notif);
-            setTimeout(() => notif.remove(), 2500);
-            // Submit to PHP
             hiddenSaleForm.submit();
             debtorsFormCard.style.display = 'none';
             cart = [];
             updateCartUI();
+            setTimeout(() => window.location.reload(), 600);
         } else {
-            document.getElementById('cartMessage').innerHTML = '<span class="text-warning">Amount paid is less than total. Please record debtor information below.</span>';
-            // Set hidden fields for debtor form
+            cartMessage.innerHTML = '<span class="text-warning">Amount paid is less than total. Please record debtor information below.</span>';
             document.getElementById('debtor_cart_data').value = JSON.stringify(cart);
             document.getElementById('debtor_amount_paid').value = amountPaid;
             debtorsFormCard.style.display = '';
             debtorsFormCard.scrollIntoView({behavior:'smooth'});
         }
     };
+
+    // Show balance modal for overpayment, and call callback on OK
+    function showBalanceModal(balance, callback) {
+        let modal = document.getElementById('overpayModal');
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = 'overpayModal';
+            modal.style.position = 'fixed';
+            modal.style.top = 0;
+            modal.style.left = 0;
+            modal.style.width = '100vw';
+            modal.style.height = '100vh';
+            modal.style.background = 'rgba(0,0,0,0.3)';
+            modal.style.display = 'flex';
+            modal.style.alignItems = 'center';
+            modal.style.justifyContent = 'center';
+            modal.style.zIndex = 99999;
+            document.body.appendChild(modal);
+        }
+        modal.innerHTML = `
+            <div style="background:#fff;padding:2rem 2.5rem;border-radius:12px;box-shadow:0 4px 24px rgba(0,0,0,0.18);text-align:center;max-width:350px;">
+                <div style="font-size:1.2rem;margin-bottom:1rem;">
+                    <strong>Balance is UGX ${balance.toLocaleString()}</strong>
+                </div>
+                <button id="overpayOkBtn" class="btn btn-primary">OK</button>
+            </div>
+        `;
+        document.getElementById('overpayOkBtn').onclick = function() {
+            modal.remove();
+            if (typeof callback === 'function') callback();
+        };
+    }
 
     function updateCartUI() {
         const cartSection = document.getElementById('cartSection');
@@ -895,31 +939,43 @@ body.dark-mode .form-select:focus {
         const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
         const amountPaid = parseInt(document.getElementById('amount_paid').value, 10) || 0;
         const debtorsFormCard = document.getElementById('debtorsFormCard');
+        const cartMessage = document.getElementById('cartMessage');
+
         if (cart.length === 0) {
-            document.getElementById('cartMessage').innerHTML = '<span class="text-danger">Cart is empty.</span>';
+            cartMessage.innerHTML = '<span class="text-danger">Cart is empty.</span>';
             debtorsFormCard.style.display = 'none';
             return;
         }
+
+        // Overpayment check
+        if (amountPaid > total) {
+            const balance = amountPaid - total;
+            showBalanceModal(balance, function() {
+                // After OK, proceed with sale as normal
+                document.getElementById('cart_data').value = JSON.stringify(cart);
+                document.getElementById('cart_amount_paid').value = amountPaid;
+                document.getElementById('cartSection').style.display = 'none';
+                hiddenSaleForm.submit();
+                debtorsFormCard.style.display = 'none';
+                cart = [];
+                updateCartUI();
+                // Reload page after short delay to ensure PHP processes sale and table updates
+                setTimeout(() => window.location.reload(), 600);
+            });
+            return;
+        }
+
         if (amountPaid >= total) {
             document.getElementById('cart_data').value = JSON.stringify(cart);
             document.getElementById('cart_amount_paid').value = amountPaid;
-            // Hide cart UI
             document.getElementById('cartSection').style.display = 'none';
-            // Show Bootstrap notification
-            const notif = document.createElement('div');
-            notif.className = 'alert alert-success position-fixed top-0 end-0 m-4 shadow';
-            notif.style.zIndex = 9999;
-            notif.innerHTML = '<strong>Sale recorded successfully!</strong>';
-            document.body.appendChild(notif);
-            setTimeout(() => notif.remove(), 2500);
-            // Submit to PHP
             hiddenSaleForm.submit();
             debtorsFormCard.style.display = 'none';
             cart = [];
             updateCartUI();
+            setTimeout(() => window.location.reload(), 600);
         } else {
-            document.getElementById('cartMessage').innerHTML = '<span class="text-warning">Amount paid is less than total. Please record debtor information below.</span>';
-            // Set hidden fields for debtor form
+            cartMessage.innerHTML = '<span class="text-warning">Amount paid is less than total. Please record debtor information below.</span>';
             document.getElementById('debtor_cart_data').value = JSON.stringify(cart);
             document.getElementById('debtor_amount_paid').value = amountPaid;
             debtorsFormCard.style.display = '';
@@ -992,6 +1048,24 @@ if (isset($_POST['submit_cart']) && !empty($_POST['cart_data'])) {
                 $stmt2->execute();
                 $stmt2->close();
             }
+        }
+    }
+
+    if ($success && $amount_paid >= $total) {
+        $conn->commit();
+        $message = '✅ Sale recorded successfully!';
+    } else if ($success && $amount_paid < $total) {
+        // Do not record sale, handled by debtor logic
+        $conn->rollback();
+        // Optionally, set a message here if needed
+    } else {
+        $conn->rollback();
+        $message = implode(' ', $messages);
+    }
+}
+    </script>
+
+<?php include '../includes/footer.php'; ?>
         }
     }
 
