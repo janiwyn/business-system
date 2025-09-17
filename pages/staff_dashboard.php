@@ -467,6 +467,16 @@ body.dark-mode .form-select:focus {
     background: #159c8c !important;
     color: #fff !important;
 }
+.btn-action {
+    font-size: 0.85rem;
+    padding: 2px 10px !important;
+    min-width: 0;
+    border-radius: 6px !important;
+    line-height: 1.1;
+}
+.d-flex.gap-1 > .btn-action:not(:last-child) {
+    margin-right: 0.25rem;
+}
 
 
 </style>
@@ -841,8 +851,10 @@ body.dark-mode .form-select:focus {
                                             <?php endif; ?>
                                         </td>
                                         <td>
-                                            <button class="btn btn-success btn-sm">Mark as Paid</button>
-                                            <button class="btn btn-primary btn-sm">Pay</button>
+                                            <div class="d-flex gap-1">
+                                                <button class="btn btn-success btn-sm btn-action px-2 py-1">Paid</button>
+                                                <button class="btn btn-primary btn-sm btn-action px-2 py-1">Pay</button>
+                                            </div>
                                         </td>
                                     </tr>
                                 <?php endwhile; ?>
@@ -1066,22 +1078,5 @@ if (isset($_POST['submit_cart']) && !empty($_POST['cart_data'])) {
     </script>
 
 <?php include '../includes/footer.php'; ?>
-        }
-    }
 
-    if ($success && $amount_paid >= $total) {
-        $conn->commit();
-        $message = '✅ Sale recorded successfully!';
-    } else if ($success && $amount_paid < $total) {
-        // Do not record sale, handled by debtor logic
-        $conn->rollback();
-        // Optionally, set a message here if needed
-    } else {
-        $conn->rollback();
-        $message = implode(' ', $messages);
-    }
-}
-    </script>
-
-<?php include '../includes/footer.php'; ?>
 
