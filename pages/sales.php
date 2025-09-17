@@ -73,6 +73,30 @@ $sum_query = "
 $sum_result = $conn->query($sum_query);
 $sum_row = $sum_result->fetch_assoc();
 $total_sales_sum = $sum_row['total_sales'] ?? 0;
+
+// Debtors filters
+$debtor_where = [];
+if ($user_role === 'staff') {
+    $debtor_where[] = "debtors.`branch-id` = $user_branch";
+} elseif (!empty($_GET['debtor_branch'])) {
+    $debtor_where[] = "debtors.`branch-id` = " . intval($_GET['debtor_branch']);
+}
+if (!empty($_GET['debtor_date_from'])) {
+    $debtor_where[] = "DATE(debtors.created_at) >= '" . $conn->real_escape_string($_GET['debtor_date_from']) . "'";
+}
+if (!empty($_GET['debtor_date_to'])) {
+    $debtor_where[] = "DATE(debtors.created_at) <= '" . $conn->real_escape_string($_GET['debtor_date_to']) . "'";
+}
+$debtorWhereClause = count($debtor_where) ? "WHERE " . implode(' AND ', $debtor_where) : "";
+
+// Fetch debtors for the table
+$debtors_result = $conn->query("
+    SELECT id, debtor_name, debtor_email, item_taken, quantity_taken, amount_paid, balance, is_paid, created_at
+    FROM debtors
+    $debtorWhereClause
+    ORDER BY created_at DESC
+    LIMIT 100
+");
 ?>
 
 <!-- Tabs for Sales and Debtors -->
@@ -214,24 +238,34 @@ $total_sales_sum = $sum_row['total_sales'] ?? 0;
                                 </tr>
                             </thead>
                             <tbody>
-                                <!-- Example row for structure, replace with dynamic data -->
-                                <!--
-                                <tr>
-                                    <td>2024-06-01</td>
-                                    <td>John Doe</td>
-                                    <td>john@example.com</td>
-                                    <td>Coca-Cola 500ml</td>
-                                    <td>10</td>
-                                    <td>UGX 20,000</td>
-                                    <td>UGX 10,000</td>
-                                    <td><span class="badge bg-warning">Unpaid</span></td>
-                                    <td>
-                                        <button class="btn btn-success btn-sm">Mark as Paid</button>
-                                        <button class="btn btn-primary btn-sm">Pay</button>
-                                    </td>
-                                </tr>
-                                -->
-                                <!-- ...fetch and display debtor records here... -->
+                                <?php if ($debtors_result && $debtors_result->num_rows > 0): ?>
+                                    <?php while ($debtor = $debtors_result->fetch_assoc()): ?>
+                                        <tr>
+                                            <td><?= date("M d, Y H:i", strtotime($debtor['created_at'])); ?></td>
+                                            <td><?= htmlspecialchars($debtor['debtor_name']); ?></td>
+                                            <td><?= htmlspecialchars($debtor['debtor_email']); ?></td>
+                                            <td><?= htmlspecialchars($debtor['item_taken'] ?? '-'); ?></td>
+                                            <td><?= htmlspecialchars($debtor['quantity_taken'] ?? '-'); ?></td>
+                                            <td>UGX <?= number_format($debtor['amount_paid'] ?? 0, 2); ?></td>
+                                            <td>UGX <?= number_format($debtor['balance'] ?? 0, 2); ?></td>
+                                            <td>
+                                                <?php if (!empty($debtor['is_paid'])): ?>
+                                                    <span class="badge bg-success">Paid</span>
+                                                <?php else: ?>
+                                                    <span class="badge bg-warning">Unpaid</span>
+                                                <?php endif; ?>
+                                            </td>
+                                            <td>
+                                                <button class="btn btn-success btn-sm">Mark as Paid</button>
+                                                <button class="btn btn-primary btn-sm">Pay</button>
+                                            </td>
+                                        </tr>
+                                    <?php endwhile; ?>
+                                <?php else: ?>
+                                    <tr>
+                                        <td colspan="9" class="text-center text-muted">No debtors recorded yet.</td>
+                                    </tr>
+                                <?php endif; ?>
                             </tbody>
                         </table>
                     </div>
