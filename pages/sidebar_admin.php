@@ -4,6 +4,7 @@ if (!isset($_SESSION['role'])) {
     header("Location: ../auth/login.php");
     exit();
 }
+
 $role = $_SESSION['role'];
 ?>
 <style>
@@ -79,6 +80,40 @@ $role = $_SESSION['role'];
         <li><a href="../pages/product.php"><i class="fa-solid fa-cubes"></i> Products</a></li>
         <li><a href="../pages/sales.php"><i class="fa-solid fa-cart-shopping"></i> Sales</a></li>
          <li><a href="../pages/employees.php"><i class="fa-solid fa-cart-shopping"></i> Employees</a></li>
+       <!---Accounting--->
+       <li>
+         <a class="nav-link text-white d-flex justify-content-between align-items-center"
+         data-bs-toggle="collapse"
+         href="#accountingMenu"
+         role="button"
+         aria-expanded="false"
+         aria-controls="accountingMenu">
+        💼 Accounting
+        <i class="bi bi-caret-down-fill"></i>
+      </a>
+      <div class="collapse ps-3" id="accountingMenu">
+        <ul class="nav flex-column">
+             <li><a href="../pages/add_account.php"><i class="fa-solid fa-plus"></i> Add Account</a></li>
+                    <li><a href="../pages/add_transaction.php"><i class="fa-solid fa-plus"></i> Add Transaction</a></li>
+<li><a href="../pages/ledger.php"><i class="fa-solid fa-plus"></i> Ledger</a></li>
+                 <li><a href="../pages/trail_balance.php"><i class="fa-solid fa-plus"></i> Trail Balance</a></li>
+                 <li><a href="../pages/add_cash_entry.php"><i class="fa-solid fa-plus"></i> Cash Entry</a></li>
+                 <li><a href="../pages/cash_book.php"><i class="fa-solid fa-plus"></i> Cash Book</a></li>
+                <li><a href="../pages/income_statement.php"><i class="fa-solid fa-plus"></i> Income Statement</a></li>
+                 <li><a href="../pages/balance_sheet.php"><i class="fa-solid fa-balance-scale"></i> Balance Sheet</a></li>
+
+
+            </ul>
+
+      </div>
+
+       </li>
+
+
+
+
+
+
 
         <li><a href="../pages/report.php"><i class="fa-solid fa-chart-line"></i> Reports</a></li>
         <li><a href="../pages/payroll.php"><i class="fa-solid fa-money-check-dollar"></i> Payroll</a></li>
