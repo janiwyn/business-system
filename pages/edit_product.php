@@ -131,7 +131,7 @@ body.dark-mode .form-select:focus {
 }
 </style>
 
-<div class="main-container">
+
     <div class="card mb-4" style="max-width: 600px; margin: 0 auto;">
         <div class="card-header">Edit Product</div>
         <div class="card-body">
@@ -176,6 +176,6 @@ body.dark-mode .form-select:focus {
             </form>
         </div>
     </div>
-</div>
+
 
 <?php include '../includes/footer.php'; ?>

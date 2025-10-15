@@ -2,7 +2,12 @@
 include '../includes/db.php';
 include '../includes/auth.php';
 require_role(["admin", "manager", "staff"]);
-include '../pages/sidebar.php';
+// Fix: Always use the correct sidebar for staff
+if ($_SESSION['role'] === 'staff') {
+    include '../pages/sidebar_staff.php';
+} else {
+    include '../pages/sidebar.php';
+}
 include '../includes/header.php';
 
 $message = "";
@@ -68,83 +73,203 @@ $sum_query = "
 $sum_result = $conn->query($sum_query);
 $sum_row = $sum_result->fetch_assoc();
 $total_sales_sum = $sum_row['total_sales'] ?? 0;
+
+// Debtors filters
+$debtor_where = [];
+if ($user_role === 'staff') {
+    $debtor_where[] = "debtors.`branch-id` = $user_branch";
+} elseif (!empty($_GET['debtor_branch'])) {
+    $debtor_where[] = "debtors.`branch-id` = " . intval($_GET['debtor_branch']);
+}
+if (!empty($_GET['debtor_date_from'])) {
+    $debtor_where[] = "DATE(debtors.created_at) >= '" . $conn->real_escape_string($_GET['debtor_date_from']) . "'";
+}
+if (!empty($_GET['debtor_date_to'])) {
+    $debtor_where[] = "DATE(debtors.created_at) <= '" . $conn->real_escape_string($_GET['debtor_date_to']) . "'";
+}
+$debtorWhereClause = count($debtor_where) ? "WHERE " . implode(' AND ', $debtor_where) : "";
+
+// Fetch debtors for the table
+$debtors_result = $conn->query("
+    SELECT id, debtor_name, debtor_email, item_taken, quantity_taken, amount_paid, balance, is_paid, created_at
+    FROM debtors
+    $debtorWhereClause
+    ORDER BY created_at DESC
+    LIMIT 100
+");
 ?>
 
+<!-- Tabs for Sales and Debtors -->
 <div class="container-fluid mt-4">
-    <div class="card mb-4 chart-card">
-        <div class="card-header bg-light text-black d-flex flex-wrap justify-content-between align-items-center" style="border-radius:12px 12px 0 0;">
-            <span class="fw-bold title-card"><i class="fa-solid fa-receipt"></i> Recent Sales</span>
-            <form method="GET" class="d-flex align-items-center flex-wrap gap-2" style="gap:1rem;">
-                <label class="fw-bold me-2">From:</label>
-                <input type="date" name="date_from" class="form-select me-2" value="<?= htmlspecialchars($date_from) ?>" style="width:150px;">
-                <label class="fw-bold me-2">To:</label>
-                <input type="date" name="date_to" class="form-select me-2" value="<?= htmlspecialchars($date_to) ?>" style="width:150px;">
-                <?php if ($user_role !== 'staff'): ?>
-                <label class="fw-bold me-2">Branch:</label>
-                <select name="branch" class="form-select me-2" onchange="this.form.submit()" style="width:180px;">
-                    <option value="">-- All Branches --</option>
-                    <?php
-                    $branches = $conn->query("SELECT id, name FROM branch");
-                    while ($b = $branches->fetch_assoc()):
-                        $selected = ($selected_branch == $b['id']) ? 'selected' : '';
-                        echo "<option value='{$b['id']}' $selected>{$b['name']}</option>";
-                    endwhile;
-                    ?>
-                </select>
-                <?php endif; ?>
-                <button type="submit" class="btn btn-primary ms-2">Filter</button>
-            </form>
-        </div>
-        <div class="card-body table-responsive">
-            <div class="transactions-table">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>#</th>
-                            <?php if ($user_role !== 'staff' && empty($selected_branch)) echo "<th>Branch</th>"; ?>
-                            <th>Product</th>
-                            <th>Quantity</th>
-                            <th>Total Price</th>
-                            <th>Sold At</th>
-                            <th>Sold By</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php
-                        $i = $offset + 1;
-                        while ($row = $sales->fetch_assoc()):
-                        ?>
-                            <tr>
-                                <td><?= $i++ ?></td>
-                                <?php if ($user_role !== 'staff' && empty($selected_branch)) echo "<td>" . htmlspecialchars($row['branch_name']) . "</td>"; ?>
-                                <td><span class="badge bg-primary"><?= htmlspecialchars($row['product-name']) ?></span></td>
-                                <td><?= $row['quantity'] ?></td>
-                                <td><span class="fw-bold text-success">$<?= number_format($row['amount'], 2) ?></span></td>
-                                <td><small class="text-muted"><?= $row['date'] ?></small></td>
-                                <td><?= htmlspecialchars($row['sold-by']) ?></td>
-                            </tr>
-                        <?php endwhile; ?>
-                        <?php if ($sales->num_rows === 0): ?>
-                            <tr><td colspan="<?= ($user_role !== 'staff' && empty($selected_branch)) ? 7 : 6 ?>" class="text-center text-muted">No sales found.</td></tr>
+    <ul class="nav nav-tabs mb-4" id="salesTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="sales-tab" data-bs-toggle="tab" data-bs-target="#sales-table" type="button" role="tab" aria-controls="sales-table" aria-selected="true">
+                Sales Records
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="debtors-tab" data-bs-toggle="tab" data-bs-target="#debtors-table" type="button" role="tab" aria-controls="debtors-table" aria-selected="false">
+                Debtors
+            </button>
+        </li>
+    </ul>
+    <div class="tab-content" id="salesTabsContent">
+        <!-- Sales Table Tab -->
+        <div class="tab-pane fade show active" id="sales-table" role="tabpanel" aria-labelledby="sales-tab">
+            <div class="card mb-4 chart-card">
+                <div class="card-header bg-light text-black d-flex flex-wrap justify-content-between align-items-center" style="border-radius:12px 12px 0 0;">
+                    <span class="fw-bold title-card"><i class="fa-solid fa-receipt"></i> Recent Sales</span>
+                    <form method="GET" class="d-flex align-items-center flex-wrap gap-2" style="gap:1rem;">
+                        <label class="fw-bold me-2">From:</label>
+                        <input type="date" name="date_from" class="form-select me-2" value="<?= htmlspecialchars($date_from) ?>" style="width:150px;">
+                        <label class="fw-bold me-2">To:</label>
+                        <input type="date" name="date_to" class="form-select me-2" value="<?= htmlspecialchars($date_to) ?>" style="width:150px;">
+                        <?php if ($user_role !== 'staff'): ?>
+                        <label class="fw-bold me-2">Branch:</label>
+                        <select name="branch" class="form-select me-2" onchange="this.form.submit()" style="width:180px;">
+                            <option value="">-- All Branches --</option>
+                            <?php
+                            $branches = $conn->query("SELECT id, name FROM branch");
+                            while ($b = $branches->fetch_assoc()):
+                                $selected = ($selected_branch == $b['id']) ? 'selected' : '';
+                                echo "<option value='{$b['id']}' $selected>{$b['name']}</option>";
+                            endwhile;
+                            ?>
+                        </select>
                         <?php endif; ?>
-                    </tbody>
-                </table>
+                        <button type="submit" class="btn btn-primary ms-2">Filter</button>
+                    </form>
+                </div>
+                <div class="card-body table-responsive">
+                    <div class="transactions-table">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <?php if ($user_role !== 'staff' && empty($selected_branch)) echo "<th>Branch</th>"; ?>
+                                    <th>Product</th>
+                                    <th>Quantity</th>
+                                    <th>Total Price</th>
+                                    <th>Sold At</th>
+                                    <th>Sold By</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php
+                                $i = $offset + 1;
+                                while ($row = $sales->fetch_assoc()):
+                                ?>
+                                    <tr>
+                                        <td><?= $i++ ?></td>
+                                        <?php if ($user_role !== 'staff' && empty($selected_branch)) echo "<td>" . htmlspecialchars($row['branch_name']) . "</td>"; ?>
+                                        <td><span class="badge bg-primary"><?= htmlspecialchars($row['product-name']) ?></span></td>
+                                        <td><?= $row['quantity'] ?></td>
+                                        <td><span class="fw-bold text-success">$<?= number_format($row['amount'], 2) ?></span></td>
+                                        <td><small class="text-muted"><?= $row['date'] ?></small></td>
+                                        <td><?= htmlspecialchars($row['sold-by']) ?></td>
+                                    </tr>
+                                <?php endwhile; ?>
+                                <?php if ($sales->num_rows === 0): ?>
+                                    <tr><td colspan="<?= ($user_role !== 'staff' && empty($selected_branch)) ? 7 : 6 ?>" class="text-center text-muted">No sales found.</td></tr>
+                                <?php endif; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                    <!-- Pagination -->
+                    <?php if ($total_pages > 1): ?>
+                    <nav aria-label="Page navigation">
+                        <ul class="pagination justify-content-center mt-3">
+                            <?php for ($p = 1; $p <= $total_pages; $p++): ?>
+                                <li class="page-item <?= ($p == $page) ? 'active' : '' ?>">
+                                    <a class="page-link" href="?page=<?= $p ?><?= ($selected_branch ? '&branch=' . $selected_branch : '') ?><?= ($date_from ? '&date_from=' . $date_from : '') ?><?= ($date_to ? '&date_to=' . $date_to : '') ?>"><?= $p ?></a>
+                                </li>
+                            <?php endfor; ?>
+                        </ul>
+                    </nav>
+                    <?php endif; ?>
+                    <!-- Total Sales Sum -->
+                    <div class="mt-4 text-end">
+                        <h5 class="fw-bold">Total Sales Value: <span class="text-success">$<?= number_format($total_sales_sum, 2) ?></span></h5>
+                    </div>
+                </div>
             </div>
-            <!-- Pagination -->
-            <?php if ($total_pages > 1): ?>
-            <nav aria-label="Page navigation">
-                <ul class="pagination justify-content-center mt-3">
-                    <?php for ($p = 1; $p <= $total_pages; $p++): ?>
-                        <li class="page-item <?= ($p == $page) ? 'active' : '' ?>">
-                            <a class="page-link" href="?page=<?= $p ?><?= ($selected_branch ? '&branch=' . $selected_branch : '') ?><?= ($date_from ? '&date_from=' . $date_from : '') ?><?= ($date_to ? '&date_to=' . $date_to : '') ?>"><?= $p ?></a>
-                        </li>
-                    <?php endfor; ?>
-                </ul>
-            </nav>
-            <?php endif; ?>
-            <!-- Total Sales Sum -->
-            <div class="mt-4 text-end">
-                <h5 class="fw-bold">Total Sales Value: <span class="text-success">$<?= number_format($total_sales_sum, 2) ?></span></h5>
+        </div>
+        <!-- Debtors Table Tab -->
+        <div class="tab-pane fade" id="debtors-table" role="tabpanel" aria-labelledby="debtors-tab">
+            <div class="card mb-4 chart-card">
+                <div class="card-header bg-light text-black fw-bold d-flex flex-wrap justify-content-between align-items-center" style="border-radius:12px 12px 0 0;">
+                    <span><i class="fa-solid fa-user-clock"></i> Debtors</span>
+                    <form method="GET" class="d-flex align-items-center flex-wrap gap-2" style="gap:1rem;">
+                        <label class="fw-bold me-2">From:</label>
+                        <input type="date" name="debtor_date_from" class="form-select me-2" value="<?= htmlspecialchars($_GET['debtor_date_from'] ?? '') ?>" style="width:150px;">
+                        <label class="fw-bold me-2">To:</label>
+                        <input type="date" name="debtor_date_to" class="form-select me-2" value="<?= htmlspecialchars($_GET['debtor_date_to'] ?? '') ?>" style="width:150px;">
+                        <?php if ($user_role !== 'staff'): ?>
+                        <label class="fw-bold me-2">Branch:</label>
+                        <select name="debtor_branch" class="form-select me-2" onchange="this.form.submit()" style="width:180px;">
+                            <option value="">-- All Branches --</option>
+                            <?php
+                            $branches = $conn->query("SELECT id, name FROM branch");
+                            $selected_debtor_branch = $_GET['debtor_branch'] ?? '';
+                            while ($b = $branches->fetch_assoc()):
+                                $selected = ($selected_debtor_branch == $b['id']) ? 'selected' : '';
+                                echo "<option value='{$b['id']}' $selected>{$b['name']}</option>";
+                            endwhile;
+                            ?>
+                        </select>
+                        <?php endif; ?>
+                        <button type="submit" class="btn btn-primary ms-2">Filter</button>
+                    </form>
+                </div>
+                <div class="card-body table-responsive">
+                    <div class="transactions-table">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Debtor Name</th>
+                                    <th>Debtor Email</th>
+                                    <th>Item Taken</th>
+                                    <th>Quantity Taken</th>
+                                    <th>Amount Paid</th>
+                                    <th>Balance</th>
+                                    <th>Paid Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php if ($debtors_result && $debtors_result->num_rows > 0): ?>
+                                    <?php while ($debtor = $debtors_result->fetch_assoc()): ?>
+                                        <tr>
+                                            <td><?= date("M d, Y H:i", strtotime($debtor['created_at'])); ?></td>
+                                            <td><?= htmlspecialchars($debtor['debtor_name']); ?></td>
+                                            <td><?= htmlspecialchars($debtor['debtor_email']); ?></td>
+                                            <td><?= htmlspecialchars($debtor['item_taken'] ?? '-'); ?></td>
+                                            <td><?= htmlspecialchars($debtor['quantity_taken'] ?? '-'); ?></td>
+                                            <td>UGX <?= number_format($debtor['amount_paid'] ?? 0, 2); ?></td>
+                                            <td>UGX <?= number_format($debtor['balance'] ?? 0, 2); ?></td>
+                                            <td>
+                                                <?php if (!empty($debtor['is_paid'])): ?>
+                                                    <span class="badge bg-success">Paid</span>
+                                                <?php else: ?>
+                                                    <span class="badge bg-warning">Unpaid</span>
+                                                <?php endif; ?>
+                                            </td>
+                                            <td>
+                                                <button class="btn btn-success btn-sm">Mark as Paid</button>
+                                                <button class="btn btn-primary btn-sm">Pay</button>
+                                            </td>
+                                        </tr>
+                                    <?php endwhile; ?>
+                                <?php else: ?>
+                                    <tr>
+                                        <td colspan="9" class="text-center text-muted">No debtors recorded yet.</td>
+                                    </tr>
+                                <?php endif; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -242,5 +367,8 @@ body.dark-mode .card .card-header.bg-light input[type="date"]::-ms-input-placeho
 }
 /* ...existing code... */
 </style>
+
+<!-- Bootstrap JS for tabs (if not already included) -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
 <?php include '../includes/footer.php'; ?>

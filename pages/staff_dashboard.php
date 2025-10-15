@@ -3,7 +3,7 @@ session_start();
 include '../includes/db.php';
 include '../includes/auth.php';
 require_role(['staff']);
-include '../pages/sidebar.php';
+include '../pages/sidebar_staff.php';
 include '../includes/header.php';
 
 if ($_SESSION['role'] !== 'staff') {
@@ -102,6 +102,24 @@ $stmt->close();
 
 // Fetch recent sales
 $sales_stmt = $conn->prepare("
+    SELECT s.id, p.name, s.quantity, s.amount, s.total_profits, s.date
+    FROM sales s
+    JOIN products p ON s.`product-id` = p.id
+    WHERE s.`branch-id` = ?
+    ORDER BY s.date DESC
+    LIMIT 10
+");
+$sales_stmt->bind_param("i", $branch_id);
+$sales_stmt->execute();
+$sales_result = $sales_stmt->get_result();
+$sales_stmt->close();
+
+
+
+
+
+// Fetch recent sales
+$sales_stmt = $conn->prepare("
     SELECT s.id, p.name, s.quantity, s.amount, s.total_profits, s.date 
     FROM sales s 
     JOIN products p ON s.`product-id` = p.id 
@@ -113,10 +131,140 @@ $sales_stmt->bind_param("i", $branch_id);
 $sales_stmt->execute();
 $sales_result = $sales_stmt->get_result();
 $sales_stmt->close();
+// Handle debtor record (no invoice/receipt)
+if (isset($_POST['record_debtor'])) {
+    $debtor_name    = trim($_POST['debtor_name']);
+    $debtor_contact = trim($_POST['debtor_contact']);
+    $debtor_email   = trim($_POST['debtor_email']);
+    $created_by     = $user_id;
+    $branch         = $branch_id;
+    $date           = date('Y-m-d H:i:s');
+
+    // Get cart and payment info from POST
+    $cart = json_decode($_POST['cart_data'] ?? '[]', true);
+    $amount_paid = floatval($_POST['amount_paid'] ?? 0);
+
+    // Calculate item_taken, quantity_taken, total_amount
+    $item_taken = '';
+    $quantity_taken = 0;
+    $total_amount = 0;
+    if ($cart && is_array($cart)) {
+        $item_names = [];
+        foreach ($cart as $item) {
+            $item_names[] = $item['name'];
+            $quantity_taken += intval($item['quantity']);
+            $total_amount += floatval($item['price']) * intval($item['quantity']);
+        }
+        $item_taken = implode(', ', $item_names);
+    }
+    $balance = $total_amount - $amount_paid;
+
+    // Only insert if all required fields are present
+    if ($debtor_name && $quantity_taken > 0 && $balance > 0 && !empty($item_taken)) {
+        $stmt = $conn->prepare("INSERT INTO debtors (debtor_name, debtor_contact, debtor_email, item_taken, quantity_taken, amount_paid, balance, `branch-id`, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+        $stmt->bind_param("ssssiddiss", $debtor_name, $debtor_contact, $debtor_email, $item_taken, $quantity_taken, $amount_paid, $balance, $branch, $created_by, $date);
+        if ($stmt->execute()) {
+            $message = "✅ Debtor recorded successfully!";
+        } else {
+            $message = "❌ Failed to record debtor: " . $stmt->error;
+        }
+        $stmt->close();
+    } else {
+        $message = "⚠️ Debtor name, item taken, quantity, and balance are required.";
+    }
+}
+
+// Handle cart sale submission (must be BEFORE any HTML output)
+if (isset($_POST['submit_cart']) && !empty($_POST['cart_data'])) {
+    $cart = json_decode($_POST['cart_data'], true);
+    $amount_paid = floatval($_POST['amount_paid'] ?? 0);
+    $currentDate = date("Y-m-d");
+    $conn->begin_transaction();
+    $success = true;
+    $messages = [];
+    $total = 0;
+
+    // Calculate total cart value
+    foreach ($cart as $item) {
+        $total += floatval($item['price']) * intval($item['quantity']);
+    }
+
+    // Only record sale if fully paid
+    if ($amount_paid >= $total) {
+        foreach ($cart as $item) {
+            $product_id = (int)$item['id'];
+            $quantity = (int)$item['quantity'];
+
+            // Get product info
+            $stmt = $conn->prepare("SELECT name, `selling-price`, `buying-price`, stock FROM products WHERE id = ? AND `branch-id` = ?");
+            $stmt->bind_param("ii", $product_id, $branch_id);
+            $stmt->execute();
+            $product = $stmt->get_result()->fetch_assoc();
+            $stmt->close();
+
+            if (!$product || $product['stock'] < $quantity) {
+                $success = false;
+                $messages[] = "Product not found or not enough stock for " . htmlspecialchars($item['name']);
+                break;
+            }
+
+            $total_price  = $product['selling-price'] * $quantity;
+            $cost_price   = $product['buying-price'] * $quantity;
+            $total_profit = $total_price - $cost_price;
+
+            // Insert sale row for each cart item
+            $stmt = $conn->prepare("INSERT INTO sales (`product-id`, `branch-id`, quantity, amount, `sold-by`, `cost-price`, total_profits, date) VALUES (?, ?, ?, ?, ?, ?, ?, NOW())");
+            $stmt->bind_param("iiididd", $product_id, $branch_id, $quantity, $total_price, $user_id, $cost_price, $total_profit);
+            $stmt->execute();
+            $stmt->close();
+
+            // Update stock
+            $new_stock = $product['stock'] - $quantity;
+            $update = $conn->prepare("UPDATE products SET stock = ? WHERE id = ?");
+            $update->bind_param("ii", $new_stock, $product_id);
+            $update->execute();
+            $update->close();
+
+            // Update profits
+            $stmt = $conn->prepare("SELECT * FROM profits WHERE date = ? AND `branch-id` = ?");
+            $stmt->bind_param("si", $currentDate, $branch_id);
+            $stmt->execute();
+            $profit_result = $stmt->get_result()->fetch_assoc();
+            $stmt->close();
+            if ($profit_result) {
+                $total_amount = $profit_result['total'] + $total_profit;
+                $expenses     = $profit_result['expenses'] ?? 0;
+                $net_profit   = $total_amount - $expenses;
+                $stmt2 = $conn->prepare("UPDATE profits SET total=?, `net-profits`=? WHERE date=? AND `branch-id`=?");
+                $stmt2->bind_param("ddsi", $total_amount, $net_profit, $currentDate, $branch_id);
+                $stmt2->execute();
+                $stmt2->close();
+            } else {
+                $total_amount = $total_profit;
+                $net_profit   = $total_profit;
+                $expenses     = 0;
+                $stmt2 = $conn->prepare("INSERT INTO profits (`branch-id`, total, `net-profits`, expenses, date) VALUES (?, ?, ?, ?, ?)");
+                $stmt2->bind_param("iddis", $branch_id, $total_amount, $net_profit, $expenses, $currentDate);
+                $stmt2->execute();
+                $stmt2->close();
+            }
+        }
+        if ($success) {
+            $conn->commit();
+            $message = '✅ Sale recorded successfully!';
+        } else {
+            $conn->rollback();
+            $message = implode(' ', $messages);
+        }
+    } else {
+        // Not fully paid, do not record sale here (handled by debtor logic)
+        $conn->rollback();
+    }
+}
 ?>
 
 <style>
-/* Sidebar styling to match sidebar_admin */
+/* Sidebar styling to match sidebar_admin
 .sidebar {
     width: 250px;
     min-height: 100vh;
@@ -135,7 +283,7 @@ $sales_stmt->close();
     margin-bottom: 1.5rem;
     font-weight: 700;
     font-size: 1.4rem;
-    color: #1abc9c;
+    color: #000000ff;
     letter-spacing: 1px;
 }
 .sidebar-nav {
@@ -175,7 +323,7 @@ $sales_stmt->close();
 }
 @media (max-width: 768px) {
     .sidebar { width: 100%; min-height: auto; position: relative; border-radius: 0; }
-}
+} */
 
 /* Welcome Banner (same as admin_dashboard) */
 .welcome-banner {
@@ -319,23 +467,23 @@ body.dark-mode .form-select:focus {
     background: #159c8c !important;
     color: #fff !important;
 }
+.btn-action {
+    font-size: 0.85rem;
+    padding: 2px 10px !important;
+    min-width: 0;
+    border-radius: 6px !important;
+    line-height: 1.1;
+}
+.d-flex.gap-1 > .btn-action:not(:last-child) {
+    margin-right: 0.25rem;
+}
+
+
 </style>
 
-<!-- Sidebar -->
-<div class="sidebar">
-    <div class="sidebar-title">Staff Dashboard</div>
-    <ul class="sidebar-nav">
-        <li><a href="../pages/staff_dashboard.php"><i class="fa-solid fa-crown"></i> Dashboard</a></li>
-        <li><a href="../pages/product.php"><i class="fa-solid fa-cubes"></i> Products</a></li>
-        <li><a href="../pages/sales.php"><i class="fa-solid fa-cart-shopping"></i> Sales</a></li>
-        <li style="margin-top:2rem;">
-            <a href="../auth/logout.php" class="text-danger fw-bold"><i class="fa-solid fa-right-from-bracket"></i> Logout</a>
-        </li>
-    </ul>
-</div>
-
 <!-- Main Content -->
-<div class="main-container">
+
+<br>
     <div class="welcome-banner mb-4" style="position:relative;overflow:hidden;">
         <div class="welcome-balls"></div>
         <h3 class="welcome-text" style="position:relative;z-index:2;">
@@ -351,22 +499,24 @@ body.dark-mode .form-select:focus {
     <div class="card mb-4">
         <div class="card-header">Add Sale</div>
         <div class="card-body">
-            <form method="POST" action="" class="row g-3">
+            <form id="addSaleForm" class="row g-3" onsubmit="return false;">
                 <div class="col-md-6">
                     <label for="product_id" class="form-label">Product</label>
                     <select class="form-select" name="product_id" id="product_id" required>
                         <option value="">-- Select Product --</option>
-                        <?php while ($row = $product_query->fetch_assoc()): ?>
-                            <?php if ($row['stock'] < 10): ?>
-                                <option value="<?= $row['id']; ?>" class="low-stock">
-                                    <?= htmlspecialchars($row['name']); ?> (Stock: <?= $row['stock']; ?> 🔴 Low)
-                                </option>
-                            <?php else: ?>
-                                <option value="<?= $row['id']; ?>">
-                                    <?= htmlspecialchars($row['name']); ?> (Stock: <?= $row['stock']; ?>)
-                                </option>
-                            <?php endif; ?>
-                        <?php endwhile; ?>
+                        <?php
+                        // Re-query products for JS cart
+                        $product_query2 = $conn->prepare("SELECT id, name, stock, `selling-price` FROM products WHERE `branch-id` = ?");
+                        $product_query2->bind_param("i", $branch_id);
+                        $product_query2->execute();
+                        $products_for_js = $product_query2->get_result();
+                        $product_list = [];
+                        while ($row = $products_for_js->fetch_assoc()) {
+                            $product_list[$row['id']] = $row;
+                            echo '<option value="' . $row['id'] . '" ' . ($row['stock'] < 10 ? 'class="low-stock"' : '') . '>' . htmlspecialchars($row['name']) . ' (Stock: ' . $row['stock'] . ($row['stock'] < 10 ? ' 🔴 Low' : '') . ')</option>';
+                        }
+                        $product_query2->close();
+                        ?>
                     </select>
                 </div>
                 <div class="col-md-4">
@@ -374,8 +524,210 @@ body.dark-mode .form-select:focus {
                     <input type="number" class="form-control" name="quantity" id="quantity" required min="1">
                 </div>
                 <div class="col-md-2 d-flex align-items-end">
-                    <button type="submit" name="add_sale" class="btn btn-primary w-100">
-                        <i class="bi bi-cart-check"></i> Save
+                    <button type="button" id="addToCartBtn" class="btn btn-primary w-100">
+                        <i class="bi bi-cart-plus"></i> Add to Cart
+                    </button>
+                </div>
+            </form>
+            <div id="cartSection" style="display:none; margin-top:1.5rem;">
+                <h6>Cart</h6>
+                <div class="table-responsive">
+                    <table class="table table-bordered align-middle">
+                        <thead>
+                            <tr>
+                                <th>Product</th>
+                                <th>Quantity</th>
+                                <th>Unit Price</th>
+                                <th>Subtotal</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody id="cartItems"></tbody>
+                        <tfoot>
+                            <tr>
+                                <td colspan="3" class="text-end fw-bold">Total</td>
+                                <td id="cartTotal" class="fw-bold">0</td>
+                                <td></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+                <div class="row g-3 align-items-end">
+                    <div class="col-md-4">
+                        <label for="amount_paid" class="form-label">Amount Paid</label>
+                        <input type="number" class="form-control" id="amount_paid" min="0" value="">
+                    </div>
+                    <div class="col-md-2">
+                        <button type="button" id="sellBtn" class="btn btn-success w-100">Sell</button>
+                    </div>
+                </div>
+                <div id="cartMessage" class="mt-2"></div>
+            </div>
+        </div>
+    </div>
+    <script>
+    // Cart logic
+    const productData = <?php echo json_encode($product_list); ?>;
+    let cart = [];
+
+    // Hidden form for submitting cart to PHP
+    const hiddenSaleForm = document.createElement('form');
+    hiddenSaleForm.method = 'POST';
+    hiddenSaleForm.style.display = 'none';
+    hiddenSaleForm.innerHTML = `
+        <input type="hidden" name="cart_data" id="cart_data">
+        <input type="hidden" name="amount_paid" id="cart_amount_paid">
+        <input type="hidden" name="submit_cart" value="1">
+    `;
+    document.body.appendChild(hiddenSaleForm);
+
+    document.getElementById('sellBtn').onclick = function() {
+        const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+        const amountPaid = parseInt(document.getElementById('amount_paid').value, 10) || 0;
+        const debtorsFormCard = document.getElementById('debtorsFormCard');
+        const cartMessage = document.getElementById('cartMessage');
+
+        if (cart.length === 0) {
+            cartMessage.innerHTML = '<span class="text-danger">Cart is empty.</span>';
+            debtorsFormCard.style.display = 'none';
+            return;
+        }
+
+        // Overpayment check
+        if (amountPaid > total) {
+            const balance = amountPaid - total;
+            showBalanceModal(balance, function() {
+                // After OK, proceed with sale as normal
+                document.getElementById('cart_data').value = JSON.stringify(cart);
+                document.getElementById('cart_amount_paid').value = amountPaid;
+                document.getElementById('cartSection').style.display = 'none';
+                hiddenSaleForm.submit();
+                debtorsFormCard.style.display = 'none';
+                cart = [];
+                updateCartUI();
+                // Reload page after short delay to ensure PHP processes sale and table updates
+                setTimeout(() => window.location.reload(), 600);
+            });
+            return;
+        }
+
+        if (amountPaid >= total) {
+            document.getElementById('cart_data').value = JSON.stringify(cart);
+            document.getElementById('cart_amount_paid').value = amountPaid;
+            document.getElementById('cartSection').style.display = 'none';
+            hiddenSaleForm.submit();
+            debtorsFormCard.style.display = 'none';
+            cart = [];
+            updateCartUI();
+            setTimeout(() => window.location.reload(), 600);
+        } else {
+            cartMessage.innerHTML = '<span class="text-warning">Amount paid is less than total. Please record debtor information below.</span>';
+            document.getElementById('debtor_cart_data').value = JSON.stringify(cart);
+            document.getElementById('debtor_amount_paid').value = amountPaid;
+            debtorsFormCard.style.display = '';
+            debtorsFormCard.scrollIntoView({behavior:'smooth'});
+        }
+    };
+
+    // Show balance modal for overpayment, and call callback on OK
+    function showBalanceModal(balance, callback) {
+        let modal = document.getElementById('overpayModal');
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = 'overpayModal';
+            modal.style.position = 'fixed';
+            modal.style.top = 0;
+            modal.style.left = 0;
+            modal.style.width = '100vw';
+            modal.style.height = '100vh';
+            modal.style.background = 'rgba(0,0,0,0.3)';
+            modal.style.display = 'flex';
+            modal.style.alignItems = 'center';
+            modal.style.justifyContent = 'center';
+            modal.style.zIndex = 99999;
+            document.body.appendChild(modal);
+        }
+        modal.innerHTML = `
+            <div style="background:#fff;padding:2rem 2.5rem;border-radius:12px;box-shadow:0 4px 24px rgba(0,0,0,0.18);text-align:center;max-width:350px;">
+                <div style="font-size:1.2rem;margin-bottom:1rem;">
+                    <strong>Balance is UGX ${balance.toLocaleString()}</strong>
+                </div>
+                <button id="overpayOkBtn" class="btn btn-primary">OK</button>
+            </div>
+        `;
+        document.getElementById('overpayOkBtn').onclick = function() {
+            modal.remove();
+            if (typeof callback === 'function') callback();
+        };
+    }
+
+    function updateCartUI() {
+        const cartSection = document.getElementById('cartSection');
+        const cartItems = document.getElementById('cartItems');
+        const cartTotal = document.getElementById('cartTotal');
+        if (cart.length === 0) {
+            cartSection.style.display = 'none';
+            return;
+        }
+        cartSection.style.display = '';
+        let total = 0;
+        cartItems.innerHTML = cart.map((item, idx) => {
+            const subtotal = item.quantity * item.price;
+            total += subtotal;
+            return `<tr>
+                <td>${item.name}</td>
+                <td>${item.quantity}</td>
+                <td>UGX ${item.price.toLocaleString()}</td>
+                <td>UGX ${subtotal.toLocaleString()}</td>
+                <td><button class='btn btn-sm btn-danger' onclick='removeCartItem(${idx})'>Remove</button></td>
+            </tr>`;
+        }).join('');
+        cartTotal.textContent = 'UGX ' + total.toLocaleString();
+    }
+    function removeCartItem(idx) {
+        cart.splice(idx, 1);
+        updateCartUI();
+    }
+    document.getElementById('addToCartBtn').onclick = function() {
+        const productId = document.getElementById('product_id').value;
+        const quantity = parseInt(document.getElementById('quantity').value, 10);
+        if (!productId || !quantity || quantity < 1) return;
+        const prod = productData[productId];
+        if (!prod) return;
+        // Check if already in cart
+        const existing = cart.find(item => item.id == productId);
+        if (existing) {
+            existing.quantity += quantity;
+        } else {
+            cart.push({ id: productId, name: prod.name, price: parseInt(prod['selling-price'],10), quantity });
+        }
+        updateCartUI();
+        document.getElementById('addSaleForm').reset();
+    };
+    </script>
+
+    <!-- Debtors Entry Form (hidden, shown by JS if needed) -->
+    <div id="debtorsFormCard" class="card mb-4" style="display:none;">
+        <div class="card-header">Record Debtor</div>
+        <div class="card-body">
+            <form method="POST" action="" class="row g-3">
+                <input type="hidden" name="cart_data" id="debtor_cart_data">
+                <input type="hidden" name="amount_paid" id="debtor_amount_paid">
+                <div class="col-md-4">
+                    <label for="debtor_name" class="form-label">Debtor Name</label>
+                    <input type="text" class="form-control" name="debtor_name" id="debtor_name" required>
+                </div>
+                <div class="col-md-3">
+                    <label for="debtor_contact" class="form-label">Contact</label>
+                    <input type="text" class="form-control" name="debtor_contact" id="debtor_contact">
+                </div>
+                <div class="col-md-3">
+                    <label for="debtor_email" class="form-label">Email</label>
+                    <input type="email" class="form-control" name="debtor_email" id="debtor_email">
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
+                    <button type="submit" name="record_debtor" class="btn btn-primary w-100">
+                        <i class="bi bi-person-plus"></i> Record
                     </button>
                 </div>
             </form>
@@ -401,41 +753,124 @@ body.dark-mode .form-select:focus {
         </div>
     </div>
 
-    <!-- Recent Sales Table -->
-    <div class="card">
-        <div class="card-header">Recent Sales</div>
-        <div class="card-body">
-            <?php if ($sales_result->num_rows > 0): ?>
-                <div class="transactions-table">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Date</th>
-                                <th>Product</th>
-                                <th>Qty</th>
-                                <th>Total</th>
-                                <th>Sold By</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php while ($sale = $sales_result->fetch_assoc()): ?>
-                                <tr>
-                                    <td><?= date("M d, Y H:i", strtotime($sale['date'])); ?></td>
-                                    <td><i class="bi bi-box"></i> <?= htmlspecialchars($sale['name']); ?></td>
-                                    <td><?= $sale['quantity']; ?></td>
-                                    <td><span class="badge bg-success">UGX <?= number_format($sale['amount'], 2); ?></span></td>
-                                    <td><?= htmlspecialchars($username); ?></td>
-                                </tr>
-                            <?php endwhile; ?>
-                        </tbody>
-                    </table>
+
+    <!-- Tabs for Sales and Debtors -->
+    <?php
+    // Fetch debtors for this branch
+    $debtors_stmt = $conn->prepare("SELECT id, debtor_name, debtor_contact, debtor_email, item_taken, quantity_taken, amount_paid, balance, is_paid, created_at FROM debtors WHERE `branch-id` = ? ORDER BY created_at DESC LIMIT 10");
+    $debtors_stmt->bind_param("i", $branch_id);
+    $debtors_stmt->execute();
+    $debtors_result = $debtors_stmt->get_result();
+    $debtors_stmt->close();
+    ?>
+    <ul class="nav nav-tabs mb-4" id="salesTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="sales-tab" data-bs-toggle="tab" data-bs-target="#sales-table" type="button" role="tab" aria-controls="sales-table" aria-selected="true">
+                Sales Records
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="debtors-tab" data-bs-toggle="tab" data-bs-target="#debtors-table" type="button" role="tab" aria-controls="debtors-table" aria-selected="false">
+                Debtors
+            </button>
+        </li>
+    </ul>
+    <div class="tab-content" id="salesTabsContent">
+        <!-- Sales Table Tab -->
+        <div class="tab-pane fade show active" id="sales-table" role="tabpanel" aria-labelledby="sales-tab">
+            <div class="card mb-4">
+                <div class="card-header">Recent Sales</div>
+                <div class="card-body">
+                    <?php if ($sales_result->num_rows > 0): ?>
+                        <div class="transactions-table">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Product</th>
+                                        <th>Qty</th>
+                                        <th>Total</th>
+                                        <th>Sold By</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php while ($sale = $sales_result->fetch_assoc()): ?>
+                                        <tr>
+                                            <td><?= date("M d, Y H:i", strtotime($sale['date'])); ?></td>
+                                            <td><i class="bi bi-box"></i> <?= htmlspecialchars($sale['name']); ?></td>
+                                            <td><?= $sale['quantity']; ?></td>
+                                            <td><span class="badge bg-success">UGX <?= number_format($sale['amount'], 2); ?></span></td>
+                                            <td><?= htmlspecialchars($username); ?></td>
+                                        </tr>
+                                    <?php endwhile; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    <?php else: ?>
+                        <p class="text-muted fst-italic">No sales recorded yet in this branch.</p>
+                    <?php endif; ?>
                 </div>
-            <?php else: ?>
-                <p class="text-muted fst-italic">No sales recorded yet in this branch.</p>
-            <?php endif; ?>
+            </div>
+        </div>
+        <!-- Debtors Table Tab -->
+        <div class="tab-pane fade" id="debtors-table" role="tabpanel" aria-labelledby="debtors-tab">
+            <div class="card mb-4">
+                <div class="card-header">Debtors</div>
+                <div class="card-body">
+                    <div class="transactions-table">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Debtor Name</th>
+                                    <th>Debtor Email</th>
+                                    <th>Item Taken</th>
+                                    <th>Quantity Taken</th>
+                                    <th>Amount Paid</th>
+                                    <th>Balance</th>
+                                    <th>Paid Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                            <?php if ($debtors_result->num_rows > 0): ?>
+                                <?php while ($debtor = $debtors_result->fetch_assoc()): ?>
+                                    <tr>
+                                        <td><?= date("M d, Y H:i", strtotime($debtor['created_at'])); ?></td>
+                                        <td><?= htmlspecialchars($debtor['debtor_name']); ?></td>
+                                        <td><?= htmlspecialchars($debtor['debtor_email']); ?></td>
+                                        <td><?= htmlspecialchars($debtor['item_taken'] ?? '-'); ?></td>
+                                        <td><?= htmlspecialchars($debtor['quantity_taken'] ?? '-'); ?></td>
+                                        <td>UGX <?= number_format($debtor['amount_paid'] ?? 0, 2); ?></td>
+                                        <td>UGX <?= number_format($debtor['balance'] ?? 0, 2); ?></td>
+                                        <td>
+                                            <?php if (!empty($debtor['is_paid'])): ?>
+                                                <span class="badge bg-success">Paid</span>
+                                            <?php else: ?>
+                                                <span class="badge bg-warning">Unpaid</span>
+                                            <?php endif; ?>
+                                        </td>
+                                        <td>
+                                            <div class="d-flex gap-1">
+                                                <button class="btn btn-success btn-sm btn-action px-2 py-1">Paid</button>
+                                                <button class="btn btn-primary btn-sm btn-action px-2 py-1">Pay</button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                <?php endwhile; ?>
+                            <?php else: ?>
+                                <tr>
+                                    <td colspan="9" class="text-center text-muted">No debtors recorded yet in this branch.</td>
+                                </tr>
+                            <?php endif; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
-</div>
+
 
 <script>
 // Welcome balls animation (same as admin_dashboard)
@@ -511,6 +946,137 @@ body.dark-mode .form-select:focus {
     });
   });
 })();
-</script>
+    // Sell button logic
+    document.getElementById('sellBtn').onclick = function() {
+        const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+        const amountPaid = parseInt(document.getElementById('amount_paid').value, 10) || 0;
+        const debtorsFormCard = document.getElementById('debtorsFormCard');
+        const cartMessage = document.getElementById('cartMessage');
+
+        if (cart.length === 0) {
+            cartMessage.innerHTML = '<span class="text-danger">Cart is empty.</span>';
+            debtorsFormCard.style.display = 'none';
+            return;
+        }
+
+        // Overpayment check
+        if (amountPaid > total) {
+            const balance = amountPaid - total;
+            showBalanceModal(balance, function() {
+                // After OK, proceed with sale as normal
+                document.getElementById('cart_data').value = JSON.stringify(cart);
+                document.getElementById('cart_amount_paid').value = amountPaid;
+                document.getElementById('cartSection').style.display = 'none';
+                hiddenSaleForm.submit();
+                debtorsFormCard.style.display = 'none';
+                cart = [];
+                updateCartUI();
+                // Reload page after short delay to ensure PHP processes sale and table updates
+                setTimeout(() => window.location.reload(), 600);
+            });
+            return;
+        }
+
+        if (amountPaid >= total) {
+            document.getElementById('cart_data').value = JSON.stringify(cart);
+            document.getElementById('cart_amount_paid').value = amountPaid;
+            document.getElementById('cartSection').style.display = 'none';
+            hiddenSaleForm.submit();
+            debtorsFormCard.style.display = 'none';
+            cart = [];
+            updateCartUI();
+            setTimeout(() => window.location.reload(), 600);
+        } else {
+            cartMessage.innerHTML = '<span class="text-warning">Amount paid is less than total. Please record debtor information below.</span>';
+            document.getElementById('debtor_cart_data').value = JSON.stringify(cart);
+            document.getElementById('debtor_amount_paid').value = amountPaid;
+            debtorsFormCard.style.display = '';
+            debtorsFormCard.scrollIntoView({behavior:'smooth'});
+        }
+    };
+// Handle cart sale submission (add after existing sale logic)
+if (isset($_POST['submit_cart']) && !empty($_POST['cart_data'])) {
+    $cart = json_decode($_POST['cart_data'], true);
+    $amount_paid = floatval($_POST['amount_paid'] ?? 0);
+    $currentDate = date("Y-m-d");
+    $conn->begin_transaction();
+    $success = true;
+    $messages = [];
+    $total = 0;
+
+    foreach ($cart as $item) {
+        $product_id = (int)$item['id'];
+        $quantity = (int)$item['quantity'];
+        // Get product info
+        $stmt = $conn->prepare("SELECT name, `selling-price`, `buying-price`, stock FROM products WHERE id = ? AND `branch-id` = ?");
+        $stmt->bind_param("ii", $product_id, $branch_id);
+        $stmt->execute();
+        $product = $stmt->get_result()->fetch_assoc();
+        $stmt->close();
+        if (!$product || $product['stock'] < $quantity) {
+            $success = false;
+            $messages[] = "Product not found or not enough stock for " . htmlspecialchars($item['name']);
+            break;
+        }
+        $total_price  = $product['selling-price'] * $quantity;
+        $cost_price   = $product['buying-price'] * $quantity;
+        $total_profit = $total_price - $cost_price;
+        $total += $total_price;
+
+        // Only record sale if amount_paid >= total (fully paid)
+        // If not fully paid, do NOT record sale here (handled by debtor logic)
+        if ($amount_paid >= $total) {
+            $stmt = $conn->prepare("INSERT INTO sales (`product-id`, `branch-id`, quantity, amount, `sold-by`, `cost-price`, total_profits, date) VALUES (?, ?, ?, ?, ?, ?, ?, NOW())");
+            $stmt->bind_param("iiididd", $product_id, $branch_id, $quantity, $total_price, $user_id, $cost_price, $total_profit);
+            $stmt->execute();
+            $stmt->close();
+
+            $new_stock = $product['stock'] - $quantity;
+            $update = $conn->prepare("UPDATE products SET stock = ? WHERE id = ?");
+            $update->bind_param("ii", $new_stock, $product_id);
+            $update->execute();
+            $update->close();
+
+            // Update profits
+            $stmt = $conn->prepare("SELECT * FROM profits WHERE date = ? AND `branch-id` = ?");
+            $stmt->bind_param("si", $currentDate, $branch_id);
+            $stmt->execute();
+            $profit_result = $stmt->get_result()->fetch_assoc();
+            $stmt->close();
+            if ($profit_result) {
+                $total_amount = $profit_result['total'] + $total_profit;
+                $expenses     = $profit_result['expenses'] ?? 0;
+                $net_profit   = $total_amount - $expenses;
+                $stmt2 = $conn->prepare("UPDATE profits SET total=?, `net-profits`=? WHERE date=? AND `branch-id`=?");
+                $stmt2->bind_param("ddsi", $total_amount, $net_profit, $currentDate, $branch_id);
+                $stmt2->execute();
+                $stmt2->close();
+            } else {
+                $total_amount = $total_profit;
+                $net_profit   = $total_profit;
+                $expenses     = 0;
+                $stmt2 = $conn->prepare("INSERT INTO profits (`branch-id`, total, `net-profits`, expenses, date) VALUES (?, ?, ?, ?, ?)");
+                $stmt2->bind_param("iddis", $branch_id, $total_amount, $net_profit, $expenses, $currentDate);
+                $stmt2->execute();
+                $stmt2->close();
+            }
+        }
+    }
+
+    if ($success && $amount_paid >= $total) {
+        $conn->commit();
+        $message = '✅ Sale recorded successfully!';
+    } else if ($success && $amount_paid < $total) {
+        // Do not record sale, handled by debtor logic
+        $conn->rollback();
+        // Optionally, set a message here if needed
+    } else {
+        $conn->rollback();
+        $message = implode(' ', $messages);
+    }
+}
+    </script>
 
 <?php include '../includes/footer.php'; ?>
+
+
