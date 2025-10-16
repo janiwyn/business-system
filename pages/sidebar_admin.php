@@ -66,7 +66,7 @@ body.dark-mode .sidebar {
 }
 body.dark-mode .sidebar::-webkit-scrollbar-thumb,
 body.dark-mode .sidebar::-webkit-scrollbar-thumb:horizontal {
-    background: linear-gradient(90deg, #ffd200 0%, #1abc9c 100%);
+    background: linear-gradient(90deg, #1abc9c 0%, #1abc9c 100%);
 }
 .sidebar-title {
     text-align: center;
