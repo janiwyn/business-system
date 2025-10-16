@@ -294,6 +294,34 @@ body.dark-mode .welcome-text {
 }
 
 /* ===============================
+   Notification Styles
+================================= */
+/* Notification Icon */
+.notification-icon {
+  font-size: 1.5rem;
+  position: relative;
+}
+.notification-icon .badge {
+  font-size: 0.75rem;
+  padding: 0.25rem 0.5rem;
+}
+
+/* Notifications Page */
+.list-group-item {
+  background: var(--card-bg);
+  color: var(--text-color);
+  border: 1px solid var(--card-shadow);
+  border-radius: 8px;
+  margin-bottom: 0.5rem;
+  box-shadow: 0 2px 8px var(--card-shadow);
+}
+body.dark-mode .list-group-item {
+  background: #23243a;
+  color: #fff;
+  border: 1px solid #444;
+}
+
+/* ===============================
    Responsive
 ================================= */
 @media(max-width:768px){
