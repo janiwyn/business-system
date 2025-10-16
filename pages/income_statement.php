@@ -10,7 +10,6 @@ include '../includes/header.php';
 <html>
 <head>
   <title>Income Statement (Profit & Loss)</title>
-  <link href="../assets/css/bootstrap.min.css" rel="stylesheet">
 </head>
 <body class="bg-light">
 
