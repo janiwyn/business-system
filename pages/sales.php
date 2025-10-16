@@ -256,7 +256,7 @@ $debtors_result = $conn->query("
                                                 <?php endif; ?>
                                             </td>
                                             <td>
-                                                <button class="btn btn-success btn-sm">Mark as Paid</button>
+                                                <button class="btn btn-success btn-sm">Paid</button>
                                                 <button class="btn btn-primary btn-sm">Pay</button>
                                             </td>
                                         </tr>
