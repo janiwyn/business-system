@@ -3,6 +3,7 @@ session_start();
 include '../includes/db.php';
 include '../includes/auth.php';
 require_role(["admin", "manager", "staff"]);
+include 'sms.php';
 
 // Fix: Always use the correct sidebar for staff
 if ($_SESSION['role'] === 'staff') {
@@ -293,6 +294,21 @@ $result = $conn->query("
 if ($result->num_rows > 0) {
     $i = $offset + 1;
     while ($row = $result->fetch_assoc()) {
+        // Check expiry
+$today = date('Y-m-d');
+$expiry = $row['expiry_date'];
+
+// Calculate days left (difference in days)
+$daysLeft = floor((strtotime($expiry) - strtotime($today)) / 86400);
+
+
+// Check if the product expires in - 7 to 0 to +7 days (inclusive)
+if (abs($daysLeft) <= 7 && !$row['sms_sent']) {
+    sendExpirySMS($row['name'], $expiry);
+    $conn->query("UPDATE products SET sms_sent = 1 WHERE id = {$row['id']}");
+}
+
+
         // Highlight expiring products
         $highlight = "";
         foreach($expiring_products as $exp){

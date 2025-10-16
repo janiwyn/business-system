@@ -34,11 +34,11 @@ if ($role === 'admin') {
             <i class="fa-solid fa-building me-2"></i> List Branches
           </a>
         </li>
-        <!-- <li class="nav-item mb-2">
-          <a class="nav-link text-white d-flex align-items-center hover-effect" href="../pages/branch_view.php">
-            <i class="fa-solid fa-building me-2"></i> View Branches
+        <li class="nav-item mb-2">
+          <a class="nav-link text-white d-flex align-items-center hover-effect" href="../pages/debtor.php">
+            <i class="fa-solid fa-building me-2"></i> Debtors
           </a>
-        </li> -->
+        </li>
  <li class="nav-item mb-2">
         <a class="nav-link text-white d-flex align-items-center hover-effect" href="../pages/edit_product.php">
           <i class="fa-solid fa-box me-2"></i> Edit Product

@@ -1,5 +1,4 @@
 <?php
-// Remove any session_start() here, since session is already started in header or elsewhere
 if (!isset($_SESSION['role'])) {
     header("Location: ../auth/login.php");
     exit();
@@ -7,19 +6,19 @@ if (!isset($_SESSION['role'])) {
 $role = $_SESSION['role'];
 ?>
 <style>
-/* Sidebar styling to match sidebar_manager */
+/* Sidebar styling */
 .sidebar {
     width: 250px;
-    min-height: 100vh;
+    height: 100vh; /* Full viewport height */
     background: #2c3e50;
     color: #fff;
     padding: 1rem;
-    transition: width 0.3s ease;
     position: fixed;
     top: 0; left: 0;
     z-index: 10;
     border-top-right-radius: 12px;
     border-bottom-right-radius: 12px;
+    overflow-y: auto; /* Makes sidebar scrollable */
 }
 .sidebar-title {
     text-align: center;
@@ -46,6 +45,7 @@ $role = $_SESSION['role'];
     color: #fff;
     transition: background 0.2s, color 0.2s;
     gap: 0.5rem;
+    text-decoration: none;
 }
 .sidebar-nav li a i {
     margin-right: 0.5rem;
@@ -55,7 +55,6 @@ $role = $_SESSION['role'];
 .sidebar-nav li a.active {
     background: var(--primary-color, #1abc9c);
     color: #fff;
-    text-decoration: none;
 }
 .sidebar-nav li a.text-danger {
     color: #e74c3c !important;
@@ -64,10 +63,19 @@ $role = $_SESSION['role'];
     background: #e74c3c !important;
     color: #fff !important;
 }
+.sidebar-nav .collapse ul li a {
+    padding-left: 2rem; /* indent submenu items */
+}
 @media (max-width: 768px) {
-    .sidebar { width: 100%; min-height: auto; position: relative; border-radius: 0; }
+    .sidebar {
+        width: 100%;
+        height: auto;
+        position: relative;
+        border-radius: 0;
+    }
 }
 </style>
+
 <div class="sidebar">
     <div class="sidebar-title">Admin Dashboard</div>
     <ul class="sidebar-nav">
@@ -78,7 +86,34 @@ $role = $_SESSION['role'];
         <li><a href="../pages/expense.php"><i class="fa-solid fa-wallet"></i> Expenses</a></li>
         <li><a href="../pages/product.php"><i class="fa-solid fa-cubes"></i> Products</a></li>
         <li><a href="../pages/sales.php"><i class="fa-solid fa-cart-shopping"></i> Sales</a></li>
-         <li><a href="../pages/employees.php"><i class="fa-solid fa-cart-shopping"></i> Employees</a></li>
+        <li><a href="../pages/employees.php"><i class="fa-solid fa-users"></i> Employees</a></li>
+        <li><a href="../pages/debtor.php"><i class="fa-solid fa-users"></i> Debtor</a></li>
+
+
+        <!-- Accounting dropdown -->
+        <li>
+            <a class="d-flex justify-content-between align-items-center" 
+               data-bs-toggle="collapse" 
+               href="#accountingMenu" 
+               role="button" 
+               aria-expanded="false" 
+               aria-controls="accountingMenu">
+                💼 Accounting
+                <i class="bi bi-caret-down-fill"></i>
+            </a>
+            <div class="collapse" id="accountingMenu">
+                <ul class="nav flex-column">
+                    <li><a href="../pages/add_account.php"><i class="fa-solid fa-plus"></i> Add Account</a></li>
+                    <li><a href="../pages/add_transaction.php"><i class="fa-solid fa-plus"></i> Add Transaction</a></li>
+                    <li><a href="../pages/ledger.php"><i class="fa-solid fa-plus"></i> Ledger</a></li>
+                    <li><a href="../pages/trail_balance.php"><i class="fa-solid fa-plus"></i> Trial Balance</a></li>
+                    <li><a href="../pages/add_cash_entry.php"><i class="fa-solid fa-plus"></i> Cash Entry</a></li>
+                    <li><a href="../pages/cash_book.php"><i class="fa-solid fa-plus"></i> Cash Book</a></li>
+                    <li><a href="../pages/income_statement.php"><i class="fa-solid fa-plus"></i> Income Statement</a></li>
+                    <li><a href="../pages/balance_sheet.php"><i class="fa-solid fa-balance-scale"></i> Balance Sheet</a></li>
+                </ul>
+            </div>
+        </li>
 
         <li><a href="../pages/report.php"><i class="fa-solid fa-chart-line"></i> Reports</a></li>
         <li><a href="../pages/payroll.php"><i class="fa-solid fa-money-check-dollar"></i> Payroll</a></li>
@@ -87,4 +122,5 @@ $role = $_SESSION['role'];
         </li>
     </ul>
 </div>
+
 <div class="main-container">

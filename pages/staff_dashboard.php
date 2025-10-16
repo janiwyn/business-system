@@ -757,7 +757,7 @@ body.dark-mode .form-select:focus {
     <!-- Tabs for Sales and Debtors -->
     <?php
     // Fetch debtors for this branch
-    $debtors_stmt = $conn->prepare("SELECT id, debtor_name, debtor_contact, debtor_email, item_taken, quantity_taken, amount_paid, balance, is_paid, created_at FROM debtors WHERE `branch-id` = ? ORDER BY created_at DESC LIMIT 10");
+    $debtors_stmt = $conn->prepare("SELECT id, debtor_name, debtor_contact, debtor_email, item_taken, quantity_taken, amount_paid, balance, is_paid, created_at FROM debtors WHERE `branch_id` = ? ORDER BY created_at DESC LIMIT 10");
     $debtors_stmt->bind_param("i", $branch_id);
     $debtors_stmt->execute();
     $debtors_result = $debtors_stmt->get_result();
@@ -994,6 +994,8 @@ body.dark-mode .form-select:focus {
             debtorsFormCard.scrollIntoView({behavior:'smooth'});
         }
     };
+    </script>
+    <?php
 // Handle cart sale submission (add after existing sale logic)
 if (isset($_POST['submit_cart']) && !empty($_POST['cart_data'])) {
     $cart = json_decode($_POST['cart_data'], true);
@@ -1075,7 +1077,8 @@ if (isset($_POST['submit_cart']) && !empty($_POST['cart_data'])) {
         $message = implode(' ', $messages);
     }
 }
-    </script>
+
+  ?>
 
 <script>
 // Pay button logic for debtors table
