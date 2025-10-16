@@ -19,6 +19,54 @@ $role = $_SESSION['role'];
     border-top-right-radius: 12px;
     border-bottom-right-radius: 12px;
     overflow-y: auto; /* Makes sidebar scrollable */
+    overflow-x: auto; /* Enable horizontal scroll if needed */
+    scrollbar-width: thin;
+    scrollbar-color: #1abc9c #23243a;
+}
+/* Custom vertical scrollbar */
+.sidebar::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+    background: #23243a;
+    border-radius: 8px;
+}
+/* Custom horizontal scrollbar */
+.sidebar::-webkit-scrollbar:horizontal {
+    height: 8px;
+    background: #23243a;
+    border-radius: 8px;
+}
+.sidebar::-webkit-scrollbar-thumb {
+    background: linear-gradient(90deg, #1abc9c 0%, #56ccf2 100%);
+    border-radius: 8px;
+    min-height: 40px;
+}
+.sidebar::-webkit-scrollbar-thumb:horizontal {
+    background: linear-gradient(90deg, #1abc9c 0%, #56ccf2 100%);
+    border-radius: 8px;
+}
+.sidebar::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(90deg, #159c8c 0%, #3498db 100%);
+}
+.sidebar::-webkit-scrollbar-track {
+    background: #23243a;
+    border-radius: 8px;
+}
+.sidebar::-webkit-scrollbar-track:horizontal {
+    background: #23243a;
+    border-radius: 8px;
+}
+/* Firefox */
+.sidebar {
+    scrollbar-width: thin;
+    scrollbar-color: #1abc9c #23243a;
+}
+body.dark-mode .sidebar {
+    scrollbar-color:  #1abc9c #23243a;
+}
+body.dark-mode .sidebar::-webkit-scrollbar-thumb,
+body.dark-mode .sidebar::-webkit-scrollbar-thumb:horizontal {
+    background: linear-gradient(90deg, #ffd200 0%, #1abc9c 100%);
 }
 .sidebar-title {
     text-align: center;
