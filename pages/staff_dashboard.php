@@ -757,7 +757,13 @@ body.dark-mode .form-select:focus {
     <!-- Tabs for Sales and Debtors -->
     <?php
     // Fetch debtors for this branch
-    $debtors_stmt = $conn->prepare("SELECT id, debtor_name, debtor_contact, debtor_email, item_taken, quantity_taken, amount_paid, balance, is_paid, created_at FROM debtors WHERE `branch_id` = ? ORDER BY created_at DESC LIMIT 10");
+    $debtors_stmt = $conn->prepare("
+        SELECT id, debtor_name, debtor_contact, debtor_email, item_taken, quantity_taken, amount_paid, balance, is_paid, created_at 
+        FROM debtors 
+        WHERE `branch-id` = ? 
+        ORDER BY created_at DESC 
+        LIMIT 10
+    ");
     $debtors_stmt->bind_param("i", $branch_id);
     $debtors_stmt->execute();
     $debtors_result = $debtors_stmt->get_result();
