@@ -21,6 +21,78 @@ body.dark-mode {
   --card-shadow: rgba(0,0,0,0.4);
 }
 
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+/* ===============================
+   Custom Scrollbar (Match sidebar_admin.php)
+================================= */
+/* Universal custom scrollbar for all scrollable areas */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+    background: #23243a; /* Match sidebar background */
+    border-radius: 8px;
+}
+::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, #1abc9c 0%, #56ccf2 100%);
+    border-radius: 8px;
+    min-height: 40px;
+    border: 2px solid #23243a;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(180deg, #159c8c 0%, #3498db 100%);
+}
+::-webkit-scrollbar-track {
+    background: #23243a;
+    border-radius: 8px;
+}
+::-webkit-scrollbar:horizontal {
+    height: 8px;
+}
+::-webkit-scrollbar-thumb:horizontal {
+    background: linear-gradient(90deg, #1abc9c 0%, #56ccf2 100%);
+    border-radius: 8px;
+    border: 2px solid #23243a;
+}
+::-webkit-scrollbar-track:horizontal {
+    background: #23243a;
+    border-radius: 8px;
+}
+
+/* Firefox */
+body,
+.main-container,
+.container,
+.container-fluid,
+.transactions-table,
+.card-body,
+.sidebar {
+    scrollbar-width: thin;
+    scrollbar-color: #1abc9c #23243a;
+}
+
+/* Dark mode: keep accent color for thumb */
+body.dark-mode body,
+body.dark-mode .main-container,
+body.dark-mode .container,
+body.dark-mode .container-fluid,
+body.dark-mode .transactions-table,
+body.dark-mode .card-body,
+body.dark-mode .sidebar {
+    scrollbar-color: #ffd200 #23243a;
+}
+body.dark-mode ::-webkit-scrollbar-thumb,
+body.dark-mode ::-webkit-scrollbar-thumb:horizontal {
+    background: linear-gradient(180deg, #ffd200 0%, #1abc9c 100%);
+    border-radius: 8px;
+    border: 2px solid #23243a;
+}
+
 /* ===============================
    Global Styles
 ================================= */
@@ -258,3 +330,4 @@ body.dark-mode .welcome-text {
   .sidebar.collapsed { width: 100%; }
   .cards-grid, .charts-grid { grid-template-columns: 1fr; }
 }
+
