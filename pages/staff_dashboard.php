@@ -544,16 +544,37 @@ body.dark-mode .form-select:focus {
             return;
         }
 
-        // Include payment method in the hidden form
-        document.getElementById('cart_data').value = JSON.stringify(cart);
-        document.getElementById('cart_amount_paid').value = amountPaid;
-        const paymentInput = document.createElement('input');
-        paymentInput.type = 'hidden';
-        paymentInput.name = 'payment_method';
-        paymentInput.value = paymentMethod;
-        hiddenSaleForm.appendChild(paymentInput);
+        // Calculate total cart value
+        let total = 0;
+        cart.forEach(item => {
+            total += item.price * item.quantity;
+        });
 
-        hiddenSaleForm.submit();
+        if (amountPaid >= total) {
+            // Overpayment or exact payment
+            const balance = amountPaid - total;
+            if (balance > 0) {
+                alert(`Balance is UGX ${balance.toLocaleString()}`);
+            }
+
+            // Submit the sale
+            document.getElementById('cart_data').value = JSON.stringify(cart);
+            document.getElementById('cart_amount_paid').value = amountPaid;
+            const paymentInput = document.createElement('input');
+            paymentInput.type = 'hidden';
+            paymentInput.name = 'payment_method';
+            paymentInput.value = paymentMethod;
+            hiddenSaleForm.appendChild(paymentInput);
+
+            hiddenSaleForm.submit();
+        } else {
+            // Underpayment: Show debtor form
+            const debtorForm = document.getElementById('debtorsFormCard');
+            document.getElementById('debtor_cart_data').value = JSON.stringify(cart);
+            document.getElementById('debtor_amount_paid').value = amountPaid;
+            debtorForm.style.display = 'block';
+            window.scrollTo({ top: debtorForm.offsetTop, behavior: 'smooth' });
+        }
     };
 
     function updateCartUI() {
@@ -859,57 +880,89 @@ body.dark-mode .form-select:focus {
             return;
         }
 
-        // Include payment method in the hidden form
-        document.getElementById('cart_data').value = JSON.stringify(cart);
-        document.getElementById('cart_amount_paid').value = amountPaid;
-        const paymentInput = document.createElement('input');
-        paymentInput.type = 'hidden';
-        paymentInput.name = 'payment_method';
-        paymentInput.value = paymentMethod;
-        hiddenSaleForm.appendChild(paymentInput);
+        // Calculate total cart value
+        let total = 0;
+        cart.forEach(item => {
+            total += item.price * item.quantity;
+        });
 
-        hiddenSaleForm.submit();
+        if (amountPaid >= total) {
+            // Overpayment or exact payment
+            const balance = amountPaid - total;
+            if (balance > 0) {
+                alert(`Balance is UGX ${balance.toLocaleString()}`);
+            }
+
+            // Submit the sale
+            document.getElementById('cart_data').value = JSON.stringify(cart);
+            document.getElementById('cart_amount_paid').value = amountPaid;
+            const paymentInput = document.createElement('input');
+            paymentInput.type = 'hidden';
+            paymentInput.name = 'payment_method';
+            paymentInput.value = paymentMethod;
+            hiddenSaleForm.appendChild(paymentInput);
+
+            hiddenSaleForm.submit();
+        } else {
+            // Underpayment: Show debtor form
+            const debtorForm = document.getElementById('debtorsFormCard');
+            document.getElementById('debtor_cart_data').value = JSON.stringify(cart);
+            document.getElementById('debtor_amount_paid').value = amountPaid;
+            debtorForm.style.display = 'block';
+            window.scrollTo({ top: debtorForm.offsetTop, behavior: 'smooth' });
+        }
     };
     </script>
     <?php
-// Handle cart sale submission (add after existing sale logic)
+// Handle cart sale submission
 if (isset($_POST['submit_cart']) && !empty($_POST['cart_data'])) {
     $cart = json_decode($_POST['cart_data'], true);
     $amount_paid = floatval($_POST['amount_paid'] ?? 0);
-    $payment_method = $_POST['payment_method'] ?? 'Cash'; // Default to Cash
+    $payment_method = $_POST['payment_method'] ?? 'Cash';
     $currentDate = date("Y-m-d");
     $conn->begin_transaction();
     $success = true;
     $messages = [];
     $total = 0;
 
+    // Calculate total cart value
     foreach ($cart as $item) {
-        $product_id = (int)$item['id'];
-        $quantity = (int)$item['quantity'];
-        // Get product info
-        $stmt = $conn->prepare("SELECT name, `selling-price`, `buying-price`, stock FROM products WHERE id = ? AND `branch-id` = ?");
-        $stmt->bind_param("ii", $product_id, $branch_id);
-        $stmt->execute();
-        $product = $stmt->get_result()->fetch_assoc();
-        $stmt->close();
-        if (!$product || $product['stock'] < $quantity) {
-            $success = false;
-            $messages[] = "Product not found or not enough stock for " . htmlspecialchars($item['name']);
-            break;
-        }
-        $total_price  = $product['selling-price'] * $quantity;
-        $cost_price   = $product['buying-price'] * $quantity;
-        $total_profit = $total_price - $cost_price;
-        $total += $total_price;
+        $total += floatval($item['price']) * intval($item['quantity']);
+    }
 
-        // Only record sale if amount_paid >= total (fully paid)
-        // If not fully paid, do NOT record sale here (handled by debtor logic)
-        if ($amount_paid >= $total) {
-            $stmt = $conn->prepare("INSERT INTO sales (`product-id`, `branch-id`, quantity, amount, `sold-by`, `cost-price`, total_profits, date, payment_method) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+    if ($amount_paid >= $total) {
+        // Fully paid or overpaid
+        foreach ($cart as $item) {
+            $product_id = (int)$item['id'];
+            $quantity = (int)$item['quantity'];
+
+            // Get product info
+            $stmt = $conn->prepare("SELECT name, `selling-price`, `buying-price`, stock FROM products WHERE id = ? AND `branch-id` = ?");
+            $stmt->bind_param("ii", $product_id, $branch_id);
+            $stmt->execute();
+            $product = $stmt->get_result()->fetch_assoc();
+            $stmt->close();
+
+            if (!$product || $product['stock'] < $quantity) {
+                $success = false;
+                $messages[] = "Product not found or not enough stock for " . htmlspecialchars($item['name']);
+                break;
+            }
+
+            $total_price  = $product['selling-price'] * $quantity;
+            $cost_price   = $product['buying-price'] * $quantity;
+            $total_profit = $total_price - $cost_price;
+
+            // Insert sale row for each cart item
+            $stmt = $conn->prepare("
+                INSERT INTO sales (`product-id`, `branch-id`, quantity, amount, `sold-by`, `cost-price`, total_profits, date, payment_method)
+                VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), ?)
+            ");
             $stmt->bind_param("iiididds", $product_id, $branch_id, $quantity, $total_price, $user_id, $cost_price, $total_profit, $payment_method);
             $stmt->execute();
             $stmt->close();
 
+            // Update stock
             $new_stock = $product['stock'] - $quantity;
             $update = $conn->prepare("UPDATE products SET stock = ? WHERE id = ?");
             $update->bind_param("ii", $new_stock, $product_id);
@@ -940,23 +993,19 @@ if (isset($_POST['submit_cart']) && !empty($_POST['cart_data'])) {
                 $stmt2->close();
             }
         }
-    }
-
-    if ($success && $amount_paid >= $total) {
-        $conn->commit();
-        $message = '✅ Sale recorded successfully!';
-    } else if ($success && $amount_paid < $total) {
-        // Do not record sale, handled by debtor logic
-        $conn->rollback();
-        // Optionally, set a message here if needed
+        if ($success) {
+            $conn->commit();
+            $message = '✅ Sale recorded successfully!';
+        } else {
+            $conn->rollback();
+            $message = implode(' ', $messages);
+        }
     } else {
+        // Underpayment: Do not record sale, handled by debtor logic
         $conn->rollback();
-        $message = implode(' ', $messages);
     }
 }
-
-  ?>
-
+?>
 <script>
 // Pay button logic for debtors table
 document.addEventListener('DOMContentLoaded', function() {
