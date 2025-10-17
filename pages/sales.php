@@ -198,13 +198,36 @@ $debtors_result = $conn->query("
                             </thead>
                             <tbody>
                                 <?php if ($daily_res && $daily_res->num_rows > 0): ?>
-                                    <?php while ($row = $daily_res->fetch_assoc()): ?>
+                                    <?php
+                                        $currentDay = null;
+                                        $dayTotal = 0;
+                                        $dailyRows = [];
+                                        while ($r = $daily_res->fetch_assoc()) { $dailyRows[] = $r; }
+                                        foreach ($dailyRows as $r):
+                                            if ($currentDay !== null && $currentDay !== $r['day']):
+                                    ?>
                                         <tr>
-                                            <td><small class="text-muted"><?= htmlspecialchars($row['day']) ?></small></td>
-                                            <td><?= htmlspecialchars($row['pm']) ?></td>
-                                            <td><span class="fw-bold text-success">UGX <?= number_format($row['total'], 2) ?></span></td>
+                                            <td colspan="2" class="text-end fw-bold">Total for <?= htmlspecialchars($currentDay) ?></td>
+                                            <td><span class="fw-bold text-primary">UGX <?= number_format($dayTotal, 2) ?></span></td>
                                         </tr>
-                                    <?php endwhile; ?>
+                                    <?php
+                                                $dayTotal = 0;
+                                            endif;
+                                            $currentDay = $r['day'];
+                                            $dayTotal += (float)$r['total'];
+                                    ?>
+                                        <tr>
+                                            <td><small class="text-muted"><?= htmlspecialchars($r['day']) ?></small></td>
+                                            <td><?= htmlspecialchars($r['pm']) ?></td>
+                                            <td><span class="fw-bold text-success">UGX <?= number_format($r['total'], 2) ?></span></td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                    <?php if ($currentDay !== null): ?>
+                                        <tr>
+                                            <td colspan="2" class="text-end fw-bold">Total for <?= htmlspecialchars($currentDay) ?></td>
+                                            <td><span class="fw-bold text-primary">UGX <?= number_format($dayTotal, 2) ?></span></td>
+                                        </tr>
+                                    <?php endif; ?>
                                 <?php else: ?>
                                     <tr><td colspan="3" class="text-center text-muted">No payments found for the selected period.</td></tr>
                                 <?php endif; ?>
