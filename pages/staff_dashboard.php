@@ -102,7 +102,7 @@ $stmt->close();
 
 // Fetch recent sales
 $sales_stmt = $conn->prepare("
-    SELECT s.id, p.name, s.quantity, s.amount, s.total_profits, s.date
+    SELECT s.id, p.name, s.quantity, s.amount, s.payment_method, s.date
     FROM sales s
     JOIN products p ON s.`product-id` = p.id
     WHERE s.`branch-id` = ?
@@ -178,6 +178,7 @@ if (isset($_POST['record_debtor'])) {
 if (isset($_POST['submit_cart']) && !empty($_POST['cart_data'])) {
     $cart = json_decode($_POST['cart_data'], true);
     $amount_paid = floatval($_POST['amount_paid'] ?? 0);
+    $payment_method = $_POST['payment_method'] ?? 'Cash'; // Default to Cash
     $currentDate = date("Y-m-d");
     $conn->begin_transaction();
     $success = true;
@@ -213,8 +214,11 @@ if (isset($_POST['submit_cart']) && !empty($_POST['cart_data'])) {
             $total_profit = $total_price - $cost_price;
 
             // Insert sale row for each cart item
-            $stmt = $conn->prepare("INSERT INTO sales (`product-id`, `branch-id`, quantity, amount, `sold-by`, `cost-price`, total_profits, date) VALUES (?, ?, ?, ?, ?, ?, ?, NOW())");
-            $stmt->bind_param("iiididd", $product_id, $branch_id, $quantity, $total_price, $user_id, $cost_price, $total_profit);
+            $stmt = $conn->prepare("
+                INSERT INTO sales (`product-id`, `branch-id`, quantity, amount, `sold-by`, `cost-price`, total_profits, date, payment_method)
+                VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), ?)
+            ");
+            $stmt->bind_param("iiididds", $product_id, $branch_id, $quantity, $total_price, $user_id, $cost_price, $total_profit, $payment_method);
             $stmt->execute();
             $stmt->close();
 
@@ -264,66 +268,6 @@ if (isset($_POST['submit_cart']) && !empty($_POST['cart_data'])) {
 ?>
 
 <style>
-/* Sidebar styling to match sidebar_admin
-.sidebar {
-    width: 250px;
-    min-height: 100vh;
-    background: #2c3e50;
-    color: #fff;
-    padding: 1rem;
-    transition: width 0.3s ease;
-    position: fixed;
-    top: 0; left: 0;
-    z-index: 10;
-    border-top-right-radius: 12px;
-    border-bottom-right-radius: 12px;
-}
-.sidebar-title {
-    text-align: center;
-    margin-bottom: 1.5rem;
-    font-weight: 700;
-    font-size: 1.4rem;
-    color: #000000ff;
-    letter-spacing: 1px;
-}
-.sidebar-nav {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-}
-.sidebar-nav li {
-    margin: 0.5rem 0;
-}
-.sidebar-nav li a {
-    display: flex;
-    align-items: center;
-    padding: 0.5rem;
-    border-radius: 6px;
-    font-size: 1rem;
-    color: #fff;
-    transition: background 0.2s, color 0.2s;
-    gap: 0.5rem;
-}
-.sidebar-nav li a i {
-    margin-right: 0.5rem;
-    font-size: 1.1rem;
-}
-.sidebar-nav li a:hover,
-.sidebar-nav li a.active {
-    background: var(--primary-color, #1abc9c);
-    color: #fff;
-    text-decoration: none;
-}
-.sidebar-nav li a.text-danger {
-    color: #e74c3c !important;
-}
-.sidebar-nav li a.text-danger:hover {
-    background: #e74c3c !important;
-    color: #fff !important;
-}
-@media (max-width: 768px) {
-    .sidebar { width: 100%; min-height: auto; position: relative; border-radius: 0; }
-} */
 
 /* Welcome Banner (same as admin_dashboard) */
 .welcome-banner {
@@ -529,6 +473,7 @@ body.dark-mode .form-select:focus {
                     </button>
                 </div>
             </form>
+            <!-- Cart Section -->
             <div id="cartSection" style="display:none; margin-top:1.5rem;">
                 <h6>Cart</h6>
                 <div class="table-responsive">
@@ -553,6 +498,15 @@ body.dark-mode .form-select:focus {
                     </table>
                 </div>
                 <div class="row g-3 align-items-end">
+                    <div class="col-md-4">
+                        <label for="payment_method" class="form-label">Payment Method</label>
+                        <select id="payment_method" class="form-select" required>
+                            <option value="Cash">Cash</option>
+                            <option value="MTN MoMo">MTN MoMo</option>
+                            <option value="Airtel Money">Airtel Money</option>
+                            <option value="Bank">Bank</option>
+                        </select>
+                    </div>
                     <div class="col-md-4">
                         <label for="amount_paid" class="form-label">Amount Paid</label>
                         <input type="number" class="form-control" id="amount_paid" min="0" value="">
@@ -582,84 +536,25 @@ body.dark-mode .form-select:focus {
     document.body.appendChild(hiddenSaleForm);
 
     document.getElementById('sellBtn').onclick = function() {
-        const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
-        const amountPaid = parseInt(document.getElementById('amount_paid').value, 10) || 0;
-        const debtorsFormCard = document.getElementById('debtorsFormCard');
-        const cartMessage = document.getElementById('cartMessage');
+        const paymentMethod = document.getElementById('payment_method').value;
+        const amountPaid = parseFloat(document.getElementById('amount_paid').value || 0);
 
-        if (cart.length === 0) {
-            cartMessage.innerHTML = '<span class="text-danger">Cart is empty.</span>';
-            debtorsFormCard.style.display = 'none';
+        if (!paymentMethod) {
+            alert('Please select a payment method.');
             return;
         }
 
-        // Overpayment check
-        if (amountPaid > total) {
-            const balance = amountPaid - total;
-            showBalanceModal(balance, function() {
-                // After OK, proceed with sale as normal
-                document.getElementById('cart_data').value = JSON.stringify(cart);
-                document.getElementById('cart_amount_paid').value = amountPaid;
-                document.getElementById('cartSection').style.display = 'none';
-                hiddenSaleForm.submit();
-                debtorsFormCard.style.display = 'none';
-                cart = [];
-                updateCartUI();
-                // Reload page after short delay to ensure PHP processes sale and table updates
-                setTimeout(() => window.location.reload(), 600);
-            });
-            return;
-        }
+        // Include payment method in the hidden form
+        document.getElementById('cart_data').value = JSON.stringify(cart);
+        document.getElementById('cart_amount_paid').value = amountPaid;
+        const paymentInput = document.createElement('input');
+        paymentInput.type = 'hidden';
+        paymentInput.name = 'payment_method';
+        paymentInput.value = paymentMethod;
+        hiddenSaleForm.appendChild(paymentInput);
 
-        if (amountPaid >= total) {
-            document.getElementById('cart_data').value = JSON.stringify(cart);
-            document.getElementById('cart_amount_paid').value = amountPaid;
-            document.getElementById('cartSection').style.display = 'none';
-            hiddenSaleForm.submit();
-            debtorsFormCard.style.display = 'none';
-            cart = [];
-            updateCartUI();
-            setTimeout(() => window.location.reload(), 600);
-        } else {
-            cartMessage.innerHTML = '<span class="text-warning">Amount paid is less than total. Please record debtor information below.</span>';
-            document.getElementById('debtor_cart_data').value = JSON.stringify(cart);
-            document.getElementById('debtor_amount_paid').value = amountPaid;
-            debtorsFormCard.style.display = '';
-            debtorsFormCard.scrollIntoView({behavior:'smooth'});
-        }
+        hiddenSaleForm.submit();
     };
-
-    // Show balance modal for overpayment, and call callback on OK
-    function showBalanceModal(balance, callback) {
-        let modal = document.getElementById('overpayModal');
-        if (!modal) {
-            modal = document.createElement('div');
-            modal.id = 'overpayModal';
-            modal.style.position = 'fixed';
-            modal.style.top = 0;
-            modal.style.left = 0;
-            modal.style.width = '100vw';
-            modal.style.height = '100vh';
-            modal.style.background = 'rgba(0,0,0,0.3)';
-            modal.style.display = 'flex';
-            modal.style.alignItems = 'center';
-            modal.style.justifyContent = 'center';
-            modal.style.zIndex = 99999;
-            document.body.appendChild(modal);
-        }
-        modal.innerHTML = `
-            <div style="background:#fff;padding:2rem 2.5rem;border-radius:12px;box-shadow:0 4px 24px rgba(0,0,0,0.18);text-align:center;max-width:350px;">
-                <div style="font-size:1.2rem;margin-bottom:1rem;">
-                    <strong>Balance is UGX ${balance.toLocaleString()}</strong>
-                </div>
-                <button id="overpayOkBtn" class="btn btn-primary">OK</button>
-            </div>
-        `;
-        document.getElementById('overpayOkBtn').onclick = function() {
-            modal.remove();
-            if (typeof callback === 'function') callback();
-        };
-    }
 
     function updateCartUI() {
         const cartSection = document.getElementById('cartSection');
@@ -796,6 +691,7 @@ body.dark-mode .form-select:focus {
                                         <th>Product</th>
                                         <th>Qty</th>
                                         <th>Total</th>
+                                        <th>Payment Method</th>
                                         <th>Sold By</th>
                                     </tr>
                                 </thead>
@@ -806,6 +702,7 @@ body.dark-mode .form-select:focus {
                                             <td><i class="bi bi-box"></i> <?= htmlspecialchars($sale['name']); ?></td>
                                             <td><?= $sale['quantity']; ?></td>
                                             <td><span class="badge bg-success">UGX <?= number_format($sale['amount'], 2); ?></span></td>
+                                            <td><?= htmlspecialchars($sale['payment_method']); ?></td>
                                             <td><?= htmlspecialchars($username); ?></td>
                                         </tr>
                                     <?php endwhile; ?>
@@ -954,51 +851,24 @@ body.dark-mode .form-select:focus {
 })();
     // Sell button logic
     document.getElementById('sellBtn').onclick = function() {
-        const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
-        const amountPaid = parseInt(document.getElementById('amount_paid').value, 10) || 0;
-        const debtorsFormCard = document.getElementById('debtorsFormCard');
-        const cartMessage = document.getElementById('cartMessage');
+        const paymentMethod = document.getElementById('payment_method').value;
+        const amountPaid = parseFloat(document.getElementById('amount_paid').value || 0);
 
-        if (cart.length === 0) {
-            cartMessage.innerHTML = '<span class="text-danger">Cart is empty.</span>';
-            debtorsFormCard.style.display = 'none';
+        if (!paymentMethod) {
+            alert('Please select a payment method.');
             return;
         }
 
-        // Overpayment check
-        if (amountPaid > total) {
-            const balance = amountPaid - total;
-            showBalanceModal(balance, function() {
-                // After OK, proceed with sale as normal
-                document.getElementById('cart_data').value = JSON.stringify(cart);
-                document.getElementById('cart_amount_paid').value = amountPaid;
-                document.getElementById('cartSection').style.display = 'none';
-                hiddenSaleForm.submit();
-                debtorsFormCard.style.display = 'none';
-                cart = [];
-                updateCartUI();
-                // Reload page after short delay to ensure PHP processes sale and table updates
-                setTimeout(() => window.location.reload(), 600);
-            });
-            return;
-        }
+        // Include payment method in the hidden form
+        document.getElementById('cart_data').value = JSON.stringify(cart);
+        document.getElementById('cart_amount_paid').value = amountPaid;
+        const paymentInput = document.createElement('input');
+        paymentInput.type = 'hidden';
+        paymentInput.name = 'payment_method';
+        paymentInput.value = paymentMethod;
+        hiddenSaleForm.appendChild(paymentInput);
 
-        if (amountPaid >= total) {
-            document.getElementById('cart_data').value = JSON.stringify(cart);
-            document.getElementById('cart_amount_paid').value = amountPaid;
-            document.getElementById('cartSection').style.display = 'none';
-            hiddenSaleForm.submit();
-            debtorsFormCard.style.display = 'none';
-            cart = [];
-            updateCartUI();
-            setTimeout(() => window.location.reload(), 600);
-        } else {
-            cartMessage.innerHTML = '<span class="text-warning">Amount paid is less than total. Please record debtor information below.</span>';
-            document.getElementById('debtor_cart_data').value = JSON.stringify(cart);
-            document.getElementById('debtor_amount_paid').value = amountPaid;
-            debtorsFormCard.style.display = '';
-            debtorsFormCard.scrollIntoView({behavior:'smooth'});
-        }
+        hiddenSaleForm.submit();
     };
     </script>
     <?php
@@ -1006,6 +876,7 @@ body.dark-mode .form-select:focus {
 if (isset($_POST['submit_cart']) && !empty($_POST['cart_data'])) {
     $cart = json_decode($_POST['cart_data'], true);
     $amount_paid = floatval($_POST['amount_paid'] ?? 0);
+    $payment_method = $_POST['payment_method'] ?? 'Cash'; // Default to Cash
     $currentDate = date("Y-m-d");
     $conn->begin_transaction();
     $success = true;
@@ -1034,8 +905,8 @@ if (isset($_POST['submit_cart']) && !empty($_POST['cart_data'])) {
         // Only record sale if amount_paid >= total (fully paid)
         // If not fully paid, do NOT record sale here (handled by debtor logic)
         if ($amount_paid >= $total) {
-            $stmt = $conn->prepare("INSERT INTO sales (`product-id`, `branch-id`, quantity, amount, `sold-by`, `cost-price`, total_profits, date) VALUES (?, ?, ?, ?, ?, ?, ?, NOW())");
-            $stmt->bind_param("iiididd", $product_id, $branch_id, $quantity, $total_price, $user_id, $cost_price, $total_profit);
+            $stmt = $conn->prepare("INSERT INTO sales (`product-id`, `branch-id`, quantity, amount, `sold-by`, `cost-price`, total_profits, date, payment_method) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+            $stmt->bind_param("iiididds", $product_id, $branch_id, $quantity, $total_price, $user_id, $cost_price, $total_profit, $payment_method);
             $stmt->execute();
             $stmt->close();
 

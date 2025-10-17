@@ -165,7 +165,7 @@ $username = $_SESSION['username'];
         <div class="card-body d-flex justify-content-between align-items-center">
           <div>
             <h6>Total Profit</h6>
-            <h3>$<?= number_format($totalProfits, 2) ?></h3>
+            <h3>UGX<?= number_format($totalProfits, 2) ?></h3>
           </div>
           <i class="fa-solid fa-sack-dollar stat-icon"></i>
         </div>

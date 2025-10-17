@@ -50,7 +50,7 @@ $total_pages = ceil($total_items / $items_per_page);
 
 // Fetch sales for current page
 $sales_query = "
-    SELECT sales.id, products.name AS `product-name`, sales.quantity, sales.amount, sales.`sold-by`, sales.date, branch.name AS branch_name
+    SELECT sales.id, products.name AS `product-name`, sales.quantity, sales.amount, sales.`sold-by`, sales.date, branch.name AS branch_name, sales.payment_method
     FROM sales
     JOIN products ON sales.`product-id` = products.id
     JOIN branch ON sales.`branch-id` = branch.id
@@ -150,6 +150,7 @@ $debtors_result = $conn->query("
                                     <th>Product</th>
                                     <th>Quantity</th>
                                     <th>Total Price</th>
+                                    <th>Payment Method</th>
                                     <th>Sold At</th>
                                     <th>Sold By</th>
                                 </tr>
@@ -165,12 +166,13 @@ $debtors_result = $conn->query("
                                         <td><span class="badge bg-primary"><?= htmlspecialchars($row['product-name']) ?></span></td>
                                         <td><?= $row['quantity'] ?></td>
                                         <td><span class="fw-bold text-success">$<?= number_format($row['amount'], 2) ?></span></td>
+                                        <td><?= htmlspecialchars($row['payment_method']) ?></td>
                                         <td><small class="text-muted"><?= $row['date'] ?></small></td>
                                         <td><?= htmlspecialchars($row['sold-by']) ?></td>
                                     </tr>
                                 <?php endwhile; ?>
                                 <?php if ($sales->num_rows === 0): ?>
-                                    <tr><td colspan="<?= ($user_role !== 'staff' && empty($selected_branch)) ? 7 : 6 ?>" class="text-center text-muted">No sales found.</td></tr>
+                                    <tr><td colspan="<?= ($user_role !== 'staff' && empty($selected_branch)) ? 8 : 7 ?>" class="text-center text-muted">No sales found.</td></tr>
                                 <?php endif; ?>
                             </tbody>
                         </table>
