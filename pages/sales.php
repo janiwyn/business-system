@@ -50,7 +50,7 @@ $total_pages = ceil($total_items / $items_per_page);
 
 // Fetch sales for current page
 $sales_query = "
-    SELECT sales.id, products.name AS `product-name`, sales.quantity, sales.amount, sales.`sold-by`, sales.date, branch.name AS branch_name
+    SELECT sales.id, products.name AS `product-name`, sales.quantity, sales.amount, sales.`sold-by`, sales.date, branch.name AS branch_name, sales.payment_method
     FROM sales
     JOIN products ON sales.`product-id` = products.id
     JOIN branch ON sales.`branch-id` = branch.id
@@ -112,8 +112,220 @@ $debtors_result = $conn->query("
                 Debtors
             </button>
         </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="payment-analysis-tab" data-bs-toggle="tab" data-bs-target="#payment-analysis" type="button" role="tab" aria-controls="payment-analysis" aria-selected="false">
+                Payment Method Analysis
+            </button>
+        </li>
     </ul>
     <div class="tab-content" id="salesTabsContent">
+        <!-- Payment Method Analysis Tab -->
+        <div class="tab-pane fade" id="payment-analysis" role="tabpanel" aria-labelledby="payment-analysis-tab">
+            <div class="card mb-4 chart-card">
+                <div class="card-header bg-light text-black fw-bold" style="border-radius:12px 12px 0 0;">
+                    Payment Method Analysis
+                </div>
+                <div class="card-body">
+                    <?php
+                    // Build monthly totals per payment method for charts
+                    $methods = ['Cash','MTN MoMo','Airtel Money','Bank'];
+                    $pm_monthly_sql = "
+                        SELECT DATE_FORMAT(sales.date, '%Y-%m') AS ym, COALESCE(sales.payment_method,'Cash') AS pm, SUM(sales.amount) AS total
+                        FROM sales
+                        $whereClause
+                        GROUP BY ym, pm
+                        ORDER BY ym ASC
+                    ";
+                    $pm_monthly_res = $conn->query($pm_monthly_sql);
+                    $month_set = [];
+                    $data_map = [];
+                    foreach ($methods as $m) { $data_map[$m] = []; }
+                    if ($pm_monthly_res) {
+                        while ($r = $pm_monthly_res->fetch_assoc()) {
+                            $ym = $r['ym'];
+                            $pm = $r['pm'];
+                            if (!in_array($ym, $month_set, true)) $month_set[] = $ym;
+                            if (!isset($data_map[$pm])) $data_map[$pm] = [];
+                            $data_map[$pm][$ym] = (float)$r['total'];
+                        }
+                    }
+                    // Ensure months sorted
+                    sort($month_set);
+                    // Build aligned series
+                    $chart_labels = $month_set;
+                    $series = [];
+                    foreach ($methods as $m) {
+                        $row = [];
+                        foreach ($chart_labels as $ym) {
+                            $row[] = isset($data_map[$m][$ym]) ? round($data_map[$m][$ym], 2) : 0;
+                        }
+                        $series[$m] = $row;
+                    }
+
+                    // Daily totals table
+                    $dailyWhere = $whereClause;
+                    if (empty($date_from) && empty($date_to)) {
+                        $dailyWhere .= ($dailyWhere ? " AND " : " WHERE ") . "DATE(sales.date) >= CURDATE() - INTERVAL 30 DAY";
+                    }
+                    $daily_sql = "
+                        SELECT DATE(sales.date) AS day, COALESCE(sales.payment_method,'Cash') AS pm, SUM(sales.amount) AS total
+                        FROM sales
+                        $dailyWhere
+                        GROUP BY day, pm
+                        ORDER BY day DESC, pm ASC
+                        LIMIT 500
+                    ";
+                    $daily_res = $conn->query($daily_sql);
+                    ?>
+
+                    <!-- Charts Grid -->
+                    <div class="row">
+                        <div class="col-md-6 mb-4"><div style="height:300px"><canvas id="chartCash"></canvas></div></div>
+                        <div class="col-md-6 mb-4"><div style="height:300px"><canvas id="chartMtn"></canvas></div></div>
+                        <div class="col-md-6 mb-4"><div style="height:300px"><canvas id="chartAirtel"></canvas></div></div>
+                        <div class="col-md-6 mb-4"><div style="height:300px"><canvas id="chartBank"></canvas></div></div>
+                    </div>
+
+                    <!-- Daily Totals Table -->
+                    <div class="transactions-table">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Payment Method</th>
+                                    <th>Amount</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php if ($daily_res && $daily_res->num_rows > 0): ?>
+                                    <?php
+                                        $currentDay = null;
+                                        $dayTotal = 0;
+                                        $dailyRows = [];
+                                        while ($r = $daily_res->fetch_assoc()) { $dailyRows[] = $r; }
+                                        foreach ($dailyRows as $r):
+                                            if ($currentDay !== null && $currentDay !== $r['day']):
+                                    ?>
+                                        <tr>
+                                            <td colspan="2" class="text-end fw-bold">Total for <?= htmlspecialchars($currentDay) ?></td>
+                                            <td><span class="fw-bold text-primary">UGX <?= number_format($dayTotal, 2) ?></span></td>
+                                        </tr>
+                                    <?php
+                                                $dayTotal = 0;
+                                            endif;
+                                            $currentDay = $r['day'];
+                                            $dayTotal += (float)$r['total'];
+                                    ?>
+                                        <tr>
+                                            <td><small class="text-muted"><?= htmlspecialchars($r['day']) ?></small></td>
+                                            <td><?= htmlspecialchars($r['pm']) ?></td>
+                                            <td><span class="fw-bold text-success">UGX <?= number_format($r['total'], 2) ?></span></td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                    <?php if ($currentDay !== null): ?>
+                                        <tr>
+                                            <td colspan="2" class="text-end fw-bold">Total for <?= htmlspecialchars($currentDay) ?></td>
+                                            <td><span class="fw-bold text-primary">UGX <?= number_format($dayTotal, 2) ?></span></td>
+                                        </tr>
+                                    <?php endif; ?>
+                                <?php else: ?>
+                                    <tr><td colspan="3" class="text-center text-muted">No payments found for the selected period.</td></tr>
+                                <?php endif; ?>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Chart.js and initialization -->
+                    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+                    <script>
+                    window.addEventListener('DOMContentLoaded', function() {
+                        const labels = <?= json_encode($chart_labels) ?>.map(m => {
+                            const [y, mth] = m.split('-');
+                            const date = new Date(parseInt(y), parseInt(mth)-1, 1);
+                            return date.toLocaleString('en-US', { month: 'short', year: 'numeric' });
+                        });
+                        const dataByMethod = <?= json_encode($series) ?>;
+                        const colors = {
+                            'Cash': '#1abc9c',
+                            'MTN MoMo': '#f1c40f',
+                            'Airtel Money': '#e74c3c',
+                            'Bank': '#3498db'
+                        };
+
+                        const getThemeColors = () => {
+                            const isDark = document.body.classList.contains('dark-mode');
+                            return {
+                                textColor: isDark ? '#ffffff' : '#000000',
+                                gridColor: isDark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)'
+                            };
+                        };
+
+                        const makeOptions = (title) => {
+                            const { textColor, gridColor } = getThemeColors();
+                            return {
+                                type: 'bar',
+                                data: {
+                                    labels: labels,
+                                    datasets: [{
+                                        label: title,
+                                        data: dataByMethod[title] || [],
+                                        backgroundColor: colors[title] + '88',
+                                        borderColor: colors[title],
+                                        borderWidth: 1
+                                    }]
+                                },
+                                options: {
+                                    responsive: true,
+                                    maintainAspectRatio: false,
+                                    scales: {
+                                        x: { ticks: { color: textColor }, grid: { color: gridColor } },
+                                        y: { beginAtZero: true, ticks: { color: textColor }, grid: { color: gridColor } }
+                                    },
+                                    plugins: {
+                                        legend: { display: false, labels: { color: textColor } },
+                                        tooltip: { titleColor: textColor, bodyColor: textColor }
+                                    }
+                                }
+                            };
+                        };
+
+                        const charts = {};
+                        const makeChart = (id, title) => {
+                            const el = document.getElementById(id)?.getContext('2d');
+                            if (!el) return;
+                            charts[id] = new Chart(el, makeOptions(title));
+                        };
+                        makeChart('chartCash', 'Cash');
+                        makeChart('chartMtn', 'MTN MoMo');
+                        makeChart('chartAirtel', 'Airtel Money');
+                        makeChart('chartBank', 'Bank');
+
+                        const applyThemeToCharts = () => {
+                            const { textColor, gridColor } = getThemeColors();
+                            Object.values(charts).forEach(ch => {
+                                ch.options.scales.x.ticks.color = textColor;
+                                ch.options.scales.y.ticks.color = textColor;
+                                ch.options.scales.x.grid.color = gridColor;
+                                ch.options.scales.y.grid.color = gridColor;
+                                if (ch.options.plugins && ch.options.plugins.legend && ch.options.plugins.legend.labels) {
+                                    ch.options.plugins.legend.labels.color = textColor;
+                                }
+                                if (ch.options.plugins && ch.options.plugins.tooltip) {
+                                    ch.options.plugins.tooltip.titleColor = textColor;
+                                    ch.options.plugins.tooltip.bodyColor = textColor;
+                                }
+                                ch.update();
+                            });
+                        };
+
+                        const mo = new MutationObserver(applyThemeToCharts);
+                        mo.observe(document.body, { attributes: true, attributeFilter: ['class'] });
+                        window.addEventListener('storage', applyThemeToCharts);
+                    });
+                    </script>
+                </div>
+            </div>
+        </div>
         <!-- Sales Table Tab -->
         <div class="tab-pane fade show active" id="sales-table" role="tabpanel" aria-labelledby="sales-tab">
             <div class="card mb-4 chart-card">
@@ -150,6 +362,7 @@ $debtors_result = $conn->query("
                                     <th>Product</th>
                                     <th>Quantity</th>
                                     <th>Total Price</th>
+                                    <th>Payment Method</th>
                                     <th>Sold At</th>
                                     <th>Sold By</th>
                                 </tr>
@@ -165,12 +378,13 @@ $debtors_result = $conn->query("
                                         <td><span class="badge bg-primary"><?= htmlspecialchars($row['product-name']) ?></span></td>
                                         <td><?= $row['quantity'] ?></td>
                                         <td><span class="fw-bold text-success">$<?= number_format($row['amount'], 2) ?></span></td>
+                                        <td><?= htmlspecialchars($row['payment_method']) ?></td>
                                         <td><small class="text-muted"><?= $row['date'] ?></small></td>
                                         <td><?= htmlspecialchars($row['sold-by']) ?></td>
                                     </tr>
                                 <?php endwhile; ?>
                                 <?php if ($sales->num_rows === 0): ?>
-                                    <tr><td colspan="<?= ($user_role !== 'staff' && empty($selected_branch)) ? 7 : 6 ?>" class="text-center text-muted">No sales found.</td></tr>
+                                    <tr><td colspan="<?= ($user_role !== 'staff' && empty($selected_branch)) ? 8 : 7 ?>" class="text-center text-muted">No sales found.</td></tr>
                                 <?php endif; ?>
                             </tbody>
                         </table>
