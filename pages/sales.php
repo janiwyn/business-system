@@ -228,37 +228,76 @@ $debtors_result = $conn->query("
                             'Airtel Money': '#e74c3c',
                             'Bank': '#3498db'
                         };
-                        const commonOpts = (title) => ({
-                            type: 'bar',
-                            data: {
-                                labels: labels,
-                                datasets: [{
-                                    label: title,
-                                    data: dataByMethod[title] || [],
-                                    backgroundColor: colors[title] + '88',
-                                    borderColor: colors[title],
-                                    borderWidth: 1
-                                }]
-                            },
-                            options: {
-                                responsive: true,
-                                maintainAspectRatio: false,
-                                scales: {
-                                    y: { beginAtZero: true }
+
+                        const getThemeColors = () => {
+                            const isDark = document.body.classList.contains('dark-mode');
+                            return {
+                                textColor: isDark ? '#ffffff' : '#000000',
+                                gridColor: isDark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)'
+                            };
+                        };
+
+                        const makeOptions = (title) => {
+                            const { textColor, gridColor } = getThemeColors();
+                            return {
+                                type: 'bar',
+                                data: {
+                                    labels: labels,
+                                    datasets: [{
+                                        label: title,
+                                        data: dataByMethod[title] || [],
+                                        backgroundColor: colors[title] + '88',
+                                        borderColor: colors[title],
+                                        borderWidth: 1
+                                    }]
                                 },
-                                plugins: {
-                                    legend: { display: false }
+                                options: {
+                                    responsive: true,
+                                    maintainAspectRatio: false,
+                                    scales: {
+                                        x: { ticks: { color: textColor }, grid: { color: gridColor } },
+                                        y: { beginAtZero: true, ticks: { color: textColor }, grid: { color: gridColor } }
+                                    },
+                                    plugins: {
+                                        legend: { display: false, labels: { color: textColor } },
+                                        tooltip: { titleColor: textColor, bodyColor: textColor }
+                                    }
                                 }
-                            }
-                        });
+                            };
+                        };
+
+                        const charts = {};
                         const makeChart = (id, title) => {
-                            const el = document.getElementById(id).getContext('2d');
-                            new Chart(el, commonOpts(title));
+                            const el = document.getElementById(id)?.getContext('2d');
+                            if (!el) return;
+                            charts[id] = new Chart(el, makeOptions(title));
                         };
                         makeChart('chartCash', 'Cash');
                         makeChart('chartMtn', 'MTN MoMo');
                         makeChart('chartAirtel', 'Airtel Money');
                         makeChart('chartBank', 'Bank');
+
+                        const applyThemeToCharts = () => {
+                            const { textColor, gridColor } = getThemeColors();
+                            Object.values(charts).forEach(ch => {
+                                ch.options.scales.x.ticks.color = textColor;
+                                ch.options.scales.y.ticks.color = textColor;
+                                ch.options.scales.x.grid.color = gridColor;
+                                ch.options.scales.y.grid.color = gridColor;
+                                if (ch.options.plugins && ch.options.plugins.legend && ch.options.plugins.legend.labels) {
+                                    ch.options.plugins.legend.labels.color = textColor;
+                                }
+                                if (ch.options.plugins && ch.options.plugins.tooltip) {
+                                    ch.options.plugins.tooltip.titleColor = textColor;
+                                    ch.options.plugins.tooltip.bodyColor = textColor;
+                                }
+                                ch.update();
+                            });
+                        };
+
+                        const mo = new MutationObserver(applyThemeToCharts);
+                        mo.observe(document.body, { attributes: true, attributeFilter: ['class'] });
+                        window.addEventListener('storage', applyThemeToCharts);
                     });
                     </script>
                 </div>
