@@ -655,7 +655,7 @@ body.dark-mode .form-select:focus {
     $debtors_stmt = $conn->prepare("
         SELECT id, debtor_name, debtor_contact, debtor_email, item_taken, quantity_taken, amount_paid, balance, is_paid, created_at 
         FROM debtors 
-        WHERE branch_id = ? 
+        WHERE `branch-id` = ? 
         ORDER BY created_at DESC 
         LIMIT 10
     ");
