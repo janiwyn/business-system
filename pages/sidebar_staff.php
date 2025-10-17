@@ -73,6 +73,11 @@ $role = $_SESSION['role'];
         <li><a href="../pages/staff_dashboard.php"><i class="fa-solid fa-crown"></i> Dashboard</a></li>
         <li><a href="../pages/product.php"><i class="fa-solid fa-cubes"></i> Products</a></li>
         <li><a href="../pages/sales.php"><i class="fa-solid fa-cart-shopping"></i> Sales</a></li>
+        <li>
+            <a href="customer_management.php" class="<?= basename($_SERVER['PHP_SELF']) === 'customer_management.php' ? 'active' : '' ?>">
+                <i class="fa-solid fa-users"></i> Customer Management
+            </a>
+        </li>
         <!-- <li><a href="../pages/debtor.php"><i class="fa-solid fa-users"></i> Debtors</a></li> -->
         <li style="margin-top:2rem;">
             <a href="../auth/logout.php" class="text-danger fw-bold"><i class="fa-solid fa-right-from-bracket"></i> Logout</a>
