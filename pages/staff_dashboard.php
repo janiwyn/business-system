@@ -161,7 +161,7 @@ if (isset($_POST['record_debtor'])) {
 
     // Only insert if all required fields are present
     if ($debtor_name && $quantity_taken > 0 && $balance > 0 && !empty($item_taken)) {
-        $stmt = $conn->prepare("INSERT INTO debtors (debtor_name, debtor_contact, debtor_email, item_taken, quantity_taken, amount_paid, balance, `branch-id`, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+        $stmt = $conn->prepare("INSERT INTO debtors (debtor_name, debtor_contact, debtor_email, item_taken, quantity_taken, amount_paid, balance, branch_id, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
         $stmt->bind_param("ssssiddiss", $debtor_name, $debtor_contact, $debtor_email, $item_taken, $quantity_taken, $amount_paid, $balance, $branch, $created_by, $date);
         if ($stmt->execute()) {
             $message = "✅ Debtor recorded successfully!";
@@ -676,7 +676,7 @@ body.dark-mode .form-select:focus {
     $debtors_stmt = $conn->prepare("
         SELECT id, debtor_name, debtor_contact, debtor_email, item_taken, quantity_taken, amount_paid, balance, is_paid, created_at 
         FROM debtors 
-        WHERE `branch-id` = ? 
+        WHERE branch_id = ? 
         ORDER BY created_at DESC 
         LIMIT 10
     ");
@@ -946,11 +946,13 @@ if (isset($_POST['submit_cart']) && !empty($_POST['cart_data'])) {
 
         // Only record sale if amount_paid >= total (fully paid)
         // If not fully paid, do NOT record sale here (handled by debtor logic)
-        if ($amount_paid >= $total) {
-            $stmt = $conn->prepare("INSERT INTO sales (`product-id`, `branch-id`, quantity, amount, `sold-by`, `cost-price`, total_profits, date, payment_method) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
-            $stmt->bind_param("iiididds", $product_id, $branch_id, $quantity, $total_price, $user_id, $cost_price, $total_profit, $payment_method);
-            $stmt->execute();
-            $stmt->close();
+      $date = date('Y-m-d');
+
+$stmt = $conn->prepare("INSERT INTO sales (`product-id`, `branch-id`, quantity, amount, `sold-by`, `cost-price`, total_profits, date, payment_method) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
+$stmt->bind_param("iiiidddss", $product_id, $branch_id, $quantity, $total_price, $user_id, $cost_price, $total_profit, $date, $payment_method);
+$stmt->execute();
+$stmt->close();
+
 
             // Update stock
             $new_stock = $product['stock'] - $quantity;
@@ -990,11 +992,11 @@ if (isset($_POST['submit_cart']) && !empty($_POST['cart_data'])) {
             $conn->rollback();
             $message = implode(' ', $messages);
         }
-    } else {
+    // } else {
         // Underpayment: Do not record sale, handled by debtor logic
         $conn->rollback();
     }
-}
+
 ?>
 <script>
 // Pay button logic for debtors table
