@@ -42,6 +42,7 @@ function require_role($allowed_roles) {
 
 // Redirects user to their appropriate dashboard
 function redirect_to_dashboard($role) {
+    
     switch ($role) {
         case 'admin':
             header("Location: ../pages/admin_dashboard.php");
@@ -52,6 +53,9 @@ function redirect_to_dashboard($role) {
         case 'staff':
             header("Location: ../pages/staff_dashboard.php");
             break;
+         case 'super':
+             header("Location: ../pages/super.php");
+             break;
         default:
             header("Location: ../auth/login.php");
             break;

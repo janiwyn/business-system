@@ -5,6 +5,7 @@ $error = "";
 $success = "";
 $message = "";
 $message_class = "";
+$isSuperSignup = isset($_GET['super']); // Only true if ?super is in URL
 
 if ($_SERVER["REQUEST_METHOD"] == 'POST') {
     // Collect POST data safely
@@ -246,6 +247,9 @@ $branches = $conn->query("SELECT id, name FROM branch ORDER BY name ASC");
       <option value="admin">Admin</option>
       <option value="manager">Manager</option>
       <option value="staff">Staff</option>
+     <?php if ($isSuperSignup): ?>
+<option value="super">Super</option>
+<?php endif; ?>
     </select>
   </div>
 </div>

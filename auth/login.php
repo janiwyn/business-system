@@ -43,16 +43,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
 
+      
         // Redirect based on role
-        if ($_SESSION['role'] === 'admin') {
-            header('Location: ../pages/admin_dashboard.php');
-        } elseif ($_SESSION['role'] === 'manager') {
-            header('Location: ../pages/manager_dashboard.php');
-        } elseif ($_SESSION['role'] === 'staff') {
-            header('Location: ../pages/staff_dashboard.php');
-        } else {
-            $error = 'Unknown role';
-        }
+if ($_SESSION['role'] === 'super') {
+    header('Location: ../pages/super.php');
+} elseif ($_SESSION['role'] === 'admin') {
+    header('Location: ../pages/admin_dashboard.php');
+} elseif ($_SESSION['role'] === 'manager') {
+    header('Location: ../pages/manager_dashboard.php');
+} elseif ($_SESSION['role'] === 'staff') {
+    header('Location: ../pages/staff_dashboard.php');
+} else {
+    $error = 'Unknown role';
+}
+
         exit;
     } else {
         $error = 'Invalid username or password';
