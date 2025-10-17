@@ -120,7 +120,7 @@ $sales_stmt->close();
 
 // Fetch recent sales
 $sales_stmt = $conn->prepare("
-    SELECT s.id, p.name, s.quantity, s.amount, s.total_profits, s.date 
+    SELECT s.id, p.name, s.quantity, s.amount, s.payment_method, s.total_profits, s.date 
     FROM sales s 
     JOIN products p ON s.`product-id` = p.id 
     WHERE s.`branch-id` = ? 
@@ -702,7 +702,7 @@ body.dark-mode .form-select:focus {
                                             <td><i class="bi bi-box"></i> <?= htmlspecialchars($sale['name']); ?></td>
                                             <td><?= $sale['quantity']; ?></td>
                                             <td><span class="badge bg-success">UGX <?= number_format($sale['amount'], 2); ?></span></td>
-                                            <td><?= htmlspecialchars($sale['payment_method']); ?></td>
+                                            <td><?= htmlspecialchars($sale['payment_method'] ?? 'Cash'); ?></td>
                                             <td><?= htmlspecialchars($username); ?></td>
                                         </tr>
                                     <?php endwhile; ?>
