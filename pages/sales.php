@@ -77,9 +77,9 @@ $total_sales_sum = $sum_row['total_sales'] ?? 0;
 // Debtors filters
 $debtor_where = [];
 if ($user_role === 'staff') {
-    $debtor_where[] = "debtors.`branch-id` = $user_branch";
+    $debtor_where[] = "debtors.branch_id = $user_branch";
 } elseif (!empty($_GET['debtor_branch'])) {
-    $debtor_where[] = "debtors.`branch-id` = " . intval($_GET['debtor_branch']);
+    $debtor_where[] = "debtors.branch_id = " . intval($_GET['debtor_branch']);
 }
 if (!empty($_GET['debtor_date_from'])) {
     $debtor_where[] = "DATE(debtors.created_at) >= '" . $conn->real_escape_string($_GET['debtor_date_from']) . "'";

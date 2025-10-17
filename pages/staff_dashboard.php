@@ -905,7 +905,7 @@ if (isset($_POST['submit_cart']) && !empty($_POST['cart_data'])) {
         // Only record sale if amount_paid >= total (fully paid)
         // If not fully paid, do NOT record sale here (handled by debtor logic)
         if ($amount_paid >= $total) {
-            $stmt = $conn->prepare("INSERT INTO sales (`product-id`, `branch-id`, quantity, amount, `sold-by`, `cost-price`, total_profits, date, payment_method) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+            $stmt = $conn->prepare("INSERT INTO sales (`product-id`, `branch-id`, quantity, amount, `sold-by`, `cost-price`, total_profits, date, payment_method) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
             $stmt->bind_param("iiididds", $product_id, $branch_id, $quantity, $total_price, $user_id, $cost_price, $total_profit, $payment_method);
             $stmt->execute();
             $stmt->close();
