@@ -122,6 +122,7 @@ body.dark-mode .sidebar::-webkit-scrollbar-thumb:horizontal {
         <li><a href="../pages/expense.php"><i class="fa-solid fa-wallet"></i> Expenses</a></li>
         <li><a href="../pages/product.php"><i class="fa-solid fa-cubes"></i> Products</a></li>
         <li><a href="../pages/sales.php"><i class="fa-solid fa-cart-shopping"></i> Sales</a></li>
+        <li><a href="../pages/customer_management.php"><i class="fa-solid fa-users"></i> Customer Management</a></li>
         <li><a href="../pages/report.php"><i class="fa-solid fa-chart-line"></i> Reports</a></li>
          <li><a href="../pages/employees.php"><i class="fa-solid fa-cart-shopping"></i> Employees</a></li>
             <li><a href="../pages/add_account.php"><i class="fa-solid fa-plus"></i> Add Account</a></li>

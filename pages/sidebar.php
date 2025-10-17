@@ -62,6 +62,11 @@ if ($role === 'admin') {
             <i class="fa-solid fa-cart-shopping me-2"></i> Sales
           </a>
         </li>
++        <li class="nav-item mb-2">
++          <a class="nav-link text-white d-flex align-items-center hover-effect" href="../pages/customer_management.php">
++            <i class="fa-solid fa-users me-2"></i> Customer Management
++          </a>
++        </li>
       <?php endif; ?>
 
       <?php if ($role == 'admin' || $role == 'manager') : ?>
@@ -102,3 +107,17 @@ if ($role === 'admin') {
 
   <!-- Main Content -->
   <div class="flex-grow-1 p-4">
+    <h2>Customer Management</h2>
+    <p>Welcome to the Customer Management page.</p>
+  </div>
+</div>
+<?php
+// Add a navigation link to the Customer Management page in the admin/manager sidebar.
+if ($role == 'admin' || $role == 'manager' || $role == 'staff') {
+    echo '<li>
+    <a href="customer_management.php" class="' . basename($_SERVER['PHP_SELF']) === 'customer_management.php' ? 'active' : '' . '">
+        <i class="fa-solid fa-users"></i> Customer Management
+    </a>
+</li>';
+}
+?>
