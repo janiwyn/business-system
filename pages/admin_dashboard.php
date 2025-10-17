@@ -120,7 +120,7 @@ $user_id = $_SESSION['user_id'];
 $username = $_SESSION['username'];
 ?>
 
-<div class="container-fluid mt-4">
+<div class="container-fluid mt-4 main-content-scroll">
   <div class="welcome-banner mb-4" style="position:relative;overflow:hidden;">
     <div class="welcome-balls"></div>
     <h3 class="welcome-text" style="position:relative;z-index:2;">Welcome, <?= htmlspecialchars($username); ?> 👋</h3>

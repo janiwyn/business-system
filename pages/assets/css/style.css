@@ -21,6 +21,50 @@ body.dark-mode {
   --card-shadow: rgba(0,0,0,0.4);
 }
 
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+::-webkit-scrollbar {
+    width: 6px; /* Match sidebar_admin.php scrollbar width */
+    height: 8px; /* For horizontal scrollbars */
+    background: #23243a; /* Match sidebar_admin.php track background */
+    border-radius: 8px; /* Rounded edges */
+}
+
+::-webkit-scrollbar-thumb {
+    background: linear-gradient(90deg, #1abc9c 0%, #56ccf2 100%); /* Match sidebar_admin.php thumb gradient */
+    border-radius: 8px; /* Rounded edges */
+    min-height: 40px; /* Ensure thumb is not too small */
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(90deg, #159c8c 0%, #3498db 100%); /* Hover effect */
+}
+
+::-webkit-scrollbar-track {
+    background: #23243a; /* Match sidebar_admin.php track background */
+    border-radius: 8px; /* Rounded edges */
+}
+
+/* Horizontal scrollbar */
+::-webkit-scrollbar:horizontal {
+    height: 8px; /* Match sidebar_admin.php horizontal scrollbar height */
+}
+
+::-webkit-scrollbar-thumb:horizontal {
+    background: linear-gradient(90deg, #1abc9c 0%, #56ccf2 100%); /* Match sidebar_admin.php thumb gradient */
+    border-radius: 8px; /* Rounded edges */
+}
+
+::-webkit-scrollbar-track:horizontal {
+    background: #23243a; /* Match sidebar_admin.php track background */
+    border-radius: 8px; /* Rounded edges */
+}
+
 /* ===============================
    Global Styles
 ================================= */
@@ -250,6 +294,37 @@ body.dark-mode .welcome-text {
 }
 
 /* ===============================
+   Notification Badge
+================================= */
+.notification-icon {
+  font-size: 1.5rem;
+  cursor: pointer;
+}
+.notification-icon .badge {
+  font-size: 0.75rem;
+  padding: 0.25rem 0.5rem;
+}
+
+/* ===============================
+   Notifications Page
+================================= */
+.list-group-item {
+  background: var(--card-bg);
+  border: 1px solid var(--card-shadow);
+  border-radius: 8px;
+  margin-bottom: 0.5rem;
+  transition: transform 0.2s ease;
+}
+.list-group-item:hover {
+  transform: translateY(-2px);
+}
+body.dark-mode .list-group-item {
+  background: #23243a;
+  border-color: #444;
+  color: #fff;
+}
+
+/* ===============================
    Responsive
 ================================= */
 @media(max-width:768px){
@@ -258,3 +333,4 @@ body.dark-mode .welcome-text {
   .sidebar.collapsed { width: 100%; }
   .cards-grid, .charts-grid { grid-template-columns: 1fr; }
 }
+

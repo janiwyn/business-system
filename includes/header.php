@@ -91,6 +91,16 @@
     <span class="logo-text">Business System</span>
   </div>
   <div class="header-actions">
+    <!-- Notification Icon -->
+    <div class="notification-icon position-relative">
+      <a href="../pages/notification.php" class="text-white text-decoration-none">
+        <i class="fa-solid fa-bell"></i>
+        <span id="notification-badge" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger d-none">
+          0
+        </span>
+      </a>
+    </div>
+    <!-- Theme Switch -->
     <div class="theme-switch">
       <input type="checkbox" id="themeToggle" />
       <label for="themeToggle">
@@ -125,4 +135,24 @@
       icon.classList.add("fa-moon");
     }
   });
+
+  // Fetch notification count dynamically
+  async function fetchNotificationCount() {
+    try {
+      const response = await fetch('../pages/notification_count.php');
+      const data = await response.json();
+      const badge = document.getElementById('notification-badge');
+      if (data.count > 0) {
+        badge.textContent = data.count;
+        badge.classList.remove('d-none');
+      } else {
+        badge.classList.add('d-none');
+      }
+    } catch (error) {
+      console.error('Error fetching notification count:', error);
+    }
+  }
+  fetchNotificationCount();
 </script>
+</body>
+</html>
