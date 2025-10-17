@@ -127,12 +127,31 @@ $debtors_result = $conn->query("
                 </div>
                 <div class="card-body">
                     <?php
+                    // Filters for Payment Analysis (separate from Sales tab filters)
+                    $pa_selected_branch = $_GET['pa_branch'] ?? '';
+                    $pa_date_from = $_GET['pa_date_from'] ?? '';
+                    $pa_date_to = $_GET['pa_date_to'] ?? '';
+
                     // Build monthly totals per payment method for charts
                     $methods = ['Cash','MTN MoMo','Airtel Money','Bank'];
+                    $pa_where = [];
+                    if ($user_role === 'staff') {
+                        $pa_where[] = "sales.`branch-id` = $user_branch";
+                    } elseif ($pa_selected_branch) {
+                        $pa_where[] = "sales.`branch-id` = " . intval($pa_selected_branch);
+                    }
+                    if ($pa_date_from) {
+                        $pa_where[] = "DATE(sales.date) >= '" . $conn->real_escape_string($pa_date_from) . "'";
+                    }
+                    if ($pa_date_to) {
+                        $pa_where[] = "DATE(sales.date) <= '" . $conn->real_escape_string($pa_date_to) . "'";
+                    }
+                    $pa_whereClause = count($pa_where) ? "WHERE " . implode(' AND ', $pa_where) : "";
+
                     $pm_monthly_sql = "
                         SELECT DATE_FORMAT(sales.date, '%Y-%m') AS ym, COALESCE(sales.payment_method,'Cash') AS pm, SUM(sales.amount) AS total
                         FROM sales
-                        $whereClause
+                        $pa_whereClause
                         GROUP BY ym, pm
                         ORDER BY ym ASC
                     ";
@@ -163,8 +182,8 @@ $debtors_result = $conn->query("
                     }
 
                     // Daily totals table
-                    $dailyWhere = $whereClause;
-                    if (empty($date_from) && empty($date_to)) {
+                    $dailyWhere = $pa_whereClause;
+                    if (empty($pa_date_from) && empty($pa_date_to)) {
                         $dailyWhere .= ($dailyWhere ? " AND " : " WHERE ") . "DATE(sales.date) >= CURDATE() - INTERVAL 30 DAY";
                     }
                     $daily_sql = "
@@ -186,6 +205,26 @@ $debtors_result = $conn->query("
                         <div class="col-md-6 mb-4"><div style="height:300px"><canvas id="chartBank"></canvas></div></div>
                     </div>
 
+                    <!-- Filters (Payment Analysis) -->
+                    <div class="pa-filter-bar d-flex align-items-center flex-wrap gap-2 mb-3 p-2 rounded">
+                        <form method="GET" class="d-flex align-items-center flex-wrap gap-2" style="gap:1rem;">
+                            <label class="fw-bold me-2">From:</label>
+                            <input type="date" name="pa_date_from" class="form-select me-2" value="<?= htmlspecialchars($pa_date_from) ?>" style="width:150px;">
+                            <label class="fw-bold me-2">To:</label>
+                            <input type="date" name="pa_date_to" class="form-select me-2" value="<?= htmlspecialchars($pa_date_to) ?>" style="width:150px;">
+                            <?php if ($user_role !== 'staff'): ?>
+                            <label class="fw-bold me-2">Branch:</label>
+                            <select name="pa_branch" class="form-select me-2" style="width:180px;">
+                                <option value="">-- All Branches --</option>
+                                <?php $branches_pa = $conn->query("SELECT id, name FROM branch"); while ($b = $branches_pa->fetch_assoc()): $sel = ($pa_selected_branch == $b['id']) ? 'selected' : ''; ?>
+                                    <option value="<?= $b['id'] ?>" <?= $sel ?>><?= htmlspecialchars($b['name']) ?></option>
+                                <?php endwhile; ?>
+                            </select>
+                            <?php endif; ?>
+                            <button type="submit" class="btn btn-primary ms-2">Filter</button>
+                        </form>
+                    </div>
+
                     <!-- Daily Totals Table -->
                     <div class="transactions-table">
                         <table>
@@ -200,6 +239,7 @@ $debtors_result = $conn->query("
                                 <?php if ($daily_res && $daily_res->num_rows > 0): ?>
                                     <?php
                                         $currentDay = null;
+                                        $grandTotal = 0;
                                         $dayTotal = 0;
                                         $dailyRows = [];
                                         while ($r = $daily_res->fetch_assoc()) { $dailyRows[] = $r; }
@@ -211,6 +251,7 @@ $debtors_result = $conn->query("
                                             <td><span class="fw-bold text-primary">UGX <?= number_format($dayTotal, 2) ?></span></td>
                                         </tr>
                                     <?php
+                                                $grandTotal += $dayTotal;
                                                 $dayTotal = 0;
                                             endif;
                                             $currentDay = $r['day'];
@@ -226,6 +267,11 @@ $debtors_result = $conn->query("
                                         <tr>
                                             <td colspan="2" class="text-end fw-bold">Total for <?= htmlspecialchars($currentDay) ?></td>
                                             <td><span class="fw-bold text-primary">UGX <?= number_format($dayTotal, 2) ?></span></td>
+                                        </tr>
+                                        <?php $grandTotal += $dayTotal; ?>
+                                        <tr>
+                                            <td colspan="2" class="text-end fw-bold">Grand Total</td>
+                                            <td><span class="fw-bold text-danger">UGX <?= number_format($grandTotal, 2) ?></span></td>
                                         </tr>
                                     <?php endif; ?>
                                 <?php else: ?>
@@ -580,6 +626,27 @@ body.dark-mode .card .card-header.bg-light input[type="date"]::-ms-input-placeho
     text-align: left;
 }
 /* ...existing code... */
+/* Payment Analysis filter bar styles */
+.pa-filter-bar {
+    background-color: #ffffff;
+    border-radius: 12px;
+    padding: 0.75rem 1rem;
+    box-shadow: 0 2px 8px var(--card-shadow);
+}
+body.dark-mode .pa-filter-bar {
+    background-color: #23243a !important;
+    color: #ffffff !important;
+    border: 1px solid #444 !important;
+}
+body.dark-mode .pa-filter-bar label {
+    color: #ffffff !important;
+}
+body.dark-mode .pa-filter-bar .form-select,
+body.dark-mode .pa-filter-bar input[type="date"] {
+    background-color: #23243a !important;
+    color: #ffffff !important;
+    border: 1px solid #444 !important;
+}
 </style>
 
 <!-- Bootstrap JS for tabs (if not already included) -->
