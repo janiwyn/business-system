@@ -135,8 +135,6 @@ body.dark-mode .sidebar::-webkit-scrollbar-thumb:horizontal {
         <li><a href="../pages/product.php"><i class="fa-solid fa-cubes"></i> Products</a></li>
         <li><a href="../pages/sales.php"><i class="fa-solid fa-cart-shopping"></i> Sales</a></li>
         <li><a href="../pages/employees.php"><i class="fa-solid fa-users"></i> Employees</a></li>
-        <li><a href="../pages/customer_management.php"><i class="fa-solid fa-users"></i> Customer Management</a></li>
-
         <!-- Accounting dropdown -->
         <li>
             <a class="d-flex justify-content-between align-items-center" 

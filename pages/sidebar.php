@@ -1,24 +1,33 @@
 <?php
+// ensure session started
+if (session_status() === PHP_SESSION_NONE) session_start();
 
+// Redirect if not authenticated
 if (!isset($_SESSION['role'])) {
     header("Location: ../auth/login.php");
     exit();
 }
+
 $role = $_SESSION['role'];
 
-// Only include the correct sidebar for the current user role
+// Include the correct sidebar for the current user role and stop further output here.
+// Each sidebar_* file should output the sidebar HTML (as other pages expect).
 if ($role === 'admin') {
     include __DIR__ . '/sidebar_admin.php';
-    // Prevent further sidebar rendering
     return;
 } elseif ($role === 'manager') {
     include __DIR__ . '/sidebar_manager.php';
-    // Prevent further sidebar rendering
     return;
 } elseif ($role === 'staff') {
-    // Staff sidebar code (if any) goes here, or fall through to default below
+    include __DIR__ . '/sidebar_staff.php';
+    return;
 }
+
+// Fallback (should not be reached): include admin sidebar
+include __DIR__ . '/sidebar_admin.php';
+return;
 ?>
+
 <div class="d-flex">
   <div class="sidebar bg-dark text-white p-3 shadow-lg" style="width: 250px; min-height: 100vh; border-top-right-radius: 9px; border-bottom-right-radius: 12px;">
     <h4 class="text-left mb-4 fw-bold text-primary">Dashboard</h4>
@@ -62,11 +71,6 @@ if ($role === 'admin') {
             <i class="fa-solid fa-cart-shopping me-2"></i> Sales
           </a>
         </li>
-+        <li class="nav-item mb-2">
-+          <a class="nav-link text-white d-flex align-items-center hover-effect" href="../pages/customer_management.php">
-+            <i class="fa-solid fa-users me-2"></i> Customer Management
-+          </a>
-+        </li>
       <?php endif; ?>
 
       <?php if ($role == 'admin' || $role == 'manager') : ?>
@@ -106,10 +110,7 @@ if ($role === 'admin') {
   </div>
 
   <!-- Main Content -->
-  <div class="flex-grow-1 p-4">
-    <h2>Customer Management</h2>
-    <p>Welcome to the Customer Management page.</p>
-  </div>
+
 </div>
 <?php
 // Add a navigation link to the Customer Management page in the admin/manager sidebar.
