@@ -5,6 +5,11 @@ include '../includes/auth.php';
 require_role(['staff']);
 include '../pages/sidebar_staff.php';
 include '../includes/header.php';
+include 'handle_debtor_payment.php';
+include 'handle_cart_sale.php';
+
+
+
 
 if ($_SESSION['role'] !== 'staff') {
     header("Location: ../auth/login.php");
@@ -62,6 +67,7 @@ if (isset($_POST['add_sale'])) {
         if ($new_stock < 10) {
             $message .= "<br>⚠️ Stock for <strong>" . htmlspecialchars($product['name']) . "</strong> is below threshold ({$new_stock} left).";
         }
+
 
         // Update profits
         if ($profit_result) {
@@ -267,163 +273,6 @@ if (isset($_POST['submit_cart']) && !empty($_POST['cart_data'])) {
 }
 ?>
 
-<style>
-
-/* Welcome Banner (same as admin_dashboard) */
-.welcome-banner {
-    background: linear-gradient(90deg, #1abc9c 0%, #56ccf2 100%);
-    border-radius: 14px;
-    padding: 1.5rem 2rem;
-    box-shadow: 0 2px 12px var(--card-shadow);
-    margin-bottom: 2rem;
-    display: flex;
-    align-items: center;
-    justify-content: flex-start;
-    position: relative;
-    overflow: hidden;
-}
-.welcome-balls {
-    position: absolute;
-    top: 0; left: 0;
-    width: 100%; height: 100%;
-    z-index: 1;
-    pointer-events: none;
-}
-.welcome-ball {
-    position: absolute;
-    border-radius: 50%;
-    opacity: 0.18;
-    transition: background 0.3s;
-    box-shadow: 0 2px 12px rgba(44,62,80,0.12);
-    will-change: left, top;
-}
-.welcome-text {
-    color: #fff;
-    font-size: 2rem;
-    font-weight: 700;
-    letter-spacing: 1px;
-    margin: 0;
-    text-shadow: 0 2px 8px rgba(44,62,80,0.12);
-}
-body.dark-mode .welcome-banner {
-    background: linear-gradient(90deg, #23243a 0%, #1abc9c 100%);
-    box-shadow: 0 2px 12px rgba(44,62,80,0.18);
-}
-body.dark-mode .welcome-text {
-    color: #ffd200;
-    text-shadow: 0 2px 8px rgba(44,62,80,0.18);
-}
-
-/* Table Styling (like manager_dashboard) */
-.transactions-table table {
-    width: 100%;
-    border-collapse: collapse;
-    background: var(--card-bg);
-    border-radius: 12px;
-    overflow: hidden;
-    box-shadow: 0 4px 12px var(--card-shadow);
-}
-.transactions-table thead {
-    background: var(--primary-color);
-    color: #fff;
-    text-transform: uppercase;
-    font-size: 13px;
-}
-.transactions-table tbody td {
-    color: var(--text-color);
-    padding: 0.75rem 1rem;
-}
-.transactions-table tbody tr {
-    background-color: #fff;
-    transition: background 0.2s;
-}
-.transactions-table tbody tr:nth-child(even) {
-    background-color: #f4f6f9;
-}
-.transactions-table tbody tr:hover {
-    background-color: rgba(0,0,0,0.05);
-}
-body.dark-mode .transactions-table table {
-    background: var(--card-bg);
-}
-body.dark-mode .transactions-table thead {
-    background-color: #1abc9c;
-    color: #ffffff;
-}
-body.dark-mode .transactions-table tbody tr {
-    background-color: #2c2c3a !important;
-}
-body.dark-mode .transactions-table tbody tr:nth-child(even) {
-    background-color: #272734 !important;
-}
-body.dark-mode .transactions-table tbody td {
-    color: #ffffff !important;
-}
-body.dark-mode .transactions-table tbody tr:hover {
-    background-color: rgba(255,255,255,0.1) !important;
-}
-
-/* Card header theme for tables */
-.card-header {
-    font-weight: 600;
-    background: var(--primary-color);
-    color: #fff !important;
-    border-radius: 12px 12px 0 0 !important;
-    font-size: 1.1rem;
-    letter-spacing: 1px;
-}
-body.dark-mode .card-header {
-    background-color: #2c3e50 !important;
-    color: #fff !important;
-}
-
-/* Form styling */
-.form-control, .form-select {
-    border-radius: 8px;
-}
-body.dark-mode .form-label,
-body.dark-mode label,
-body.dark-mode .card-body {
-    color: #fff !important;
-}
-body.dark-mode .form-control,
-body.dark-mode .form-select {
-    background-color: #23243a !important;
-    color: #fff !important;
-    border: 1px solid #444 !important;
-}
-body.dark-mode .form-control:focus,
-body.dark-mode .form-select:focus {
-    background-color: #23243a !important;
-    color: #fff !important;
-}
-.btn-primary {
-    background: var(--primary-color) !important;
-    border: none;
-    border-radius: 8px;
-    padding: 8px 18px;
-    font-weight: 600;
-    box-shadow: 0px 3px 8px rgba(0,0,0,0.2);
-    color: #fff !important;
-    transition: background 0.2s;
-}
-.btn-primary:hover, .btn-primary:focus {
-    background: #159c8c !important;
-    color: #fff !important;
-}
-.btn-action {
-    font-size: 0.85rem;
-    padding: 2px 10px !important;
-    min-width: 0;
-    border-radius: 6px !important;
-    line-height: 1.1;
-}
-.d-flex.gap-1 > .btn-action:not(:last-child) {
-    margin-right: 0.25rem;
-}
-
-
-</style>
 
 <!-- Main Content -->
 
@@ -913,91 +762,7 @@ body.dark-mode .form-select:focus {
         }
     };
     </script>
-    <?php
-// Handle cart sale submission
-if (isset($_POST['submit_cart']) && !empty($_POST['cart_data'])) {
-    $cart = json_decode($_POST['cart_data'], true);
-    $amount_paid = floatval($_POST['amount_paid'] ?? 0);
-    $payment_method = $_POST['payment_method'] ?? 'Cash';
-    $currentDate = date("Y-m-d");
-    $conn->begin_transaction();
-    $success = true;
-    $messages = [];
-    $total = 0;
-
-    foreach ($cart as $item) {
-        $product_id = (int)$item['id'];
-        $quantity = (int)$item['quantity'];
-        // Get product info
-        $stmt = $conn->prepare("SELECT name, `selling-price`, `buying-price`, stock FROM products WHERE id = ? AND `branch-id` = ?");
-        $stmt->bind_param("ii", $product_id, $branch_id);
-        $stmt->execute();
-        $product = $stmt->get_result()->fetch_assoc();
-        $stmt->close();
-        if (!$product || $product['stock'] < $quantity) {
-            $success = false;
-            $messages[] = "Product not found or not enough stock for " . htmlspecialchars($item['name']);
-            break;
-        }
-        $total_price  = $product['selling-price'] * $quantity;
-        $cost_price   = $product['buying-price'] * $quantity;
-        $total_profit = $total_price - $cost_price;
-        $total += $total_price;
-
-        // Only record sale if amount_paid >= total (fully paid)
-        // If not fully paid, do NOT record sale here (handled by debtor logic)
-      $date = date('Y-m-d');
-
-$stmt = $conn->prepare("INSERT INTO sales (`product-id`, `branch-id`, quantity, amount, `sold-by`, `cost-price`, total_profits, date, payment_method) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
-$stmt->bind_param("iiiidddss", $product_id, $branch_id, $quantity, $total_price, $user_id, $cost_price, $total_profit, $date, $payment_method);
-$stmt->execute();
-$stmt->close();
-
-
-            // Update stock
-            $new_stock = $product['stock'] - $quantity;
-            $update = $conn->prepare("UPDATE products SET stock = ? WHERE id = ?");
-            $update->bind_param("ii", $new_stock, $product_id);
-            $update->execute();
-            $update->close();
-
-            // Update profits
-            $stmt = $conn->prepare("SELECT * FROM profits WHERE date = ? AND `branch-id` = ?");
-            $stmt->bind_param("si", $currentDate, $branch_id);
-            $stmt->execute();
-            $profit_result = $stmt->get_result()->fetch_assoc();
-            $stmt->close();
-            if ($profit_result) {
-                $total_amount = $profit_result['total'] + $total_profit;
-                $expenses     = $profit_result['expenses'] ?? 0;
-                $net_profit   = $total_amount - $expenses;
-                $stmt2 = $conn->prepare("UPDATE profits SET total=?, `net-profits`=? WHERE date=? AND `branch-id`=?");
-                $stmt2->bind_param("ddsi", $total_amount, $net_profit, $currentDate, $branch_id);
-                $stmt2->execute();
-                $stmt2->close();
-            } else {
-                $total_amount = $total_profit;
-                $net_profit   = $total_profit;
-                $expenses     = 0;
-                $stmt2 = $conn->prepare("INSERT INTO profits (`branch-id`, total, `net-profits`, expenses, date) VALUES (?, ?, ?, ?, ?)");
-                $stmt2->bind_param("iddis", $branch_id, $total_amount, $net_profit, $expenses, $currentDate);
-                $stmt2->execute();
-                $stmt2->close();
-            }
-        }
-        if ($success) {
-            $conn->commit();
-            $message = '✅ Sale recorded successfully!';
-        } else {
-            $conn->rollback();
-            $message = implode(' ', $messages);
-        }
-    // } else {
-        // Underpayment: Do not record sale, handled by debtor logic
-        $conn->rollback();
-    }
-
-?>
+   
 <script>
 // Pay button logic for debtors table
 document.addEventListener('DOMContentLoaded', function() {
@@ -1036,76 +801,6 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 </script>
-
-<?php
-// Handle debtor payment (AJAX)
-if (isset($_POST['pay_debtor']) && isset($_POST['id']) && isset($_POST['amount'])) {
-    $debtor_id = intval($_POST['id']);
-    $amount = floatval($_POST['amount']);
-    $now = date('Y-m-d H:i:s');
-    $user_id = $_SESSION['user_id'];
-
-    // Fetch debtor info
-    $debtor = $conn->query("SELECT * FROM debtors WHERE id=$debtor_id")->fetch_assoc();
-    if (!$debtor) {
-        echo json_encode(['message' => 'Debtor not found.', 'reload' => false]);
-        exit;
-    }
-    $new_paid = $debtor['amount_paid'] + $amount;
-    $new_balance = $debtor['balance'] - $amount;
-
-    if ($new_balance > 0) {
-        // Partial payment: update debtor record
-        $stmt = $conn->prepare("UPDATE debtors SET amount_paid=?, balance=? WHERE id=?");
-        $stmt->bind_param("ddi", $new_paid, $new_balance, $debtor_id);
-        $stmt->execute();
-        $stmt->close();
-        echo json_encode(['message' => 'Partial payment recorded. Remaining balance: UGX ' . number_format($new_balance,2), 'reload' => true]);
-        exit;
-    } else {
-        // Full payment: remove debtor, add to sales
-        $conn->begin_transaction();
-        try {
-            // Insert into sales table for each item (split by comma if multiple)
-            $items = explode(',', $debtor['item_taken']);
-            $qty = intval($debtor['quantity_taken']);
-            $branch_id = $debtor['branch-id'];
-            $sold_by = $debtor['created_by'];
-            $amount_paid = $debtor['amount_paid'] + $amount;
-            $per_item_qty = $qty;
-            if (count($items) > 1) $per_item_qty = 1; // crude split if multiple items
-
-            foreach ($items as $item_name) {
-                $item_name = trim($item_name);
-                // Find product id and price
-                $prod = $conn->query("SELECT id, `selling-price`, `buying-price`, stock FROM products WHERE name='" . $conn->real_escape_string($item_name) . "' AND `branch-id`=$branch_id LIMIT 1")->fetch_assoc();
-                if ($prod) {
-                    $product_id = $prod['id'];
-                    $total_price = $prod['selling-price'] * $per_item_qty;
-                    $cost_price = $prod['buying-price'] * $per_item_qty;
-                    $total_profit = $total_price - $cost_price;
-                    // Insert sale
-                    $stmt = $conn->prepare("INSERT INTO sales (`product-id`, `branch-id`, quantity, amount, `sold-by`, `cost-price`, total_profits, date) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
-                    $stmt->bind_param("iiididds", $product_id, $branch_id, $per_item_qty, $total_price, $sold_by, $cost_price, $total_profit, $now);
-                    $stmt->execute();
-                    $stmt->close();
-                    // Update stock
-                    $new_stock = $prod['stock'] - $per_item_qty;
-                    $conn->query("UPDATE products SET stock=$new_stock WHERE id=$product_id");
-                }
-            }
-            // Remove debtor
-            $conn->query("DELETE FROM debtors WHERE id=$debtor_id");
-            $conn->commit();
-            echo json_encode(['message' => 'Debt fully paid and sale recorded.', 'reload' => true]);
-        } catch (Exception $e) {
-            $conn->rollback();
-            echo json_encode(['message' => 'Error processing payment.', 'reload' => false]);
-        }
-        exit;
-    }
-}
-?>
 
 <?php include '../includes/footer.php'; ?>
 

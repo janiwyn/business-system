@@ -1,12 +1,14 @@
 <?php
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
+
 session_start();
 include '../includes/db.php';
 include '../includes/auth.php';
 require_role(["admin","manager","staff"]);
 
-// include sidebar/header (keeps layout consistent)
-include '../pages/sidebar.php';
-include '../includes/header.php';
+
 
 // Handle AJAX and form requests (create/update/add-money/delete/fetch)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
@@ -97,6 +99,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['fetch_transactions'])) 
     echo json_encode($out);
     exit;
 }
+// include sidebar/header (keeps layout consistent)
+include '../pages/sidebar.php';
+include '../includes/header.php';
 
 // Load customers list for page render
 $customers_res = $conn->query("SELECT * FROM customers ORDER BY id DESC");
