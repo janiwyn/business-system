@@ -70,25 +70,25 @@ if (isset($_POST['add_sale'])) {
 
 
         // Update profits
-        if ($profit_result) {
-            $total_amount = $profit_result['total'] + $total_profit;
-            $expenses     = $profit_result['expenses'] ?? 0;
-            $net_profit   = $total_amount - $expenses;
+        // if ($profit_result) {
+        //     $total_amount = $profit_result['total'] + $total_profit;
+        //     $expenses     = $profit_result['expenses'] ?? 0;
+        //     $net_profit   = $total_amount - $expenses;
 
-            $stmt2 = $conn->prepare("UPDATE profits SET total=?, `net-profits`=? WHERE date=? AND `branch-id`=?");
-            $stmt2->bind_param("ddsi", $total_amount, $net_profit, $currentDate, $branch_id);
-            $stmt2->execute();
-            $stmt2->close();
-        } else {
-            $total_amount = $total_profit;
-            $net_profit   = $total_profit;
-            $expenses     = 0;
+        //     $stmt2 = $conn->prepare("UPDATE profits SET total=?, `net-profits`=? WHERE date=? AND `branch-id`=?");
+        //     $stmt2->bind_param("ddsi", $total_amount, $net_profit, $currentDate, $branch_id);
+        //     $stmt2->execute();
+        //     $stmt2->close();
+        // } else {
+        //     $total_amount = $total_profit;
+        //     $net_profit   = $total_profit;
+        //     $expenses     = 0;
 
-            $stmt2 = $conn->prepare("INSERT INTO profits (`branch-id`, total, `net-profits`, expenses, date) VALUES (?, ?, ?, ?, ?)");
-            $stmt2->bind_param("iddis", $branch_id, $total_amount, $net_profit, $expenses, $currentDate);
-            $stmt2->execute();
-            $stmt2->close();
-        }
+        //     $stmt2 = $conn->prepare("INSERT INTO profits (`branch-id`, total, `net-profits`, expenses, date) VALUES (?, ?, ?, ?, ?)");
+        //     $stmt2->bind_param("iddis", $branch_id, $total_amount, $net_profit, $expenses, $currentDate);
+        //     $stmt2->execute();
+        //     $stmt2->close();
+        // }
     }
 }
 
@@ -107,18 +107,18 @@ $low_stock_query = $stmt->get_result();
 $stmt->close();
 
 // Fetch recent sales
-$sales_stmt = $conn->prepare("
-    SELECT s.id, p.name, s.quantity, s.amount, s.payment_method, s.date
-    FROM sales s
-    JOIN products p ON s.`product-id` = p.id
-    WHERE s.`branch-id` = ?
-    ORDER BY s.date DESC
-    LIMIT 10
-");
-$sales_stmt->bind_param("i", $branch_id);
-$sales_stmt->execute();
-$sales_result = $sales_stmt->get_result();
-$sales_stmt->close();
+// $sales_stmt = $conn->prepare("
+//     SELECT s.id, p.name, s.quantity, s.amount, s.payment_method, s.date
+//     FROM sales s
+//     JOIN products p ON s.`product-id` = p.id
+//     WHERE s.`branch-id` = ?
+//     ORDER BY s.date DESC
+//     LIMIT 10
+// ");
+// $sales_stmt->bind_param("i", $branch_id);
+// $sales_stmt->execute();
+// $sales_result = $sales_stmt->get_result();
+// $sales_stmt->close();
 
 
 
@@ -229,11 +229,11 @@ if (isset($_POST['submit_cart']) && !empty($_POST['cart_data'])) {
             $stmt->close();
 
             // Update stock
-            $new_stock = $product['stock'] - $quantity;
-            $update = $conn->prepare("UPDATE products SET stock = ? WHERE id = ?");
-            $update->bind_param("ii", $new_stock, $product_id);
-            $update->execute();
-            $update->close();
+            //  $new_stock = $product['stock'] - $quantity;
+            // $update = $conn->prepare("UPDATE products SET stock = ? WHERE id = ?");
+            // $update->bind_param("ii", $new_stock, $product_id);
+            // $update->execute();
+            // $update->close();
 
             // Update profits
             $stmt = $conn->prepare("SELECT * FROM profits WHERE date = ? AND `branch-id` = ?");

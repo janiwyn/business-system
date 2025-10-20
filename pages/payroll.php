@@ -25,7 +25,7 @@ if (isset($_POST['save_payroll'])) {
     $other_deductions = $_POST['other_deductions'];
 
     // ✅ Get base salary
-    $emp = mysqli_fetch_assoc(mysqli_query($conn, "SELECT base_salary FROM employees WHERE `user-id`='$user_id'"));
+    $emp = mysqli_fetch_assoc(mysqli_query($conn, "SELECT base_salary FROM employees WHERE id='$user_id'"));
     $base_salary = $emp['base_salary'] ?? 0;
 
     $gross = $base_salary + $transport + $housing + $medical + $overtime;
