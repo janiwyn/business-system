@@ -48,26 +48,56 @@ if (!$c) { echo "<div class='container mt-5'><div class='alert alert-danger'>Cus
         <div class="transactions-table">
           <table>
             <thead>
-              <tr><th>Date & Time</th><th>Products</th><th>Amount Paid</th><th>Amount Credited</th><th>Sold By</th></tr>
+              <tr>
+                <th>Date & Time</th>
+                <th>Products</th>
+                <th class="text-center">Quantity</th>
+                <th class="text-end">Amount Paid</th>
+                <th class="text-end">Amount Credited</th>
+                <th>Sold By</th>
+              </tr>
             </thead>
             <tbody>
               <?php
               $tstmt = $conn->prepare("SELECT * FROM customer_transactions WHERE customer_id = ? ORDER BY date_time DESC LIMIT 20");
-              $tstmt->bind_param("i",$id);
+              $tstmt->bind_param("i", $id);
               $tstmt->execute();
               $trs = $tstmt->get_result();
               if ($trs->num_rows) {
                 while ($tr = $trs->fetch_assoc()) {
+                  // decode products_bought (may be JSON array) and compute display + total quantity
+                  $products_display = '';
+                  $total_qty = 0;
+                  $pb = $tr['products_bought'] ?? '';
+                  $decoded = json_decode($pb, true);
+                  if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                      $parts = [];
+                      foreach ($decoded as $p) {
+                          $pname = htmlspecialchars($p['name'] ?? $p['product'] ?? '');
+                          $pqty = intval($p['quantity'] ?? $p['qty'] ?? 0);
+                          if ($pname !== '') $parts[] = $pname . ' x' . $pqty;
+                          $total_qty += $pqty;
+                      }
+                      $products_display = implode(', ', $parts);
+                  } else {
+                      $products_display = htmlspecialchars($pb);
+                  }
+
+                  $amount_paid = number_format(floatval($tr['amount_paid'] ?? 0), 2);
+                  $amount_credited = number_format(floatval($tr['amount_credited'] ?? 0), 2);
+                  $sold_by = htmlspecialchars($tr['sold_by'] ?? '-');
+                  $dt = htmlspecialchars($tr['date_time'] ?? $tr['date'] ?? '');
                   echo "<tr>
-                          <td>{$tr['date_time']}</td>
-                          <td>".htmlspecialchars($tr['products_bought'])."</td>
-                          <td class='text-end'>UGX ".number_format(floatval($tr['amount_paid'] ?? 0),2)."</td>
-                          <td class='text-end'>UGX ".number_format(floatval($tr['amount_credited'] ?? 0),2)."</td>
-                          <td>".htmlspecialchars($tr['sold_by'])."</td>
+                          <td>{$dt}</td>
+                          <td>" . ($products_display ?: '-') . "</td>
+                          <td class='text-center'>{$total_qty}</td>
+                          <td class='text-end'>UGX {$amount_paid}</td>
+                          <td class='text-end'>UGX {$amount_credited}</td>
+                          <td>{$sold_by}</td>
                         </tr>";
                 }
               } else {
-                echo "<tr><td colspan='5' class='text-center text-muted'>No transactions yet.</td></tr>";
+                echo "<tr><td colspan='6' class='text-center text-muted'>No transactions yet.</td></tr>";
               }
               $tstmt->close();
               ?>

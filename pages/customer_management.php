@@ -379,9 +379,41 @@ document.querySelectorAll('#customersAccordion .accordion-button').forEach(btn=>
     const data = await res.json();
     if (!data.success) { container.innerHTML = '<div class="text-muted">No transactions.</div>'; return; }
     if (!data.rows.length) { container.innerHTML = '<div class="text-muted">No transactions.</div>'; container.dataset.loaded = '1'; return; }
-    let html = '<div class="transactions-table"><table><thead><tr><th>Date & Time</th><th>Products Bought</th><th>Amount Paid</th><th>Amount Credited</th><th>Sold By</th></tr></thead><tbody>';
+
+    // Build table with parsed products and quantity column
+    let html = '<div class="transactions-table"><table><thead><tr><th>Date & Time</th><th>Products</th><th class="text-center">Quantity</th><th class="text-end">Amount Paid</th><th class="text-end">Amount Credited</th><th>Sold By</th></tr></thead><tbody>';
     data.rows.forEach(r=>{
-      html += `<tr><td>${r.date_time}</td><td>${escapeHtml(r.products_bought)}</td><td class="text-end">UGX ${parseFloat(r.amount_paid).toFixed(2)}</td><td class="text-end">UGX ${parseFloat(r.amount_credited).toFixed(2)}</td><td>${escapeHtml(r.sold_by)}</td></tr>`;
+      // parse products_bought JSON if possible
+      let prodDisplay = '';
+      let totalQty = 0;
+      try {
+        const pb = JSON.parse(r.products_bought || '[]');
+        if (Array.isArray(pb)) {
+          const parts = pb.map(p => {
+            const name = (p.name || p.product || '').toString();
+            const qty = parseInt(p.quantity || p.qty || 0) || 0;
+            totalQty += qty;
+            return `${escapeHtml(name)} x${qty}`;
+          });
+          prodDisplay = parts.join(', ');
+        } else {
+          prodDisplay = escapeHtml(String(r.products_bought || ''));
+        }
+      } catch (err) {
+        prodDisplay = escapeHtml(String(r.products_bought || ''));
+      }
+
+      const paid = parseFloat(r.amount_paid || 0).toFixed(2);
+      const credited = parseFloat(r.amount_credited || 0).toFixed(2);
+      const soldBy = escapeHtml(r.sold_by || '');
+      html += `<tr>
+                 <td>${escapeHtml(r.date_time)}</td>
+                 <td>${prodDisplay || '-'}</td>
+                 <td class="text-center">${totalQty}</td>
+                 <td class="text-end">UGX ${paid}</td>
+                 <td class="text-end">UGX ${credited}</td>
+                 <td>${soldBy}</td>
+               </tr>`;
     });
     html += '</tbody></table></div>';
     container.innerHTML = html;

@@ -8,8 +8,59 @@ include '../includes/header.php';
 include 'handle_debtor_payment.php';
 include 'handle_cart_sale.php';
 
+// Ensure customers.amount_credited column exists to avoid "Unknown column" errors.
+$checkCol = $conn->query("
+    SELECT COLUMN_NAME
+    FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = 'customers'
+      AND COLUMN_NAME = 'amount_credited'
+");
+if (!$checkCol || $checkCol->num_rows === 0) {
+    // add the missing column safely
+    $conn->query("ALTER TABLE customers ADD COLUMN IF NOT EXISTS amount_credited DECIMAL(12,2) NOT NULL DEFAULT 0");
+    // defensive: if IF NOT EXISTS isn't supported, ignore error (avoid fatal)
+    if ($conn->errno) {
+        // try without IF NOT EXISTS for MySQL versions that don't support it, suppress warnings
+        @$conn->query("ALTER TABLE customers ADD COLUMN amount_credited DECIMAL(12,2) NOT NULL DEFAULT 0");
+    }
+}
 
+// Ensure sales.customer_id column exists to avoid "Unknown column 'customer_id'" errors.
+// Place this check before any INSERT INTO sales (...) that includes customer_id.
+$checkSalesCol = $conn->query("
+    SELECT COLUMN_NAME
+    FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = 'sales'
+      AND COLUMN_NAME = 'customer_id'
+");
+if (!$checkSalesCol || $checkSalesCol->num_rows === 0) {
+    // Add nullable customer_id column to sales table.
+    // Avoid adding foreign key here to keep migration simple and permission-safe.
+    $conn->query("ALTER TABLE sales ADD COLUMN IF NOT EXISTS customer_id INT NULL");
+    if ($conn->errno) {
+        // For MySQL versions that don't support IF NOT EXISTS in ALTER, try without it, suppress warnings
+        @$conn->query("ALTER TABLE sales ADD COLUMN customer_id INT NULL");
+    }
+}
 
+// --- NEW: ensure customer_transactions.status column exists (prevents INSERT/SELECT failures) ---
+$checkCTCol = $conn->query("
+    SELECT COLUMN_NAME
+    FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = 'customer_transactions'
+      AND COLUMN_NAME = 'status'
+");
+if (!$checkCTCol || $checkCTCol->num_rows === 0) {
+    // Add a simple status column to record 'paid' / 'debtor' etc.
+    $conn->query("ALTER TABLE customer_transactions ADD COLUMN IF NOT EXISTS `status` VARCHAR(32) DEFAULT 'pending'");
+    if ($conn->errno) {
+        // Fallback for MySQL versions that don't support IF NOT EXISTS in ALTER
+        @$conn->query("ALTER TABLE customer_transactions ADD COLUMN `status` VARCHAR(32) DEFAULT 'pending'");
+    }
+}
 
 if ($_SESSION['role'] !== 'staff') {
     header("Location: ../auth/login.php");
@@ -184,20 +235,146 @@ if (isset($_POST['record_debtor'])) {
 if (isset($_POST['submit_cart']) && !empty($_POST['cart_data'])) {
     $cart = json_decode($_POST['cart_data'], true);
     $amount_paid = floatval($_POST['amount_paid'] ?? 0);
-    $payment_method = $_POST['payment_method'] ?? 'Cash'; // Default to Cash
+    // prefer explicit hidden fields if present
+    $payment_method = $_POST['payment_method'] ?? $_POST['hidden_payment_method'] ?? 'Cash';
+    $customer_id = intval($_POST['customer_id'] ?? $_POST['hidden_customer_id'] ?? 0);
     $currentDate = date("Y-m-d");
+    $user_name = $_SESSION['username'];
+    $user_id = $_SESSION['user_id'];
     $conn->begin_transaction();
     $success = true;
     $messages = [];
-    $total = 0;
 
-    // Calculate total cart value
-    foreach ($cart as $item) {
-        $total += floatval($item['price']) * intval($item['quantity']);
-    }
+    // compute total server-side
+    $total = 0.0;
+    foreach ($cart as $item) $total += floatval($item['price']) * intval($item['quantity']);
 
-    // Only record sale if fully paid
-    if ($amount_paid >= $total) {
+    if ($payment_method === 'Customer File') {
+        if ($customer_id <= 0) {
+            $conn->rollback();
+            $message = "⚠️ Select a customer for Customer File payment.";
+        } else {
+            // fetch customer balance
+            $cstmt = $conn->prepare("SELECT id, COALESCE(account_balance,0) AS account_balance, COALESCE(amount_credited,0) AS amount_credited FROM customers WHERE id = ?");
+            $cstmt->bind_param("i", $customer_id);
+            $cstmt->execute();
+            $cust = $cstmt->get_result()->fetch_assoc();
+            $cstmt->close();
+
+            if (!$cust) {
+                $conn->rollback();
+                $message = "⚠️ Customer not found.";
+            } else {
+                $available = floatval($cust['account_balance']);
+                if ($available >= $total) {
+                    // fully covered: deduct, insert sales per item, record customer_transactions as 'paid'
+                    $new_balance = $available - $total;
+                    $ust = $conn->prepare("UPDATE customers SET account_balance = ? WHERE id = ?");
+                    $ust->bind_param("di", $new_balance, $customer_id);
+                    $ust->execute();
+                    $ust->close();
+
+                    foreach ($cart as $item) {
+                        $product_id = intval($item['id']);
+                        $quantity = intval($item['quantity']);
+
+                        // get product info
+                        $pstmt = $conn->prepare("SELECT `selling-price`, `buying-price`, stock FROM products WHERE id = ? AND `branch-id` = ?");
+                        $pstmt->bind_param("ii", $product_id, $branch_id);
+                        $pstmt->execute();
+                        $product = $pstmt->get_result()->fetch_assoc();
+                        $pstmt->close();
+
+                        if (!$product || $product['stock'] < $quantity) {
+                            $success = false;
+                            $messages[] = "Product not found or insufficient stock for " . htmlspecialchars($item['name']);
+                            break;
+                        }
+
+                        $total_price  = $product['selling-price'] * $quantity;
+                        $cost_price   = $product['buying-price'] * $quantity;
+                        $total_profit = $total_price - $cost_price;
+                        $date = date('Y-m-d');
+
+                        // insert sale (includes customer_id)
+                        $sstmt = $conn->prepare("INSERT INTO sales (`product-id`,`branch-id`,quantity,amount,`sold-by`,`cost-price`,total_profits,date,payment_method,customer_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                        $sstmt->bind_param("iiididdsis", $product_id, $branch_id, $quantity, $total_price, $user_id, $cost_price, $total_profit, $date, $payment_method, $customer_id);
+                        $sstmt->execute();
+                        $sstmt->close();
+
+                        // update stock
+                        $new_stock = $product['stock'] - $quantity;
+                        $u = $conn->prepare("UPDATE products SET stock = ? WHERE id = ?");
+                        $u->bind_param("ii", $new_stock, $product_id);
+                        $u->execute();
+                        $u->close();
+
+                        // update profits (existing logic)
+                        $pstmt = $conn->prepare("SELECT * FROM profits WHERE date = ? AND `branch-id` = ?");
+                        $pstmt->bind_param("si", $currentDate, $branch_id);
+                        $pstmt->execute();
+                        $profit_result = $pstmt->get_result()->fetch_assoc();
+                        $pstmt->close();
+                        if ($profit_result) {
+                            $total_amount = $profit_result['total'] + $total_profit;
+                            $expenses     = $profit_result['expenses'] ?? 0;
+                            $net_profit   = $total_amount - $expenses;
+                            $stmt2 = $conn->prepare("UPDATE profits SET total=?, `net-profits`=? WHERE date=? AND `branch-id`=?");
+                            $stmt2->bind_param("ddsi", $total_amount, $net_profit, $currentDate, $branch_id);
+                            $stmt2->execute();
+                            $stmt2->close();
+                        } else {
+                            $total_amount = $total_profit;
+                            $net_profit   = $total_profit;
+                            $expenses     = 0;
+                            $stmt2 = $conn->prepare("INSERT INTO profits (`branch-id`, total, `net-profits`, expenses, date) VALUES (?, ?, ?, ?, ?)");
+                            $stmt2->bind_param("iddis", $branch_id, $total_amount, $net_profit, $expenses, $currentDate);
+                            $stmt2->execute();
+                            $stmt2->close();
+                        }
+                    } // end foreach
+
+                    if ($success) {
+                        // record customer_transactions (paid)
+                        $products_json = json_encode($cart);
+                        $now = date('Y-m-d H:i:s');
+                        $ct = $conn->prepare("INSERT INTO customer_transactions (customer_id, date_time, products_bought, amount_paid, amount_credited, sold_by, status) VALUES (?, ?, ?, ?, ?, ?, 'paid')");
+                        $zero = 0.0;
+                        $ct->bind_param("issdds", $customer_id, $now, $products_json, $total, $zero, $user_name);
+                        $ct->execute();
+                        $ct->close();
+
+                        $conn->commit();
+                        $message = "✅ Sale recorded and charged to Customer File.";
+                    } else {
+                        $conn->rollback();
+                        $message = implode(' ', $messages);
+                    }
+                } else {
+                    // insufficient funds: deduct available, set account_balance=0, add remaining to amount_credited, insert customer_transactions status='debtor'
+                    $available_amt = $available;
+                    $remaining = $total - $available_amt;
+
+                    $ust = $conn->prepare("UPDATE customers SET account_balance = 0, amount_credited = COALESCE(amount_credited,0) + ? WHERE id = ?");
+                    $ust->bind_param("di", $remaining, $customer_id);
+                    $ust->execute();
+                    $ust->close();
+
+                    $products_json = json_encode($cart);
+                    $now = date('Y-m-d H:i:s');
+                    $ct = $conn->prepare("INSERT INTO customer_transactions (customer_id, date_time, products_bought, amount_paid, amount_credited, sold_by, status) VALUES (?, ?, ?, ?, ?, ?, 'debtor')");
+                    $ct->bind_param("issdds", $customer_id, $now, $products_json, $available_amt, $remaining, $user_name);
+                    $ct->execute();
+                    $ct->close();
+
+                    $conn->commit();
+                    $message = "⚠️ Insufficient customer balance. Sale recorded as debtor (UGX " . number_format($remaining,2) . "). It will be finalized once the customer clears their balance.";
+                }
+            }
+        }
+    } else {
+        // Existing non-Customer File flow (unchanged, keep previous behavior)
+        $success = true; $messages = [];
         foreach ($cart as $item) {
             $product_id = (int)$item['id'];
             $quantity = (int)$item['quantity'];
@@ -219,11 +396,8 @@ if (isset($_POST['submit_cart']) && !empty($_POST['cart_data'])) {
             $cost_price   = $product['buying-price'] * $quantity;
             $total_profit = $total_price - $cost_price;
 
-            // Insert sale row for each cart item
-            $stmt = $conn->prepare("
-                INSERT INTO sales (`product-id`, `branch-id`, quantity, amount, `sold-by`, `cost-price`, total_profits, date, payment_method)
-                VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), ?)
-            ");
+            // Insert sale row
+            $stmt = $conn->prepare("INSERT INTO sales (`product-id`, `branch-id`, quantity, amount, `sold-by`, `cost-price`, total_profits, date, payment_method) VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), ?)");
             $stmt->bind_param("iiididds", $product_id, $branch_id, $quantity, $total_price, $user_id, $cost_price, $total_profit, $payment_method);
             $stmt->execute();
             $stmt->close();
@@ -235,7 +409,7 @@ if (isset($_POST['submit_cart']) && !empty($_POST['cart_data'])) {
             $update->execute();
             $update->close();
 
-            // Update profits
+            // Update profits (existing logic)
             $stmt = $conn->prepare("SELECT * FROM profits WHERE date = ? AND `branch-id` = ?");
             $stmt->bind_param("si", $currentDate, $branch_id);
             $stmt->execute();
@@ -266,11 +440,15 @@ if (isset($_POST['submit_cart']) && !empty($_POST['cart_data'])) {
             $conn->rollback();
             $message = implode(' ', $messages);
         }
-    } else {
-        // Not fully paid, do not record sale here (handled by debtor logic)
-        $conn->rollback();
-    }
-}
+    } // end payment_method branch
+} // end submit_cart handler
+
+// --- NEW: fetch customers for "Customer File" option (staff only) ---
+$cust_stmt = $conn->prepare("SELECT id, name, COALESCE(account_balance,0) AS account_balance FROM customers ORDER BY name ASC");
+$cust_stmt->execute();
+$customers_res = $cust_stmt->get_result();
+$customers_list = $customers_res ? $customers_res->fetch_all(MYSQLI_ASSOC) : [];
+$cust_stmt->close();
 ?>
 
 
@@ -354,8 +532,21 @@ if (isset($_POST['submit_cart']) && !empty($_POST['cart_data'])) {
                             <option value="MTN MoMo">MTN MoMo</option>
                             <option value="Airtel Money">Airtel Money</option>
                             <option value="Bank">Bank</option>
+                            <option value="Customer File">Customer File</option>
                         </select>
                     </div>
+
+                    <!-- Customer dropdown for Customer File payments (hidden by default) -->
+                    <div class="col-md-4" id="customer_select_wrap" style="display:none;">
+                        <label for="customer_select" class="form-label">Customer</label>
+                        <select id="customer_select" class="form-select">
+                            <option value="">-- Select Customer --</option>
+                            <?php foreach ($customers_list as $cust): ?>
+                                <option value="<?= $cust['id'] ?>"><?= htmlspecialchars($cust['name']) ?> (UGX <?= number_format(floatval($cust['account_balance']),2) ?>)</option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+
                     <div class="col-md-4">
                         <label for="amount_paid" class="form-label">Amount Paid</label>
                         <input type="number" class="form-control" id="amount_paid" min="0" value="">
@@ -373,7 +564,10 @@ if (isset($_POST['submit_cart']) && !empty($_POST['cart_data'])) {
     const productData = <?php echo json_encode($product_list); ?>;
     let cart = [];
 
-    // Hidden form for submitting cart to PHP
+    // expose product/customer data (productData may already be defined elsewhere)
+    const customers = <?php echo json_encode($customers_list); ?> || [];
+
+    // Hidden form for submitting cart to PHP (ensure customer_id & payment_method included)
     const hiddenSaleForm = document.createElement('form');
     hiddenSaleForm.method = 'POST';
     hiddenSaleForm.style.display = 'none';
@@ -381,17 +575,35 @@ if (isset($_POST['submit_cart']) && !empty($_POST['cart_data'])) {
         <input type="hidden" name="cart_data" id="cart_data">
         <input type="hidden" name="amount_paid" id="cart_amount_paid">
         <input type="hidden" name="submit_cart" value="1">
+        <input type="hidden" name="payment_method" id="hidden_payment_method">
+        <input type="hidden" name="customer_id" id="hidden_customer_id">
     `;
     document.body.appendChild(hiddenSaleForm);
 
+    // Toggle customer select / amount_paid when payment method changes
+    document.getElementById('payment_method').addEventListener('change', function() {
+        const pm = this.value;
+        const wrap = document.getElementById('customer_select_wrap');
+        const amt = document.getElementById('amount_paid');
+        if (pm === 'Customer File') {
+            wrap.style.display = '';
+            amt.value = '';
+            amt.disabled = true;
+            amt.closest('.col-md-4').style.opacity = 0.6;
+        } else {
+            wrap.style.display = 'none';
+            amt.disabled = false;
+            amt.closest('.col-md-4').style.opacity = 1;
+        }
+    });
+
+    // Ensure initial state
+    document.getElementById('payment_method').dispatchEvent(new Event('change'));
+
+    // Sell button logic (adjusted to include customer file flow)
     document.getElementById('sellBtn').onclick = function() {
         const paymentMethod = document.getElementById('payment_method').value;
         const amountPaid = parseFloat(document.getElementById('amount_paid').value || 0);
-
-        if (!paymentMethod) {
-            alert('Please select a payment method.');
-            return;
-        }
 
         // Calculate total cart value
         let total = 0;
@@ -399,22 +611,28 @@ if (isset($_POST['submit_cart']) && !empty($_POST['cart_data'])) {
             total += item.price * item.quantity;
         });
 
+        if (paymentMethod === 'Customer File') {
+            const custId = document.getElementById('customer_select').value;
+            if (!custId) { alert('Please select a customer for Customer File payment.'); return; }
+            // submit with customer_id; amount_paid left as 0
+            document.getElementById('cart_data').value = JSON.stringify(cart);
+            document.getElementById('cart_amount_paid').value = 0;
+            document.getElementById('hidden_payment_method').value = paymentMethod;
+            document.getElementById('hidden_customer_id').value = custId;
+            hiddenSaleForm.submit();
+            return;
+        }
+
+        // existing flow for other payment methods
         if (amountPaid >= total) {
-            // Overpayment or exact payment
             const balance = amountPaid - total;
             if (balance > 0) {
                 alert(`Balance is UGX ${balance.toLocaleString()}`);
             }
-
-            // Submit the sale
             document.getElementById('cart_data').value = JSON.stringify(cart);
             document.getElementById('cart_amount_paid').value = amountPaid;
-            const paymentInput = document.createElement('input');
-            paymentInput.type = 'hidden';
-            paymentInput.name = 'payment_method';
-            paymentInput.value = paymentMethod;
-            hiddenSaleForm.appendChild(paymentInput);
-
+            document.getElementById('hidden_payment_method').value = paymentMethod;
+            document.getElementById('hidden_customer_id').value = '';
             hiddenSaleForm.submit();
         } else {
             // Underpayment: Show debtor form
@@ -724,33 +942,34 @@ if (isset($_POST['submit_cart']) && !empty($_POST['cart_data'])) {
         const paymentMethod = document.getElementById('payment_method').value;
         const amountPaid = parseFloat(document.getElementById('amount_paid').value || 0);
 
-        if (!paymentMethod) {
-            alert('Please select a payment method.');
-            return;
-        }
-
         // Calculate total cart value
         let total = 0;
         cart.forEach(item => {
             total += item.price * item.quantity;
         });
 
+        if (paymentMethod === 'Customer File') {
+            const custId = document.getElementById('customer_select').value;
+            if (!custId) { alert('Please select a customer for Customer File payment.'); return; }
+            // submit with customer_id; amount_paid left as 0
+            document.getElementById('cart_data').value = JSON.stringify(cart);
+            document.getElementById('cart_amount_paid').value = 0;
+            document.getElementById('hidden_payment_method').value = paymentMethod;
+            document.getElementById('hidden_customer_id').value = custId;
+            hiddenSaleForm.submit();
+            return;
+        }
+
+        // existing flow for other payment methods
         if (amountPaid >= total) {
-            // Overpayment or exact payment
             const balance = amountPaid - total;
             if (balance > 0) {
                 alert(`Balance is UGX ${balance.toLocaleString()}`);
             }
-
-            // Submit the sale
             document.getElementById('cart_data').value = JSON.stringify(cart);
             document.getElementById('cart_amount_paid').value = amountPaid;
-            const paymentInput = document.createElement('input');
-            paymentInput.type = 'hidden';
-            paymentInput.name = 'payment_method';
-            paymentInput.value = paymentMethod;
-            hiddenSaleForm.appendChild(paymentInput);
-
+            document.getElementById('hidden_payment_method').value = paymentMethod;
+            document.getElementById('hidden_customer_id').value = '';
             hiddenSaleForm.submit();
         } else {
             // Underpayment: Show debtor form
