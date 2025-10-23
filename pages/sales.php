@@ -1,6 +1,7 @@
 <?php
 include '../includes/db.php';
 include '../includes/auth.php';
+include '../pages/handle_debtor_payment.php';
 require_role(["admin", "manager", "staff"]);
 // Fix: Always use the correct sidebar for staff
 if ($_SESSION['role'] === 'staff') {
@@ -20,6 +21,7 @@ $user_branch = $_SESSION['branch_id'] ?? null;
 $selected_branch = $_GET['branch'] ?? '';
 $date_from = $_GET['date_from'] ?? '';
 $date_to = $_GET['date_to'] ?? '';
+
 
 // Build WHERE clause for filters
 $where = [];
@@ -626,25 +628,39 @@ $debtors_result = $conn->query("
       pdConfirmBtn.disabled = true;
       pdConfirmBtn.textContent = 'Processing...';
       try {
-        const res = await fetch('staff_dashboard.php', {
+        // POST to the dedicated handler that returns JSON (avoid HTML page responses)
+        const res = await fetch('handle_debtor_payment.php', {
           method: 'POST',
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
           body: `pay_debtor=1&id=${encodeURIComponent(id)}&amount=${encodeURIComponent(amount)}`
         });
-        const data = await res.json();
+
+        const text = await res.text();
+        let data;
+        try {
+          data = JSON.parse(text);
+        } catch (parseErr) {
+          console.error('Invalid JSON response from server:', text);
+          pdMsg.innerHTML = '<div class="alert alert-danger">Server returned an invalid response. See console for details.</div>';
+          pdConfirmBtn.disabled = false;
+          pdConfirmBtn.textContent = 'OK';
+          return;
+        }
+
         pdConfirmBtn.disabled = false;
         pdConfirmBtn.textContent = 'OK';
-        if (data.reload) {
+
+        if (data && data.reload) {
           payModal.hide();
           window.location.reload();
         } else {
-          pdMsg.innerHTML = '<div class="alert alert-info">'+(data.message || 'Payment recorded')+'</div>';
+          pdMsg.innerHTML = '<div class="alert alert-info">' + (data.message || 'Payment recorded') + '</div>';
         }
       } catch (err) {
+        console.error('Request error:', err);
         pdConfirmBtn.disabled = false;
         pdConfirmBtn.textContent = 'OK';
-        pdMsg.innerHTML = '<div class="alert alert-danger">Error processing payment.</div>';
-        console.error(err);
+        pdMsg.innerHTML = '<div class="alert alert-danger">Error processing payment. Check console.</div>';
       }
     });
   }
