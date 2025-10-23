@@ -1,10 +1,5 @@
  <?php
- 
 include '../includes/db.php';
-
-
-
-
 $user_id   = $_SESSION['user_id'];
 $username  = $_SESSION['username'];
 $branch_id = $_SESSION['branch_id']; // ✅ fixed
@@ -43,18 +38,18 @@ if (isset($_POST['submit_cart']) && !empty($_POST['cart_data'])) {
         // If not fully paid, do NOT record sale here (handled by debtor logic)
       $date = date('Y-m-d');
 
-$stmt = $conn->prepare("INSERT INTO sales (`product-id`, `branch-id`, quantity, amount, `sold-by`, `cost-price`, total_profits, date, payment_method) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
-$stmt->bind_param("iiiidddss", $product_id, $branch_id, $quantity, $total_price, $user_id, $cost_price, $total_profit, $date, $payment_method);
-$stmt->execute();
-$stmt->close();
+// $stmt = $conn->prepare("INSERT INTO sales (`product-id`, `branch-id`, quantity, amount, `sold-by`, `cost-price`, total_profits, date, payment_method) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
+// $stmt->bind_param("iiiidddss", $product_id, $branch_id, $quantity, $total_price, $user_id, $cost_price, $total_profit, $date, $payment_method);
+// $stmt->execute();
+// $stmt->close();
 
 
-            // Update stock
-            $new_stock = $product['stock'] - $quantity;
-            $update = $conn->prepare("UPDATE products SET stock = ? WHERE id = ?");
-            $update->bind_param("ii", $new_stock, $product_id);
-            $update->execute();
-            $update->close();
+//             // Update stock
+//             $new_stock = $product['stock'] - $quantity;
+//             $update = $conn->prepare("UPDATE products SET stock = ? WHERE id = ?");
+//             $update->bind_param("ii", $new_stock, $product_id);
+//             $update->execute();
+//             $update->close();
 
             // Update profits
             $stmt = $conn->prepare("SELECT * FROM profits WHERE date = ? AND `branch-id` = ?");

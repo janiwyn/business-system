@@ -1,5 +1,4 @@
 <?php
-session_start();
 include '../includes/db.php';
 include '../includes/auth.php';
 require_role(["admin", "manager"]);
@@ -155,7 +154,6 @@ body.dark-mode .transactions-table tbody tr:hover {
 }
 </style>
 
-<body class="bg-light">
 <div class="container mt-4">
     <h3 class="mb-3" style="color:var(--primary-color);font-weight:700;">Payroll Management</h3>
 

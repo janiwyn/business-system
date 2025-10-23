@@ -1,7 +1,7 @@
 <?php 
 include '../includes/db.php';
 include '../includes/auth.php';
-require_role(["admin", "manager"]);
+require_role(["admin", "manager", "super"]);
 include '../pages/sidebar.php';
 include '../includes/header.php';
  ?>
@@ -51,6 +51,7 @@ include '../includes/header.php';
     </div>
 
     <button type="submit" name="save" class="btn btn-success">Save Entry</button>
+    <a href="accounting.php" class="btn btn-secondary">← Back</a>
   </form>
 </div>
 

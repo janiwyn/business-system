@@ -1,5 +1,4 @@
 <?php
-session_start();
 include '../includes/db.php';
 include '../includes/auth.php';
 require_role(["admin","manager","staff", "super"]);

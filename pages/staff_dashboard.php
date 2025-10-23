@@ -9,13 +9,6 @@ include 'handle_debtor_payment.php';
 include 'handle_cart_sale.php';
 
 
-
-
-if ($_SESSION['role'] !== 'staff') {
-    header("Location: ../auth/login.php");
-    exit();
-}
-
 $user_id   = $_SESSION['user_id'];
 $username  = $_SESSION['username'];
 $branch_id = $_SESSION['branch_id']; // ✅ fixed
@@ -236,28 +229,28 @@ if (isset($_POST['submit_cart']) && !empty($_POST['cart_data'])) {
             // $update->close();
 
             // Update profits
-            $stmt = $conn->prepare("SELECT * FROM profits WHERE date = ? AND `branch-id` = ?");
-            $stmt->bind_param("si", $currentDate, $branch_id);
-            $stmt->execute();
-            $profit_result = $stmt->get_result()->fetch_assoc();
-            $stmt->close();
-            if ($profit_result) {
-                $total_amount = $profit_result['total'] + $total_profit;
-                $expenses     = $profit_result['expenses'] ?? 0;
-                $net_profit   = $total_amount - $expenses;
-                $stmt2 = $conn->prepare("UPDATE profits SET total=?, `net-profits`=? WHERE date=? AND `branch-id`=?");
-                $stmt2->bind_param("ddsi", $total_amount, $net_profit, $currentDate, $branch_id);
-                $stmt2->execute();
-                $stmt2->close();
-            } else {
-                $total_amount = $total_profit;
-                $net_profit   = $total_profit;
-                $expenses     = 0;
-                $stmt2 = $conn->prepare("INSERT INTO profits (`branch-id`, total, `net-profits`, expenses, date) VALUES (?, ?, ?, ?, ?)");
-                $stmt2->bind_param("iddis", $branch_id, $total_amount, $net_profit, $expenses, $currentDate);
-                $stmt2->execute();
-                $stmt2->close();
-            }
+            // $stmt = $conn->prepare("SELECT * FROM profits WHERE date = ? AND `branch-id` = ?");
+            // $stmt->bind_param("si", $currentDate, $branch_id);
+            // $stmt->execute();
+            // $profit_result = $stmt->get_result()->fetch_assoc();
+            // $stmt->close();
+            // if ($profit_result) {
+            //     $total_amount = $profit_result['total'] + $total_profit;
+            //     $expenses     = $profit_result['expenses'] ?? 0;
+            //     $net_profit   = $total_amount - $expenses;
+            //     $stmt2 = $conn->prepare("UPDATE profits SET total=?, `net-profits`=? WHERE date=? AND `branch-id`=?");
+            //     $stmt2->bind_param("ddsi", $total_amount, $net_profit, $currentDate, $branch_id);
+            //     $stmt2->execute();
+            //     $stmt2->close();
+            // } else {
+            //     $total_amount = $total_profit;
+            //     $net_profit   = $total_profit;
+            //     $expenses     = 0;
+            //     $stmt2 = $conn->prepare("INSERT INTO profits (`branch-id`, total, `net-profits`, expenses, date) VALUES (?, ?, ?, ?, ?)");
+            //     $stmt2->bind_param("iddis", $branch_id, $total_amount, $net_profit, $expenses, $currentDate);
+            //     $stmt2->execute();
+            //     $stmt2->close();
+            // }
         }
         if ($success) {
             $conn->commit();

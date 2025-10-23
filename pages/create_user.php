@@ -1,9 +1,9 @@
 <?php
 include '../includes/db.php';
-include '../includes/header.php';
 include '../includes/auth.php';
+include '../includes/header.php';
 
-//session_start();
+
 
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
     $username = $_POST['username'] ?? '';

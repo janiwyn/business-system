@@ -1,7 +1,7 @@
 <?php
 include '../includes/db.php';
 include '../includes/auth.php';
-require_role(['manager', 'super']);
+require_role(['manager']);
 include '../pages/sidebar.php';
 include '../includes/header.php';
 

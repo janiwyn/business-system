@@ -1,5 +1,4 @@
 <?php
-session_start();
 include '../includes/db.php';
 
 $userId = $_SESSION['user_id'] ?? null;
@@ -61,13 +60,7 @@ $result = $stmt->get_result();
 $user = $result->fetch_assoc();
 ?>
 
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <title>Profile</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
-</head>
-<body>
+
     <!-- NAVBAR -->
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
         <div class="container-fluid">

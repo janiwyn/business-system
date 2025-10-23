@@ -125,23 +125,23 @@ body.dark-mode .sidebar::-webkit-scrollbar-thumb:horizontal {
 </style>
 
 <div class="sidebar">
-    <div class="sidebar-title">Admin Dashboard</div>
+    <div class="sidebar-title">Super Dashboard</div>
     <ul class="sidebar-nav">
-        <li><a href="../pages/admin_dashboard.php"><i class="fa-solid fa-crown"></i> Dashboard</a></li>
-        <li><a href="../pages/branch.php"><i class="fa-solid fa-building"></i> Branches</a></li>
-        <li><a href="../pages/list_branches.php"><i class="fa-solid fa-list"></i> List Branches</a></li>
-        <li><a href="../pages/edit_product.php"><i class="fa-solid fa-box"></i> Edit Product</a></li>
-        <li><a href="../pages/expense.php"><i class="fa-solid fa-wallet"></i> Expenses</a></li>
-        <li><a href="../pages/product.php"><i class="fa-solid fa-cubes"></i> Products</a></li>
-        <li><a href="../pages/sales.php"><i class="fa-solid fa-cart-shopping"></i> Sales</a></li>
-        <li><a href="../pages/employees.php"><i class="fa-solid fa-users"></i> Employees</a></li>
-         <li><a href="../pages/accounting.php"><i class="fa-solid fa-briefcase"></i> Accounting</a></li>
-        <li><a href="../pages/report.php"><i class="fa-solid fa-chart-line"></i> Reports</a></li>
-        <li><a href="../pages/payroll.php"><i class="fa-solid fa-money-check-dollar"></i> Payroll</a></li>
-        <li style="margin-top:2rem;">
-            <a href="../auth/logout.php" class="text-danger fw-bold"><i class="fa-solid fa-right-from-bracket"></i> Logout</a>
-        </li>
+        <li><a href="admin_dashboard.php">Admin</a></li>
+        <li><a href="manager_dashboard.php">Manager</a></li>
+        <li><a href="staff_dashboard.php">Staff</a></li>
+        <li><a href="manage_business.php">Manage Businesses</a></li>
+        <li><a href="manage_admin.php">Manage Admins</a></li>
+        <li><a href="add_admin.php">Add Admins</a></li>
+        <li><a href="subscription.php">Subscription</a></li>
+        <li><a href="super_report.php">Reports & Analytics</a></li>
+        <li><a href="system_updates.php">System Updates</a></li>
+
+
+
+
     </ul>
+
 </div>
 
 <div class="main-container">

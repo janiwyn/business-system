@@ -75,9 +75,12 @@ include '../includes/header.php';
     } else {
       echo "<tr class='table-danger text-center fw-bold'><td colspan='3'>Trial Balance is NOT Balanced ❌</td></tr>";
     }
+    
     ?>
     </tbody>
   </table>
+      <a href="accounting.php" class="btn btn-secondary">← Back</a>
+
 </div>
 
 </body>

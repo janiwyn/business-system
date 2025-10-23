@@ -59,6 +59,7 @@ include '../includes/header.php';
     </div>
 
     <button type="submit" name="save" class="btn btn-success mt-3">Save Transaction</button>
+    <a href="accounting.php" class="btn btn-secondary">← Back</a>
   </form>
 </div>
 

@@ -91,7 +91,6 @@
     <span class="logo-text">Business System</span>
   </div>
   <div class="header-actions">
-    <!-- Notification Icon -->
     <div class="notification-icon position-relative">
       <a href="../pages/notification.php" class="text-white text-decoration-none">
         <i class="fa-solid fa-bell"></i>
@@ -100,7 +99,6 @@
         </span>
       </a>
     </div>
-    <!-- Theme Switch -->
     <div class="theme-switch">
       <input type="checkbox" id="themeToggle" />
       <label for="themeToggle">
@@ -154,5 +152,3 @@
   }
   fetchNotificationCount();
 </script>
-</body>
-</html>

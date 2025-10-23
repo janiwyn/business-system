@@ -11,11 +11,11 @@ if (!isset($_SESSION['user_id'])) {
 }
 
 // Check that branch_id is set for non-admin users
-// if (isset($_SESSION['role']) && $_SESSION['role'] !== 'admin') {
-//     if (!isset($_SESSION['branch_id'])) {
-//         die("No branch assigned to this account. Contact the administrator.");
-//     }
-// }
+if (isset($_SESSION['role']) && $_SESSION['role'] !== 'admin') {
+    if (!isset($_SESSION['branch_id'])) {
+        die("No branch assigned to this account. Contact the administrator.");
+    }
+}
 
 // Improved role-based access control
 function require_role($allowed_roles) {
@@ -25,7 +25,9 @@ function require_role($allowed_roles) {
     }
 
     $user_role = $_SESSION['role'];
-
+if($_SESSION['role'] == 'super'){
+    return; // Super user has access to everything  
+}
     // Handle both string and array input
     if (is_array($allowed_roles)) {
         if (!in_array($user_role, $allowed_roles)) {
