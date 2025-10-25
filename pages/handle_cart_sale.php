@@ -95,8 +95,9 @@ if (isset($_POST['submit_cart']) && !empty($_POST['cart_data'])) {
         $now = date('Y-m-d H:i:s');
         $sold_by = $_SESSION['username'];
         $amount_credited = 0; // If you want to track credited amount, set accordingly
+        // FIX: Use $total as amount_paid (not $amount_paid, which is always 0 for customer file)
         $ct = $conn->prepare("INSERT INTO customer_transactions (customer_id, date_time, products_bought, amount_paid, amount_credited, sold_by, status) VALUES (?, ?, ?, ?, ?, ?, 'paid')");
-        $ct->bind_param("issdds", $customer_id, $now, $products_json, $amount_paid, $amount_credited, $sold_by);
+        $ct->bind_param("issdds", $customer_id, $now, $products_json, $total, $amount_credited, $sold_by);
         $ct->execute();
         $ct->close();
 
