@@ -425,7 +425,7 @@ $cust_stmt->close();
                 </div>
                 <div class="card-body table-responsive">
                     <div class="transactions-table">
-                        <table>
+                        <table class="recent-sales-table">
                             <thead>
                                 <tr>
                                     <th>#</th>
@@ -595,6 +595,90 @@ $cust_stmt->close();
     margin-bottom: 1rem;
 }
 
+/* Match sales.php table styling for Recent Sales */
+.recent-sales-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--card-bg);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 4px 12px var(--card-shadow);
+}
+.recent-sales-table thead {
+    background: var(--primary-color);
+    color: #fff;
+    text-transform: uppercase;
+    font-size: 13px;
+}
+.recent-sales-table tbody td {
+    color: var(--text-color);
+    padding: 0.75rem 1rem;
+}
+.recent-sales-table tbody tr {
+    background-color: #fff;
+    transition: background 0.2s;
+}
+.recent-sales-table tbody tr:nth-child(even) {
+    background-color: #f4f6f9;
+}
+.recent-sales-table tbody tr:hover {
+    background-color: rgba(0,0,0,0.05);
+}
+body.dark-mode .recent-sales-table {
+    background: var(--card-bg);
+}
+body.dark-mode .recent-sales-table thead {
+    background-color: #1abc9c;
+    color: #ffffff;
+}
+body.dark-mode .recent-sales-table tbody tr {
+    background-color: #2c2c3a !important;
+}
+body.dark-mode .recent-sales-table tbody tr:nth-child(even) {
+    background-color: #272734 !important;
+}
+body.dark-mode .recent-sales-table tbody td {
+    color: #ffffff !important;
+}
+body.dark-mode .recent-sales-table tbody td small.text-muted {
+    color: #ffffff !important;
+}
+
+/* Recent Sales card header: match sidebar bg in dark mode, light in light mode */
+.card-header.bg-light {
+    background-color: #f8fafc !important;
+    color: #2c3e50 !important;
+    border-bottom: none;
+}
+body.dark-mode .card-header.bg-light {
+    background-color: #2c3e50 !important; /* sidebar bg */
+    color: #1abc9c !important;
+    border-bottom: none;
+}
+body.dark-mode .card-header.bg-light .title-card,
+body.dark-mode .card-header.bg-light label,
+body.dark-mode .card-header.bg-light select,
+body.dark-mode .card-header.bg-light span {
+    color: #1abc9c !important;
+}
+body.dark-mode .card-header.bg-light .form-select {
+    background-color: #23243a !important;
+    color: #fff !important;
+    border: 1px solid #444 !important;
+}
+body.dark-mode .card-header.bg-light .form-select:focus {
+    background-color: #23243a !important;
+    color: #fff !important;
+}
+body.dark-mode .card-header.bg-light input[type="date"] {
+    background-color: #23243a !important;
+    color: #fff !important;
+    border: 1px solid #444 !important;
+}
+body.dark-mode .card-header.bg-light input[type="date"]::-webkit-calendar-picker-indicator {
+    filter: invert(1);
+}
+
 /* Dark mode styles */
 body.dark-mode .add-sale-card,
 body.dark-mode .add-sale-card .card-header,
@@ -611,7 +695,7 @@ body.dark-mode .add-sale-card label {
     color: #fff !important;
 }
 body.dark-mode .add-sale-card .form-control,
-body.dark-mode .add-sale-card .form-select {
+body.dark_mode .add-sale-card .form-select {
     background-color: #23243a !important;
     color: #fff !important;
     border: 1px solid #444 !important;
