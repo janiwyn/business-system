@@ -1,14 +1,11 @@
 <?php
 include '../includes/db.php';
 include '../includes/auth.php';
-require_role(["admin", "manager"]);
+require_role(["admin", "manager", "super"]);
 include '../pages/sidebar.php';
 include '../includes/header.php';
  ?>
 
-<!DOCTYPE html>
-<html>
-<head>
   <title>Three-Column Cash Book</title>
 </head>
 <body class="bg-light">
@@ -100,6 +97,8 @@ include '../includes/header.php';
     ?>
     </tbody>
   </table>
+      <a href="accounting.php" class="btn btn-secondary">← Back</a>
+
 </div>
 
 </body>

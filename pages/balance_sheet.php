@@ -164,6 +164,8 @@ include '../includes/header.php';
       ?>
     </div>
   </div>
+      <a href="accounting.php" class="btn btn-secondary">← Back</a>
+
 </div>
 
 </body>

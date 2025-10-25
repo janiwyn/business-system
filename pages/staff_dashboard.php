@@ -131,25 +131,25 @@ if (isset($_POST['add_sale'])) {
 
 
         // Update profits
-        if ($profit_result) {
-            $total_amount = $profit_result['total'] + $total_profit;
-            $expenses     = $profit_result['expenses'] ?? 0;
-            $net_profit   = $total_amount - $expenses;
+        // if ($profit_result) {
+        //     $total_amount = $profit_result['total'] + $total_profit;
+        //     $expenses     = $profit_result['expenses'] ?? 0;
+        //     $net_profit   = $total_amount - $expenses;
 
-            $stmt2 = $conn->prepare("UPDATE profits SET total=?, `net-profits`=? WHERE date=? AND `branch-id`=?");
-            $stmt2->bind_param("ddsi", $total_amount, $net_profit, $currentDate, $branch_id);
-            $stmt2->execute();
-            $stmt2->close();
-        } else {
-            $total_amount = $total_profit;
-            $net_profit   = $total_profit;
-            $expenses     = 0;
+        //     $stmt2 = $conn->prepare("UPDATE profits SET total=?, `net-profits`=? WHERE date=? AND `branch-id`=?");
+        //     $stmt2->bind_param("ddsi", $total_amount, $net_profit, $currentDate, $branch_id);
+        //     $stmt2->execute();
+        //     $stmt2->close();
+        // } else {
+        //     $total_amount = $total_profit;
+        //     $net_profit   = $total_profit;
+        //     $expenses     = 0;
 
-            $stmt2 = $conn->prepare("INSERT INTO profits (`branch-id`, total, `net-profits`, expenses, date) VALUES (?, ?, ?, ?, ?)");
-            $stmt2->bind_param("iddis", $branch_id, $total_amount, $net_profit, $expenses, $currentDate);
-            $stmt2->execute();
-            $stmt2->close();
-        }
+        //     $stmt2 = $conn->prepare("INSERT INTO profits (`branch-id`, total, `net-profits`, expenses, date) VALUES (?, ?, ?, ?, ?)");
+        //     $stmt2->bind_param("iddis", $branch_id, $total_amount, $net_profit, $expenses, $currentDate);
+        //     $stmt2->execute();
+        //     $stmt2->close();
+        // }
     }
 }
 

@@ -34,6 +34,7 @@ include '../includes/header.php';
     </div>
 
     <button type="submit" name="save" class="btn btn-primary">Save Account</button>
+    <a href="accounting.php" class="btn btn-secondary">← Back</a>
   </form>
 </div>
 

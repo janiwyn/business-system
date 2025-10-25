@@ -1,5 +1,4 @@
 <?php
-session_start();
 include '../includes/db.php';
 include '../includes/auth.php';
 require_role(["admin", "manager"]);
@@ -25,7 +24,7 @@ if (isset($_POST['save_payroll'])) {
     $other_deductions = $_POST['other_deductions'];
 
     // ✅ Get base salary
-    $emp = mysqli_fetch_assoc(mysqli_query($conn, "SELECT base_salary FROM employees WHERE `user-id`='$user_id'"));
+    $emp = mysqli_fetch_assoc(mysqli_query($conn, "SELECT base_salary FROM employees WHERE id='$user_id'"));
     $base_salary = $emp['base_salary'] ?? 0;
 
     $gross = $base_salary + $transport + $housing + $medical + $overtime;
@@ -155,7 +154,6 @@ body.dark-mode .transactions-table tbody tr:hover {
 }
 </style>
 
-<body class="bg-light">
 <div class="container mt-4">
     <h3 class="mb-3" style="color:var(--primary-color);font-weight:700;">Payroll Management</h3>
 

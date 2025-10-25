@@ -7,7 +7,7 @@ error_reporting(E_ALL);
 session_start();
 include '../includes/db.php';
 include '../includes/auth.php';
-require_role(["admin","manager","staff"]);
+require_role(["admin","manager","staff", "super"]);
 
 // --- AJAX HANDLER MUST BE BEFORE ANY HTML OR INCLUDES ---
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {

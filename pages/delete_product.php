@@ -1,7 +1,7 @@
 <?php
 include '../includes/db.php';
-include '../includes/header.php';
 include '../includes/auth.php';
+include '../includes/header.php';
 
 // Correct usage: roles as an array
 require_role(["manager", "admin"]);
