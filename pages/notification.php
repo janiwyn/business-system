@@ -72,7 +72,7 @@ if ($role === 'staff' || $role === 'manager' || $role === 'admin') {
                     </div>
                     <div>
                         <button class="btn btn-sm btn-warning snooze-btn">Snooze</button>
-                        <button class="btn btn-sm btn-success confirm-btn">Confirm</button>
+                        <button class="btn btn-sm btn-danger confirm-btn">Clear</button>
                     </div>
                 </div>
             <?php endforeach; ?>
@@ -80,6 +80,25 @@ if ($role === 'staff' || $role === 'manager' || $role === 'admin') {
     <?php else: ?>
         <div class="alert alert-info">No notifications available.</div>
     <?php endif; ?>
+</div>
+
+<!-- Confirmation Modal -->
+<div class="modal fade" id="clearNotifModal" tabindex="-1" aria-labelledby="clearNotifModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="clearNotifModalLabel">Clear Notification</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        Are you sure you want to clear this notification? This action cannot be undone.
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" id="confirmClearBtn" class="btn btn-danger">Clear</button>
+      </div>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -120,11 +139,49 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     });
 
-    // Confirm button functionality
+    let notifToClear = null;
+
+    // Change Confirm button to Clear and handle modal
     document.querySelectorAll('.confirm-btn').forEach(btn => {
+        btn.textContent = 'Clear';
+        btn.classList.remove('btn-success');
+        btn.classList.add('btn-danger');
         btn.addEventListener('click', function () {
-            const notification = this.closest('.list-group-item');
-            notification.remove();
+            notifToClear = this.closest('.list-group-item');
+            // Show modal
+            const modal = new bootstrap.Modal(document.getElementById('clearNotifModal'));
+            modal.show();
+        });
+    });
+
+    // Handle modal confirm
+    document.getElementById('confirmClearBtn').addEventListener('click', function () {
+        if (!notifToClear) return;
+        // Get notification type and product name if low stock
+        const notifType = notifToClear.querySelector('strong')?.textContent || '';
+        let productName = '';
+        if (notifType.includes('Low Stock')) {
+            const msg = notifToClear.querySelector('.list-group-item div').textContent;
+            const match = msg.match(/Product '([^']+)'/);
+            if (match) productName = match[1];
+        }
+        // Remove notification from UI
+        notifToClear.remove();
+        notifToClear = null;
+        // Hide modal
+        bootstrap.Modal.getInstance(document.getElementById('clearNotifModal')).hide();
+
+        // AJAX: clear notification server-side
+        fetch('clear_notification.php', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+            body: `type=${encodeURIComponent(notifType)}&product=${encodeURIComponent(productName)}`
+        }).then(res => res.json()).then(data => {
+            // Optionally show a toast or message
+            if (data.success && notifType.includes('Low Stock')) {
+                // Optionally trigger update in staff dashboard via localStorage or event
+                localStorage.setItem('lowStockCleared', productName);
+            }
         });
     });
 });

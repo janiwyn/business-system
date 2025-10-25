@@ -1,12 +1,15 @@
 <?php
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
+
+// Always include db/auth BEFORE AJAX handler!
 session_start();
 include '../includes/db.php';
 include '../includes/auth.php';
 require_role(["admin","manager","staff", "super"]);
 
-
-
-// Handle AJAX and form requests (create/update/add-money/delete/fetch)
+// --- AJAX HANDLER MUST BE BEFORE ANY HTML OR INCLUDES ---
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     header('Content-Type: application/json; charset=utf-8');
     $action = $_POST['action'];
@@ -36,22 +39,51 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             echo json_encode(['success'=>false,'message'=>'Invalid input']);
             exit;
         }
-        // Update account_balance
-        $stmt = $conn->prepare("UPDATE customers SET account_balance = account_balance + ? WHERE id = ?");
-        $stmt->bind_param("di", $amount, $customer_id);
+        // Fetch current credited amount and balance
+        $stmt = $conn->prepare("SELECT amount_credited, account_balance FROM customers WHERE id = ?");
+        $stmt->bind_param("i", $customer_id);
+        $stmt->execute();
+        $cust = $stmt->get_result()->fetch_assoc();
+        $stmt->close();
+
+        $credited = floatval($cust['amount_credited'] ?? 0);
+        $balance = floatval($cust['account_balance'] ?? 0);
+
+        $amount_to_credit = min($amount, $credited);
+        $amount_to_balance = $amount - $amount_to_credit;
+
+        // Update credited and balance
+        $stmt = $conn->prepare("UPDATE customers SET amount_credited = amount_credited - ?, account_balance = account_balance + ? WHERE id = ?");
+        $stmt->bind_param("ddi", $amount_to_credit, $amount_to_balance, $customer_id);
         $ok = $stmt->execute();
         $stmt->close();
+
         if ($ok) {
-            // record transaction
             $now = date('Y-m-d H:i:s');
-            $products = 'Account Top-up';
-            $amount_paid = $amount;
-            $amount_credited = 0;
             $sold_by = $_SESSION['username'];
-            $stmt2 = $conn->prepare("INSERT INTO customer_transactions (customer_id, date_time, products_bought, amount_paid, amount_credited, sold_by) VALUES (?, ?, ?, ?, ?, ?)");
-            $stmt2->bind_param("issdds", $customer_id, $now, $products, $amount_paid, $amount_credited, $sold_by);
-            $stmt2->execute();
-            $stmt2->close();
+
+            // 1. Record deduction transaction if any credited amount was paid off
+            if ($amount_to_credit > 0) {
+                $products = 'Account Deduction';
+                $amount_paid = $amount_to_credit;
+                $amount_credited = $amount_to_credit;
+                $stmt2 = $conn->prepare("INSERT INTO customer_transactions (customer_id, date_time, products_bought, amount_paid, amount_credited, sold_by) VALUES (?, ?, ?, ?, ?, ?)");
+                $stmt2->bind_param("issdds", $customer_id, $now, $products, $amount_paid, $amount_credited, $sold_by);
+                $stmt2->execute();
+                $stmt2->close();
+            }
+
+            // 2. Record top-up transaction for remaining balance
+            if ($amount_to_balance > 0) {
+                $products = 'Account Top-up';
+                $amount_paid = $amount_to_balance;
+                $amount_credited = 0;
+                $stmt2 = $conn->prepare("INSERT INTO customer_transactions (customer_id, date_time, products_bought, amount_paid, amount_credited, sold_by) VALUES (?, ?, ?, ?, ?, ?)");
+                $stmt2->bind_param("issdds", $customer_id, $now, $products, $amount_paid, $amount_credited, $sold_by);
+                $stmt2->execute();
+                $stmt2->close();
+            }
+
             echo json_encode(['success'=>true]);
         } else {
             echo json_encode(['success'=>false,'message'=>'Failed to update balance']);
@@ -78,7 +110,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         exit;
     }
 }
-
 if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['fetch_transactions'])) {
     $customer_id = intval($_GET['customer_id'] ?? 0);
     $out = ['success'=>false,'rows'=>[]];
@@ -146,7 +177,7 @@ $customers = $customers_res ? $customers_res->fetch_all(MYSQLI_ASSOC) : [];
                 <input name="opening_date" type="date" class="form-control" value="<?= date('Y-m-d') ?>">
               </div>
               <div class="col-12 text-end">
-                <button class="btn btn-primary" id="createCustomerBtn">Create Customer</button>
+                <button type="submit" class="btn btn-primary" id="createCustomerBtn">Create Customer</button>
               </div>
             </form>
             <div id="createMsg" class="mt-3"></div>
@@ -157,7 +188,7 @@ $customers = $customers_res ? $customers_res->fetch_all(MYSQLI_ASSOC) : [];
       <!-- VIEW -->
       <div class="tab-pane fade" id="tab-view">
         <div class="card mb-4">
-          <div class="card-header">View Customer Files</div>
+          <div class="card-header" color = #1abc9c><b>View Customer Files</b></div>
           <div class="card-body">
             <?php if (count($customers)): ?>
               <div class="transactions-table">
@@ -297,13 +328,63 @@ $customers = $customers_res ? $customers_res->fetch_all(MYSQLI_ASSOC) : [];
   </div>
 
 
+<style>
+/* ...existing code... */
+body.dark-mode,
+body.dark-mode .card,
+body.dark-mode .card-header,
+body.dark-mode .title-card,
+body.dark-mode .form-label,
+body.dark-mode label,
+body.dark-mode .card-body,
+body.dark-mode .transactions-table thead,
+body.dark-mode .transactions-table tbody td,
+body.dark-mode .transactions-table tbody tr,
+body.dark-mode .alert,
+body.dark-mode .nav-tabs .nav-link,
+body.dark-mode .accordion-button,
+body.dark-mode .accordion-body {
+    color: #fff !important;
+    background-color: #23243a !important;
+}
+body.dark-mode .transactions-table thead {
+    background-color: #1abc9c !important;
+    color: #fff !important;
+}
+body.dark-mode .transactions-table tbody tr {
+    background-color: #2c2c3a !important;
+}
+body.dark-mode .transactions-table tbody tr:nth-child(even) {
+    background-color: #272734 !important;
+}
+body.dark-mode .form-control,
+body.dark-mode .form-select {
+    background-color: #23243a !important;
+    color: #fff !important;
+    border: 1px solid #444 !important;
+}
+body.dark-mode .form-control:focus,
+body.dark-mode .form-select:focus {
+    background-color: #23243a !important;
+    color: #fff !important;
+}
+body.dark-mode .btn,
+body.dark-mode .btn-primary,
+body.dark-mode .btn-success,
+body.dark-mode .btn-danger,
+body.dark-mode .btn-warning {
+    color: #fff !important;
+}
+</style>
+
 <script>
 /* Create customer via AJAX */
 document.getElementById('createCustomerForm').addEventListener('submit', async function(e){
   e.preventDefault();
   const form = new FormData(this);
   form.append('action','create_customer');
-  const res = await fetch('customer_management.php', {method:'POST', body: form});
+  // Use current page for AJAX POST
+  const res = await fetch(location.pathname, {method:'POST', body: form});
   const data = await res.json();
   const msg = document.getElementById('createMsg');
   if (data.success) {
@@ -375,9 +456,41 @@ document.querySelectorAll('#customersAccordion .accordion-button').forEach(btn=>
     const data = await res.json();
     if (!data.success) { container.innerHTML = '<div class="text-muted">No transactions.</div>'; return; }
     if (!data.rows.length) { container.innerHTML = '<div class="text-muted">No transactions.</div>'; container.dataset.loaded = '1'; return; }
-    let html = '<div class="transactions-table"><table><thead><tr><th>Date & Time</th><th>Products Bought</th><th>Amount Paid</th><th>Amount Credited</th><th>Sold By</th></tr></thead><tbody>';
+
+    // Build table with parsed products and quantity column
+    let html = '<div class="transactions-table"><table><thead><tr><th>Date & Time</th><th>Products</th><th class="text-center">Quantity</th><th class="text-end">Amount Paid</th><th class="text-end">Amount Credited</th><th>Sold By</th></tr></thead><tbody>';
     data.rows.forEach(r=>{
-      html += `<tr><td>${r.date_time}</td><td>${escapeHtml(r.products_bought)}</td><td class="text-end">UGX ${parseFloat(r.amount_paid).toFixed(2)}</td><td class="text-end">UGX ${parseFloat(r.amount_credited).toFixed(2)}</td><td>${escapeHtml(r.sold_by)}</td></tr>`;
+      // parse products_bought JSON if possible
+      let prodDisplay = '';
+      let totalQty = 0;
+      try {
+        const pb = JSON.parse(r.products_bought || '[]');
+        if (Array.isArray(pb)) {
+          const parts = pb.map(p => {
+            const name = (p.name || p.product || '').toString();
+            const qty = parseInt(p.quantity || p.qty || 0) || 0;
+            totalQty += qty;
+            return `${escapeHtml(name)} x${qty}`;
+          });
+          prodDisplay = parts.join(', ');
+        } else {
+          prodDisplay = escapeHtml(String(r.products_bought || ''));
+        }
+      } catch (err) {
+        prodDisplay = escapeHtml(String(r.products_bought || ''));
+      }
+
+      const paid = parseFloat(r.amount_paid || 0).toFixed(2);
+      const credited = parseFloat(r.amount_credited || 0).toFixed(2);
+      const soldBy = escapeHtml(r.sold_by || '');
+      html += `<tr>
+                 <td>${escapeHtml(r.date_time)}</td>
+                 <td>${prodDisplay || '-'}</td>
+                 <td class="text-center">${totalQty}</td>
+                 <td class="text-end">UGX ${paid}</td>
+                 <td class="text-end">UGX ${credited}</td>
+                 <td>${soldBy}</td>
+               </tr>`;
     });
     html += '</tbody></table></div>';
     container.innerHTML = html;

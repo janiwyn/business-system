@@ -46,3 +46,6 @@ CREATE TABLE announcements (
     message TEXT,
     date_sent DATETIME DEFAULT CURRENT_TIMESTAMP
 );
+
+
+ALTER TABLE customers ADD COLUMN opening_date DATE DEFAULT CURDATE();
