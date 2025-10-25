@@ -262,7 +262,7 @@ $cust_stmt->close();
     <?php endif; ?>
 
     <!-- Sale Entry Form -->
-    <div class="card mb-4">
+    <div class="card add-sale-card mb-4">
         <div class="card-header">Add Sale</div>
         <div class="card-body">
             <form id="addSaleForm" class="row g-3" onsubmit="return false;">
@@ -553,50 +553,77 @@ $cust_stmt->close();
 </div>
 
 <style>
-/* ...existing code... */
-body.dark-mode,
-body.dark-mode .card,
-body.dark-mode .card-header,
-body.dark-mode .title-card,
-body.dark-mode .form-label,
-body.dark-mode label,
-body.dark-mode .card-body,
-body.dark-mode .transactions-table thead,
-body.dark-mode .transactions-table tbody td,
-body.dark-mode .transactions-table tbody tr,
-body.dark-mode .alert,
-body.dark-mode .nav-tabs .nav-link,
-body.dark-mode .accordion-button,
-body.dark-mode .accordion-body {
+/* Add Sale Form Styling (match product.php) */
+.add-sale-card {
+    border-radius: 12px;
+    box-shadow: 0px 4px 12px rgba(0,0,0,0.08);
+    margin-bottom: 2rem;
+}
+.add-sale-card .card-header {
+    font-weight: bold;
+    background: var(--primary-color);
     color: #fff !important;
+    border-radius: 12px 12px 0 0 !important;
+    font-size: 1.1rem;
+    letter-spacing: 1px;
+}
+.add-sale-card .form-control,
+.add-sale-card .form-select {
+    border-radius: 8px;
+}
+.add-sale-card .btn-primary,
+.add-sale-card .btn-success {
+    background: var(--primary-color) !important;
+    border: none;
+    border-radius: 8px;
+    font-weight: 600;
+    color: #fff !important;
+    box-shadow: 0px 3px 8px rgba(0,0,0,0.2);
+    transition: background 0.2s;
+}
+.add-sale-card .btn-primary:hover,
+.add-sale-card .btn-primary:focus,
+.add-sale-card .btn-success:hover,
+.add-sale-card .btn-success:focus {
+    background: #159c8c !important;
+    color: #fff !important;
+}
+.add-sale-card .form-label {
+    font-weight: 600;
+}
+.add-sale-card .row.g-3 > div {
+    margin-bottom: 1rem;
+}
+
+/* Dark mode styles */
+body.dark-mode .add-sale-card,
+body.dark-mode .add-sale-card .card-header,
+body.dark-mode .add-sale-card .card-body {
     background-color: #23243a !important;
-}
-body.dark-mode .transactions-table thead {
-    background-color: #1abc9c !important;
     color: #fff !important;
 }
-body.dark-mode .transactions-table tbody tr {
-    background-color: #2c2c3a !important;
+body.dark-mode .add-sale-card .card-header {
+    background-color: #2c3e50 !important;
+    color: #1abc9c !important;
 }
-body.dark-mode .transactions-table tbody tr:nth-child(even) {
-    background-color: #272734 !important;
+body.dark-mode .add-sale-card .form-label,
+body.dark-mode .add-sale-card label {
+    color: #fff !important;
 }
-body.dark-mode .form-control,
-body.dark-mode .form-select {
+body.dark-mode .add-sale-card .form-control,
+body.dark-mode .add-sale-card .form-select {
     background-color: #23243a !important;
     color: #fff !important;
     border: 1px solid #444 !important;
 }
-body.dark-mode .form-control:focus,
-body.dark-mode .form-select:focus {
+body.dark-mode .add-sale-card .form-control:focus,
+body.dark-mode .add-sale-card .form-select:focus {
     background-color: #23243a !important;
     color: #fff !important;
 }
-body.dark-mode .btn,
-body.dark-mode .btn-primary,
-body.dark-mode .btn-success,
-body.dark-mode .btn-danger,
-body.dark-mode .btn-warning {
+body.dark-mode .add-sale-card .btn,
+body.dark-mode .add-sale-card .btn-primary,
+body.dark-mode .add-sale-card .btn-success {
     color: #fff !important;
 }
 </style>
