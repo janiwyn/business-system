@@ -54,45 +54,100 @@ if (!$c) { echo "<div class='container mt-5'><div class='alert alert-danger'>Cus
                 <th class="text-end">Amount Topped Up</th>
                 <th class="text-end">Amount Credited</th>
                 <th class="text-end">Amount Deducted</th>
+                <th class="text-end">Account Balance</th>
                 <th>Served By</th>
               </tr>
             </thead>
             <tbody>
               <?php
-              $tstmt = $conn->prepare("SELECT * FROM customer_transactions WHERE customer_id = ? ORDER BY date_time DESC LIMIT 50");
+              $tstmt = $conn->prepare("SELECT * FROM customer_transactions WHERE customer_id = ? ORDER BY date_time ASC");
               $tstmt->bind_param("i", $id);
               $tstmt->execute();
               $trs = $tstmt->get_result();
-              $found = false;
-              if ($trs->num_rows) {
-                while ($tr = $trs->fetch_assoc()) {
+
+              // Prepare grouping by date
+              $grouped = [];
+              while ($tr = $trs->fetch_assoc()) {
                   $pb = $tr['products_bought'] ?? '';
-                  $is_topup = (trim($pb) === 'Account Top-up');
-                  $is_deduction = (trim($pb) === 'Account Deduction');
-                  // Only show top-ups and deductions
-                  if (!$is_topup && !$is_deduction) continue;
-
-                  $found = true;
-                  $dt = htmlspecialchars($tr['date_time'] ?? $tr['date'] ?? '');
-                  $served_by = htmlspecialchars($tr['sold_by'] ?? '-');
-                  $amount_paid = number_format(floatval($tr['amount_paid'] ?? 0), 2);
-                  $amount_credited = number_format(floatval($tr['amount_credited'] ?? 0), 2);
-                  $amount_deducted = $is_deduction ? $amount_paid : '0.00';
-
-                  echo "<tr>
-                          <td>{$dt}</td>
-                          <td>" . ($is_topup ? 'Top-up' : 'Deduction') . "</td>
-                          <td class='text-end'>" . ($is_topup ? "UGX {$amount_paid}" : '-') . "</td>
-                          <td class='text-end'>" . ($is_topup ? "UGX {$amount_credited}" : '-') . "</td>
-                          <td class='text-end'>" . ($is_deduction ? "UGX {$amount_deducted}" : '-') . "</td>
-                          <td>{$served_by}</td>
-                        </tr>";
-                }
-              }
-              if (!$found) {
-                echo "<tr><td colspan='6' class='text-center text-muted'>No account top-ups or deductions yet.</td></tr>";
+                  $dt = $tr['date_time'] ?? $tr['date'] ?? '';
+                  $date_key = date('Y-m-d', strtotime($dt));
+                  if (!isset($grouped[$date_key])) $grouped[$date_key] = [];
+                  $grouped[$date_key][] = $tr;
               }
               $tstmt->close();
+
+              // Calculate running balance
+              $start_balance = floatval($c['account_balance'] ?? 0);
+              $start_credited = floatval($c['amount_credited'] ?? 0);
+              $balance = 0;
+              $credited = 0;
+              $rows = [];
+              // Build rows in reverse (latest first)
+              $dates = array_reverse(array_keys($grouped));
+              foreach ($dates as $date_key) {
+                  $topup = null;
+                  $deduction = null;
+                  $served_by = '-';
+                  $dt_display = '';
+                  foreach ($grouped[$date_key] as $tr) {
+                      $pb = $tr['products_bought'] ?? '';
+                      if (trim($pb) === 'Account Top-up') $topup = $tr;
+                      if (trim($pb) === 'Account Deduction') $deduction = $tr;
+                      $served_by = htmlspecialchars($tr['sold_by'] ?? '-');
+                      $dt_display = htmlspecialchars($tr['date_time'] ?? $tr['date'] ?? '');
+                  }
+                  // Calculate amounts
+                  $amount_topup = $topup ? floatval($topup['amount_paid'] ?? 0) : 0;
+                  $amount_credited = $topup ? floatval($topup['amount_credited'] ?? 0) : 0;
+                  $amount_deducted = $deduction ? floatval($deduction['amount_paid'] ?? 0) : 0;
+
+                  // Type column
+                  if ($topup && $deduction) {
+                      $type = 'TOP UP AND REDUCTION';
+                  } elseif ($topup) {
+                      $type = 'TOP UP';
+                  } elseif ($deduction) {
+                      $type = 'REDUCTION';
+                  } else {
+                      continue;
+                  }
+
+                  // Calculate balance after this transaction
+                  // Start from initial balance, subtract all later deductions, add all later topups
+                  // So we process in reverse and update running balance
+                  if ($balance === 0) $balance = $start_balance;
+                  if ($credited === 0) $credited = $start_credited;
+                  // For display, balance after this transaction
+                  $balance += $amount_topup;
+                  $balance -= $amount_deducted;
+                  $credited -= $amount_credited;
+
+                  $rows[] = [
+                      'dt' => $dt_display,
+                      'type' => $type,
+                      'amount_topup' => $amount_topup,
+                      'amount_credited' => $amount_credited,
+                      'amount_deducted' => $amount_deducted,
+                      'balance' => $balance,
+                      'served_by' => $served_by
+                  ];
+              }
+
+              if (count($rows)) {
+                  foreach ($rows as $row) {
+                      echo "<tr>
+                          <td>{$row['dt']}</td>
+                          <td>{$row['type']}</td>
+                          <td class='text-end'>" . ($row['amount_topup'] ? "UGX " . number_format($row['amount_topup'],2) : '-') . "</td>
+                          <td class='text-end'>" . ($row['amount_credited'] ? "UGX " . number_format($row['amount_credited'],2) : '-') . "</td>
+                          <td class='text-end'>" . ($row['amount_deducted'] ? "UGX " . number_format($row['amount_deducted'],2) : '-') . "</td>
+                          <td class='text-end'>UGX " . number_format($row['balance'],2) . "</td>
+                          <td>{$row['served_by']}</td>
+                      </tr>";
+                  }
+              } else {
+                  echo "<tr><td colspan='7' class='text-center text-muted'>No account top-ups or deductions yet.</td></tr>";
+              }
               ?>
             </tbody>
           </table>
