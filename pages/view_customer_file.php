@@ -68,7 +68,6 @@ if (!$c) { echo "<div class='container mt-5'><div class='alert alert-danger'>Cus
               // Prepare grouping by date
               $grouped = [];
               while ($tr = $trs->fetch_assoc()) {
-                  $pb = $tr['products_bought'] ?? '';
                   $dt = $tr['date_time'] ?? $tr['date'] ?? '';
                   $date_key = date('Y-m-d', strtotime($dt));
                   if (!isset($grouped[$date_key])) $grouped[$date_key] = [];
@@ -83,43 +82,50 @@ if (!$c) { echo "<div class='container mt-5'><div class='alert alert-danger'>Cus
               $dates = array_keys($grouped); // chronological order
               foreach ($dates as $date_key) {
                   $topup = null;
-                  $deduction = null;
+                  $deduction = 0;
+                  $purchase_deduction = 0;
+                  $amount_credited = 0;
                   $served_by = '-';
                   $dt_display = '';
+                  $type = [];
                   foreach ($grouped[$date_key] as $tr) {
                       $pb = $tr['products_bought'] ?? '';
-                      if (trim($pb) === 'Account Top-up') $topup = $tr;
-                      if (trim($pb) === 'Account Deduction') $deduction = $tr;
                       $served_by = htmlspecialchars($tr['sold_by'] ?? '-');
                       $dt_display = htmlspecialchars($tr['date_time'] ?? $tr['date'] ?? '');
+
+                      if (trim($pb) === 'Account Top-up') {
+                          $topup = $tr;
+                          $amount_credited += floatval($tr['amount_credited'] ?? 0);
+                          $type[] = 'TOP UP';
+                      } elseif (trim($pb) === 'Account Deduction') {
+                          $deduction += floatval($tr['amount_paid'] ?? 0);
+                          $amount_credited += floatval($tr['amount_credited'] ?? 0);
+                          $type[] = 'REDUCTION';
+                      } else {
+                          // Purchases: products_bought is not a string, or is a JSON array
+                          // Only count as deduction if amount_paid > 0
+                          $purchase_deduction += floatval($tr['amount_paid'] ?? 0);
+                          $type[] = 'PURCHASE';
+                      }
                   }
                   // Calculate amounts
                   $amount_topup = $topup ? floatval($topup['amount_paid'] ?? 0) : 0;
-                  $amount_credited = $topup ? floatval($topup['amount_credited'] ?? 0) : 0;
-                  $amount_deducted = $deduction ? floatval($deduction['amount_paid'] ?? 0) : 0;
+                  $total_deducted = $deduction + $purchase_deduction;
 
                   // Type column
-                  if ($topup && $deduction) {
-                      $type = 'TOP UP AND REDUCTION';
-                  } elseif ($topup) {
-                      $type = 'TOP UP';
-                  } elseif ($deduction) {
-                      $type = 'REDUCTION';
-                  } else {
-                      continue;
-                  }
+                  $type_str = implode(' AND ', array_unique($type));
 
                   // Update running balance
                   $balance += $amount_topup;
-                  $balance -= $amount_deducted;
+                  $balance -= $total_deducted;
                   $credited -= $amount_credited;
 
                   $rows[] = [
                       'dt' => $dt_display,
-                      'type' => $type,
+                      'type' => $type_str,
                       'amount_topup' => $amount_topup,
                       'amount_credited' => $amount_credited,
-                      'amount_deducted' => $amount_deducted,
+                      'amount_deducted' => $total_deducted,
                       'balance' => $balance,
                       'served_by' => $served_by
                   ];

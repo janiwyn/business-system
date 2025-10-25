@@ -19,3 +19,6 @@ CREATE TABLE IF NOT EXISTS customer_transactions (
   sold_by VARCHAR(255),
   FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE
 );
+
+
+ALTER TABLE customers ADD COLUMN opening_date DATE DEFAULT CURDATE();
