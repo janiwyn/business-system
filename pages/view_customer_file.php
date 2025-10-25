@@ -50,54 +50,47 @@ if (!$c) { echo "<div class='container mt-5'><div class='alert alert-danger'>Cus
             <thead>
               <tr>
                 <th>Date & Time</th>
-                <th>Products</th>
-                <th class="text-center">Quantity</th>
-                <th class="text-end">Amount Paid</th>
+                <th>Top-up/Deduction</th>
+                <th class="text-end">Amount Topped Up</th>
                 <th class="text-end">Amount Credited</th>
-                <th>Sold By</th>
+                <th class="text-end">Amount Deducted</th>
+                <th>Served By</th>
               </tr>
             </thead>
             <tbody>
               <?php
-              $tstmt = $conn->prepare("SELECT * FROM customer_transactions WHERE customer_id = ? ORDER BY date_time DESC LIMIT 20");
+              $tstmt = $conn->prepare("SELECT * FROM customer_transactions WHERE customer_id = ? ORDER BY date_time DESC LIMIT 50");
               $tstmt->bind_param("i", $id);
               $tstmt->execute();
               $trs = $tstmt->get_result();
+              $found = false;
               if ($trs->num_rows) {
                 while ($tr = $trs->fetch_assoc()) {
-                  // decode products_bought (may be JSON array) and compute display + total quantity
-                  $products_display = '';
-                  $total_qty = 0;
                   $pb = $tr['products_bought'] ?? '';
-                  $decoded = json_decode($pb, true);
-                  if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
-                      $parts = [];
-                      foreach ($decoded as $p) {
-                          $pname = htmlspecialchars($p['name'] ?? $p['product'] ?? '');
-                          $pqty = intval($p['quantity'] ?? $p['qty'] ?? 0);
-                          if ($pname !== '') $parts[] = $pname . ' x' . $pqty;
-                          $total_qty += $pqty;
-                      }
-                      $products_display = implode(', ', $parts);
-                  } else {
-                      $products_display = htmlspecialchars($pb);
-                  }
+                  $is_topup = (trim($pb) === 'Account Top-up');
+                  $is_deduction = (trim($pb) === 'Account Deduction');
+                  // Only show top-ups and deductions
+                  if (!$is_topup && !$is_deduction) continue;
 
+                  $found = true;
+                  $dt = htmlspecialchars($tr['date_time'] ?? $tr['date'] ?? '');
+                  $served_by = htmlspecialchars($tr['sold_by'] ?? '-');
                   $amount_paid = number_format(floatval($tr['amount_paid'] ?? 0), 2);
                   $amount_credited = number_format(floatval($tr['amount_credited'] ?? 0), 2);
-                  $sold_by = htmlspecialchars($tr['sold_by'] ?? '-');
-                  $dt = htmlspecialchars($tr['date_time'] ?? $tr['date'] ?? '');
+                  $amount_deducted = $is_deduction ? $amount_paid : '0.00';
+
                   echo "<tr>
                           <td>{$dt}</td>
-                          <td>" . ($products_display ?: '-') . "</td>
-                          <td class='text-center'>{$total_qty}</td>
-                          <td class='text-end'>UGX {$amount_paid}</td>
-                          <td class='text-end'>UGX {$amount_credited}</td>
-                          <td>{$sold_by}</td>
+                          <td>" . ($is_topup ? 'Top-up' : 'Deduction') . "</td>
+                          <td class='text-end'>" . ($is_topup ? "UGX {$amount_paid}" : '-') . "</td>
+                          <td class='text-end'>" . ($is_topup ? "UGX {$amount_credited}" : '-') . "</td>
+                          <td class='text-end'>" . ($is_deduction ? "UGX {$amount_deducted}" : '-') . "</td>
+                          <td>{$served_by}</td>
                         </tr>";
                 }
-              } else {
-                echo "<tr><td colspan='6' class='text-center text-muted'>No transactions yet.</td></tr>";
+              }
+              if (!$found) {
+                echo "<tr><td colspan='6' class='text-center text-muted'>No account top-ups or deductions yet.</td></tr>";
               }
               $tstmt->close();
               ?>
