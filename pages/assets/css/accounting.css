@@ -547,3 +547,217 @@ body.dark-mode .cash-book-table .table-info {
     background-color: #159c8c !important;
     color: #fff !important;
 }
+
+/* Income Table/Card Styling */
+.income-card {
+    border-radius: 12px;
+    box-shadow: 0px 4px 12px rgba(0,0,0,0.08);
+    background: var(--card-bg);
+}
+.income-header {
+    font-weight: bold;
+    background: var(--success-color);
+    color: #fff !important;
+    border-radius: 12px 12px 0 0 !important;
+    font-size: 1.1rem;
+    letter-spacing: 1px;
+}
+.income-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--card-bg);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 4px 12px var(--card-shadow);
+}
+.income-table thead {
+    background: var(--success-color);
+    color: #fff;
+    text-transform: uppercase;
+    font-size: 13px;
+}
+.income-table tbody td {
+    color: var(--text-color);
+    padding: 0.75rem 1rem;
+}
+.income-table tbody tr {
+    background-color: #fff;
+    transition: background 0.2s;
+}
+.income-table tbody tr:nth-child(even) {
+    background-color: #f4f6f9;
+}
+.income-table tbody tr:hover {
+    background-color: rgba(0,0,0,0.05);
+}
+.income-table .fw-bold {
+    font-weight: bold;
+}
+.income-table .table-secondary {
+    background-color: #f1f1f1;
+}
+
+/* Expenses Table/Card Styling */
+.expense-card {
+    border-radius: 12px;
+    box-shadow: 0px 4px 12px rgba(0,0,0,0.08);
+    background: var(--card-bg);
+}
+.expense-header {
+    font-weight: bold;
+    background: var(--danger-color);
+    color: #fff !important;
+    border-radius: 12px 12px 0 0 !important;
+    font-size: 1.1rem;
+    letter-spacing: 1px;
+}
+.expense-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--card-bg);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 4px 12px var(--card-shadow);
+}
+.expense-table thead {
+    background: var(--danger-color);
+    color: #fff;
+    text-transform: uppercase;
+    font-size: 13px;
+}
+.expense-table tbody td {
+    color: var(--text-color);
+    padding: 0.75rem 1rem;
+}
+.expense-table tbody tr {
+    background-color: #fff;
+    transition: background 0.2s;
+}
+.expense-table tbody tr:nth-child(even) {
+    background-color: #f4f6f9;
+}
+.expense-table tbody tr:hover {
+    background-color: rgba(0,0,0,0.05);
+}
+.expense-table .fw-bold {
+    font-weight: bold;
+}
+.expense-table .table-secondary {
+    background-color: #f1f1f1;
+}
+
+/* Dark mode styles for income/expense cards and tables */
+body.dark-mode .income-card,
+body.dark-mode .income-card .card-header,
+body.dark-mode .income-card .card-body {
+    background-color: #23243a !important;
+    color: #fff !important;
+}
+body.dark-mode .income-header {
+    background-color: #2ecc71 !important;
+    color: #fff !important;
+}
+body.dark-mode .income-table {
+    background: #23243a !important;
+}
+body.dark-mode .income-table thead {
+    background-color: #2ecc71 !important;
+    color: #fff !important;
+}
+body.dark-mode .income-table tbody tr {
+    background-color: #2c2c3a !important;
+}
+body.dark-mode .income-table tbody tr:nth-child(even) {
+    background-color: #272734 !important;
+}
+body.dark-mode .income-table tbody td {
+    color: #fff !important;
+}
+body.dark-mode .income-table tbody tr:hover {
+    background-color: #1abc9c22 !important;
+}
+body.dark-mode .income-table .table-secondary {
+    background-color: #23243a !important;
+    color: #1abc9c !important;
+}
+
+body.dark-mode .expense-card,
+body.dark-mode .expense-card .card-header,
+body.dark-mode .expense-card .card-body {
+    background-color: #23243a !important;
+    color: #fff !important;
+}
+body.dark-mode .expense-header {
+    background-color: #e74c3c !important;
+    color: #fff !important;
+}
+body.dark-mode .expense-table {
+    background: #23243a !important;
+}
+body.dark-mode .expense-table thead {
+    background-color: #e74c3c !important;
+    color: #fff !important;
+}
+body.dark-mode .expense-table tbody tr {
+    background-color: #2c2c3a !important;
+}
+body.dark-mode .expense-table tbody tr:nth-child(even) {
+    background-color: #272734 !important;
+}
+body.dark-mode .expense-table tbody td {
+    color: #fff !important;
+}
+body.dark-mode .expense-table tbody tr:hover {
+    background-color: #1abc9c22 !important;
+}
+body.dark-mode .expense-table .table-secondary {
+    background-color: #23243a !important;
+    color: #1abc9c !important;
+}
+
+/* Page Title Styling (match product.php) */
+.page-title {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--primary-color);
+    margin-bottom: 2rem;
+    text-align: center;
+    letter-spacing: 1px;
+}
+body.dark-mode .page-title {
+    color: #1abc9c !important;
+}
+
+/* Net Result Card Styling */
+.net-result-card {
+    border-radius: 12px;
+    box-shadow: 0px 4px 12px rgba(0,0,0,0.08);
+    background: var(--card-bg);
+    margin-bottom: 2rem;
+}
+.net-result-header {
+    font-weight: bold;
+    background: #34495e;
+    color: #fff !important;
+    border-radius: 12px 12px 0 0 !important;
+    font-size: 1.1rem;
+    letter-spacing: 1px;
+}
+body.dark-mode .net-result-card,
+body.dark-mode .net-result-card .net-result-header,
+body.dark-mode .net-result-card .card-body {
+    background-color: #23243a !important;
+    color: #fff !important;
+}
+body.dark-mode .net-result-header {
+    background-color: #23243a !important;
+    color: #ffd200 !important;
+}
+
+/* Card spacing for consistency */
+.card {
+    margin-bottom: 2rem;
+}
+.card-body {
+    padding: 2rem 1.5rem;
+}
