@@ -382,4 +382,35 @@ body.dark-mode #cartSection h6 {
     color: #1abc9c !important;
 }
 
+/* Low Stock Products card header styling */
+.low-stock-header {
+    background: var(--primary-color);
+    color: #fff !important;
+    border-radius: 12px 12px 0 0 !important;
+    font-weight: bold;
+    font-size: 1.1rem;
+    letter-spacing: 1px;
+    padding: 0.75rem 1rem;
+}
+.low-stock-title {
+    color: #fff !important;
+    font-weight: bold;
+    font-size: 1.1rem;
+}
+body.dark-mode .low-stock-header {
+    background-color: #2c3e50 !important;
+    color: #1abc9c !important;
+}
+body.dark-mode .low-stock-title {
+    color: #1abc9c !important;
+}
+
+/* Info text for "All products have sufficient stock" */
+.low-stock-info {
+    color: var(--primary-color) !important;
+}
+body.dark-mode .low-stock-info {
+    color: #fff !important;
+}
+
 

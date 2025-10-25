@@ -385,7 +385,9 @@ $cust_stmt->close();
 
     <!-- Low Stock Products Panel -->
     <div class="card mb-4">
-        <div class="card-header bg-warning text-dark">⚠️ Low Stock Products (Branch <?= $branch_id; ?>)</div>
+        <div class="card-header low-stock-header">
+            <span class="low-stock-title">⚠️ Low Stock Products (Branch <?= $branch_id; ?>)</span>
+        </div>
         <div class="card-body">
             <?php if ($low_stock_query->num_rows > 0): ?>
                 <ul class="list-group">
@@ -397,7 +399,7 @@ $cust_stmt->close();
                     <?php endwhile; ?>
                 </ul>
             <?php else: ?>
-                <p class="text-muted fst-italic">All products have sufficient stock in your branch.</p>
+                <p class="low-stock-info text-muted fst-italic">All products have sufficient stock in your branch.</p>
             <?php endif; ?>
         </div>
     </div>
