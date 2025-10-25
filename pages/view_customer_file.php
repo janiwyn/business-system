@@ -65,71 +65,68 @@ if (!$c) { echo "<div class='container mt-5'><div class='alert alert-danger'>Cus
               $tstmt->execute();
               $trs = $tstmt->get_result();
 
-              // Prepare grouping by date
-              $grouped = [];
-              while ($tr = $trs->fetch_assoc()) {
-                  $dt = $tr['date_time'] ?? $tr['date'] ?? '';
-                  $date_key = date('Y-m-d', strtotime($dt));
-                  if (!isset($grouped[$date_key])) $grouped[$date_key] = [];
-                  $grouped[$date_key][] = $tr;
-              }
-              $tstmt->close();
-
-              // Calculate running balance from zero, process oldest to newest
+              // Start from zero, track balance and credited
               $balance = 0;
               $credited = 0;
               $rows = [];
-              $dates = array_keys($grouped); // chronological order
-              foreach ($dates as $date_key) {
-                  $topup = null;
-                  $deduction = 0;
-                  $purchase_deduction = 0;
+              while ($tr = $trs->fetch_assoc()) {
+                  $pb = $tr['products_bought'] ?? '';
+                  $dt_display = htmlspecialchars($tr['date_time'] ?? $tr['date'] ?? '');
+                  $served_by = htmlspecialchars($tr['sold_by'] ?? '-');
+                  $amount_topup = 0;
                   $amount_credited = 0;
-                  $served_by = '-';
-                  $dt_display = '';
-                  $type = [];
-                  foreach ($grouped[$date_key] as $tr) {
-                      $pb = $tr['products_bought'] ?? '';
-                      $served_by = htmlspecialchars($tr['sold_by'] ?? '-');
-                      $dt_display = htmlspecialchars($tr['date_time'] ?? $tr['date'] ?? '');
+                  $amount_deducted = 0;
+                  $type = '';
 
-                      if (trim($pb) === 'Account Top-up') {
-                          $topup = $tr;
-                          $amount_credited += floatval($tr['amount_credited'] ?? 0);
-                          $type[] = 'TOP UP';
-                      } elseif (trim($pb) === 'Account Deduction') {
-                          $deduction += floatval($tr['amount_paid'] ?? 0);
-                          $amount_credited += floatval($tr['amount_credited'] ?? 0);
-                          $type[] = 'REDUCTION';
+                  if (trim($pb) === 'Account Top-up') {
+                      $type = 'TOP UP';
+                      $amount_topup = floatval($tr['amount_paid'] ?? 0);
+                      $amount_credited = floatval($tr['amount_credited'] ?? 0);
+
+                      // Top-up logic: first pay off credited, remainder goes to balance
+                      $credit_to_pay = min($amount_topup, $credited);
+                      $credited -= $credit_to_pay;
+                      $balance += ($amount_topup - $credit_to_pay);
+
+                  } elseif (trim($pb) === 'Account Deduction') {
+                      $type = 'REDUCTION';
+                      $amount_deducted = floatval($tr['amount_paid'] ?? 0);
+                      $amount_credited = floatval($tr['amount_credited'] ?? 0);
+
+                      // Deduction logic: subtract from balance, if not enough, add to credited
+                      if ($balance >= $amount_deducted) {
+                          $balance -= $amount_deducted;
                       } else {
-                          // Purchases: products_bought is not a string, or is a JSON array
-                          // Only count as deduction if amount_paid > 0
-                          $purchase_deduction += floatval($tr['amount_paid'] ?? 0);
-                          $type[] = 'PURCHASE';
+                          $credited += ($amount_deducted - $balance);
+                          $balance = 0;
+                      }
+                      $credited -= $amount_credited; // If deduction pays off credited
+
+                  } else {
+                      // Purchases: products_bought is not a string, or is a JSON array
+                      $type = 'PURCHASE';
+                      $amount_deducted = floatval($tr['amount_paid'] ?? 0);
+
+                      // Purchase logic: subtract from balance, if not enough, add to credited
+                      if ($balance >= $amount_deducted) {
+                          $balance -= $amount_deducted;
+                      } else {
+                          $credited += ($amount_deducted - $balance);
+                          $balance = 0;
                       }
                   }
-                  // Calculate amounts
-                  $amount_topup = $topup ? floatval($topup['amount_paid'] ?? 0) : 0;
-                  $total_deducted = $deduction + $purchase_deduction;
-
-                  // Type column
-                  $type_str = implode(' AND ', array_unique($type));
-
-                  // Update running balance
-                  $balance += $amount_topup;
-                  $balance -= $total_deducted;
-                  $credited -= $amount_credited;
 
                   $rows[] = [
                       'dt' => $dt_display,
-                      'type' => $type_str,
+                      'type' => $type,
                       'amount_topup' => $amount_topup,
                       'amount_credited' => $amount_credited,
-                      'amount_deducted' => $total_deducted,
+                      'amount_deducted' => $amount_deducted,
                       'balance' => $balance,
                       'served_by' => $served_by
                   ];
               }
+              $tstmt->close();
 
               if (count($rows)) {
                   foreach ($rows as $row) {
