@@ -94,18 +94,40 @@ if (isset($_POST['submit_cart']) && !empty($_POST['cart_data'])) {
     if ($success && $payment_method === 'Customer File' && $customer_id > 0) {
         $now = date('Y-m-d H:i:s');
         $sold_by = $_SESSION['username'];
-        $amount_credited = 0; // If you want to track credited amount, set accordingly
-        // FIX: Use $total as amount_paid (not $amount_paid, which is always 0 for customer file)
+
+        // Fetch current customer balance
+        $stmt = $conn->prepare("SELECT account_balance FROM customers WHERE id = ?");
+        $stmt->bind_param("i", $customer_id);
+        $stmt->execute();
+        $cust = $stmt->get_result()->fetch_assoc();
+        $stmt->close();
+        $current_balance = floatval($cust['account_balance'] ?? 0);
+
+        if ($current_balance >= $total) {
+            // Full payment from account balance
+            $amount_paid = $total;
+            $amount_credited = 0;
+            // Deduct from balance
+            $stmt = $conn->prepare("UPDATE customers SET account_balance = account_balance - ? WHERE id = ?");
+            $stmt->bind_param("di", $total, $customer_id);
+            $stmt->execute();
+            $stmt->close();
+        } else {
+            // Partial payment: deduct all balance, record remaining as credited
+            $amount_paid = $current_balance;
+            $amount_credited = $total - $current_balance;
+            // Set balance to zero, increase amount_credited
+            $stmt = $conn->prepare("UPDATE customers SET account_balance = 0, amount_credited = amount_credited + ? WHERE id = ?");
+            $stmt->bind_param("di", $amount_credited, $customer_id);
+            $stmt->execute();
+            $stmt->close();
+        }
+
+        // Record customer transaction (deduction and/or credit)
         $ct = $conn->prepare("INSERT INTO customer_transactions (customer_id, date_time, products_bought, amount_paid, amount_credited, sold_by, status) VALUES (?, ?, ?, ?, ?, ?, 'paid')");
-        $ct->bind_param("issdds", $customer_id, $now, $products_json, $total, $amount_credited, $sold_by);
+        $ct->bind_param("issdds", $customer_id, $now, $products_json, $amount_paid, $amount_credited, $sold_by);
         $ct->execute();
         $ct->close();
-
-        // Deduct sale amount from customer's account_balance
-        $stmt = $conn->prepare("UPDATE customers SET account_balance = account_balance - ? WHERE id = ?");
-        $stmt->bind_param("di", $total, $customer_id);
-        $stmt->execute();
-        $stmt->close();
     }
 
     if ($success) {
