@@ -60,16 +60,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         $stmt->close();
 
         if ($ok) {
-            // record transaction
             $now = date('Y-m-d H:i:s');
-            $products = 'Account Top-up';
-            $amount_paid = $amount;
-            $amount_credited = $amount_to_credit;
             $sold_by = $_SESSION['username'];
-            $stmt2 = $conn->prepare("INSERT INTO customer_transactions (customer_id, date_time, products_bought, amount_paid, amount_credited, sold_by) VALUES (?, ?, ?, ?, ?, ?)");
-            $stmt2->bind_param("issdds", $customer_id, $now, $products, $amount_paid, $amount_credited, $sold_by);
-            $stmt2->execute();
-            $stmt2->close();
+
+            // 1. Record deduction transaction if any credited amount was paid off
+            if ($amount_to_credit > 0) {
+                $products = 'Account Deduction';
+                $amount_paid = $amount_to_credit;
+                $amount_credited = $amount_to_credit;
+                $stmt2 = $conn->prepare("INSERT INTO customer_transactions (customer_id, date_time, products_bought, amount_paid, amount_credited, sold_by) VALUES (?, ?, ?, ?, ?, ?)");
+                $stmt2->bind_param("issdds", $customer_id, $now, $products, $amount_paid, $amount_credited, $sold_by);
+                $stmt2->execute();
+                $stmt2->close();
+            }
+
+            // 2. Record top-up transaction for remaining balance
+            if ($amount_to_balance > 0) {
+                $products = 'Account Top-up';
+                $amount_paid = $amount_to_balance;
+                $amount_credited = 0;
+                $stmt2 = $conn->prepare("INSERT INTO customer_transactions (customer_id, date_time, products_bought, amount_paid, amount_credited, sold_by) VALUES (?, ?, ?, ?, ?, ?)");
+                $stmt2->bind_param("issdds", $customer_id, $now, $products, $amount_paid, $amount_credited, $sold_by);
+                $stmt2->execute();
+                $stmt2->close();
+            }
+
             echo json_encode(['success'=>true]);
         } else {
             echo json_encode(['success'=>false,'message'=>'Failed to update balance']);
