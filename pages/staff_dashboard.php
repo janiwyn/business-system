@@ -299,7 +299,7 @@ $cust_stmt->close();
             <div id="cartSection" style="display:none; margin-top:1.5rem;">
                 <h6>Cart</h6>
                 <div class="table-responsive">
-                    <table class="table table-bordered align-middle">
+                    <table class="cart-table align-middle">
                         <thead>
                             <tr>
                                 <th>Product</th>
@@ -709,6 +709,86 @@ body.dark-mode .add-sale-card .btn,
 body.dark-mode .add-sale-card .btn-primary,
 body.dark-mode .add-sale-card .btn-success {
     color: #fff !important;
+}
+
+/* Cart Table Styling */
+.cart-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    background: #fff;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 2px 10px rgba(44,62,80,0.08);
+    margin-bottom: 1rem;
+}
+.cart-table thead {
+    background: var(--primary-color);
+    color: #fff;
+    font-weight: 600;
+    font-size: 14px;
+    letter-spacing: 1px;
+}
+.cart-table th, .cart-table td {
+    padding: 0.85rem 1rem;
+    text-align: left;
+    vertical-align: middle;
+}
+.cart-table tbody tr {
+    background-color: #f8fafc;
+    transition: background 0.2s;
+}
+.cart-table tbody tr:nth-child(even) {
+    background-color: #eef2f7;
+}
+.cart-table tbody tr:hover {
+    background-color: #e0f7fa;
+}
+.cart-table tfoot td {
+    background: #f4f6f9;
+    font-weight: bold;
+    color: var(--primary-color);
+    border-top: 2px solid #e0e0e0;
+}
+
+/* Dark mode cart table */
+body.dark-mode .cart-table {
+    background: #23243a;
+    box-shadow: 0 2px 10px rgba(44,62,80,0.18);
+}
+body.dark-mode .cart-table thead {
+    background-color: #1abc9c !important;
+    color: #fff !important;
+}
+body.dark-mode .cart-table th, 
+body.dark-mode .cart-table td {
+    color: #fff !important;
+    background-color: #23243a !important;
+}
+body.dark-mode .cart-table tbody tr {
+    background-color: #2c2c3a !important;
+}
+body.dark-mode .cart-table tbody tr:nth-child(even) {
+    background-color: #272734 !important;
+}
+body.dark-mode .cart-table tbody tr:hover {
+    background-color: #1abc9c22 !important;
+}
+body.dark-mode .cart-table tfoot td {
+    background: #23243a !important;
+    color: #1abc9c !important;
+    border-top: 2px solid #444 !important;
+}
+
+/* Cart section header */
+#cartSection h6 {
+    font-size: 1.1rem;
+    font-weight: bold;
+    color: var(--primary-color);
+    margin-bottom: 1rem;
+}
+body.dark-mode #cartSection h6 {
+    color: #1abc9c !important;
 }
 </style>
 
