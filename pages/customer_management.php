@@ -40,17 +40,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             echo json_encode(['success'=>false,'message'=>'Invalid input']);
             exit;
         }
-        // Update account_balance
-        $stmt = $conn->prepare("UPDATE customers SET account_balance = account_balance + ? WHERE id = ?");
-        $stmt->bind_param("di", $amount, $customer_id);
+        // Fetch current credited amount and balance
+        $stmt = $conn->prepare("SELECT amount_credited, account_balance FROM customers WHERE id = ?");
+        $stmt->bind_param("i", $customer_id);
+        $stmt->execute();
+        $cust = $stmt->get_result()->fetch_assoc();
+        $stmt->close();
+
+        $credited = floatval($cust['amount_credited'] ?? 0);
+        $balance = floatval($cust['account_balance'] ?? 0);
+
+        $amount_to_credit = min($amount, $credited);
+        $amount_to_balance = $amount - $amount_to_credit;
+
+        // Update credited and balance
+        $stmt = $conn->prepare("UPDATE customers SET amount_credited = amount_credited - ?, account_balance = account_balance + ? WHERE id = ?");
+        $stmt->bind_param("ddi", $amount_to_credit, $amount_to_balance, $customer_id);
         $ok = $stmt->execute();
         $stmt->close();
+
         if ($ok) {
             // record transaction
             $now = date('Y-m-d H:i:s');
             $products = 'Account Top-up';
             $amount_paid = $amount;
-            $amount_credited = 0;
+            $amount_credited = $amount_to_credit;
             $sold_by = $_SESSION['username'];
             $stmt2 = $conn->prepare("INSERT INTO customer_transactions (customer_id, date_time, products_bought, amount_paid, amount_credited, sold_by) VALUES (?, ?, ?, ?, ?, ?)");
             $stmt2->bind_param("issdds", $customer_id, $now, $products, $amount_paid, $amount_credited, $sold_by);

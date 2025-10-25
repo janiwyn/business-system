@@ -2,9 +2,6 @@
  
 include '../includes/db.php';
 
-
-
-
 $user_id   = $_SESSION['user_id'];
 $username  = $_SESSION['username'];
 $branch_id = $_SESSION['branch_id']; // ✅ fixed
@@ -14,11 +11,15 @@ if (isset($_POST['submit_cart']) && !empty($_POST['cart_data'])) {
     $cart = json_decode($_POST['cart_data'], true);
     $amount_paid = floatval($_POST['amount_paid'] ?? 0);
     $payment_method = $_POST['payment_method'] ?? 'Cash';
+    $customer_id = isset($_POST['customer_id']) ? intval($_POST['customer_id']) : 0;
     $currentDate = date("Y-m-d");
     $conn->begin_transaction();
     $success = true;
     $messages = [];
     $total = 0;
+
+    // Track products for customer_transactions
+    $products_json = json_encode($cart);
 
     foreach ($cart as $item) {
         $product_id = (int)$item['id'];
@@ -41,9 +42,14 @@ if (isset($_POST['submit_cart']) && !empty($_POST['cart_data'])) {
 
         $date = date('Y-m-d');
 
-        // Insert sale row
-        $stmt = $conn->prepare("INSERT INTO sales (`product-id`, `branch-id`, quantity, amount, `sold-by`, `cost-price`, total_profits, date, payment_method) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
-        $stmt->bind_param("iiiidddss", $product_id, $branch_id, $quantity, $total_price, $user_id, $cost_price, $total_profit, $date, $payment_method);
+        // Insert sale row, include payment_method and customer_id if "Customer File"
+        if ($payment_method === 'Customer File' && $customer_id > 0) {
+            $stmt = $conn->prepare("INSERT INTO sales (`product-id`, `branch-id`, quantity, amount, `sold-by`, `cost-price`, total_profits, date, payment_method, customer_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+            $stmt->bind_param("iiiidddssi", $product_id, $branch_id, $quantity, $total_price, $user_id, $cost_price, $total_profit, $date, $payment_method, $customer_id);
+        } else {
+            $stmt = $conn->prepare("INSERT INTO sales (`product-id`, `branch-id`, quantity, amount, `sold-by`, `cost-price`, total_profits, date, payment_method) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
+            $stmt->bind_param("iiiidddss", $product_id, $branch_id, $quantity, $total_price, $user_id, $cost_price, $total_profit, $date, $payment_method);
+        }
         if (!$stmt->execute()) {
             $success = false;
             $messages[] = "Failed to record sale for " . htmlspecialchars($item['name']);
@@ -82,6 +88,23 @@ if (isset($_POST['submit_cart']) && !empty($_POST['cart_data'])) {
             $stmt2->execute();
             $stmt2->close();
         }
+    }
+
+    // Record customer transaction if payment method is Customer File
+    if ($success && $payment_method === 'Customer File' && $customer_id > 0) {
+        $now = date('Y-m-d H:i:s');
+        $sold_by = $_SESSION['username'];
+        $amount_credited = 0; // If you want to track credited amount, set accordingly
+        $ct = $conn->prepare("INSERT INTO customer_transactions (customer_id, date_time, products_bought, amount_paid, amount_credited, sold_by, status) VALUES (?, ?, ?, ?, ?, ?, 'paid')");
+        $ct->bind_param("issdds", $customer_id, $now, $products_json, $amount_paid, $amount_credited, $sold_by);
+        $ct->execute();
+        $ct->close();
+
+        // Deduct sale amount from customer's account_balance
+        $stmt = $conn->prepare("UPDATE customers SET account_balance = account_balance - ? WHERE id = ?");
+        $stmt->bind_param("di", $total, $customer_id);
+        $stmt->execute();
+        $stmt->close();
     }
 
     if ($success) {
