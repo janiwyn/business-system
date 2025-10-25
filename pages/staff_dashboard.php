@@ -167,13 +167,14 @@ $stmt->execute();
 $low_stock_query = $stmt->get_result();
 $stmt->close();
 
-// Fetch recent sales
+// Fetch recent sales (match sales.php columns/aliases)
 $sales_stmt = $conn->prepare("
-    SELECT s.id, p.name, s.quantity, s.amount, s.payment_method, s.date
+    SELECT s.id, p.name AS `product-name`, s.quantity, s.amount, s.`sold-by`, s.date, b.name AS branch_name, s.payment_method
     FROM sales s
     JOIN products p ON s.`product-id` = p.id
+    JOIN branch b ON s.`branch-id` = b.id
     WHERE s.`branch-id` = ?
-    ORDER BY s.date DESC
+    ORDER BY s.id DESC
     LIMIT 10
 ");
 $sales_stmt->bind_param("i", $branch_id);
@@ -181,23 +182,19 @@ $sales_stmt->execute();
 $sales_result = $sales_stmt->get_result();
 $sales_stmt->close();
 
-
-
-
-
-// Fetch recent sales
-$sales_stmt = $conn->prepare("
-    SELECT s.id, p.name, s.quantity, s.amount, s.payment_method, s.total_profits, s.date 
-    FROM sales s 
-    JOIN products p ON s.`product-id` = p.id 
-    WHERE s.`branch-id` = ? 
-    ORDER BY s.date DESC 
+// Fetch recent debtors (match sales.php columns/aliases)
+$debtors_stmt = $conn->prepare("
+    SELECT id, debtor_name, debtor_email, item_taken, quantity_taken, amount_paid, balance, is_paid, created_at
+    FROM debtors
+    WHERE branch_id = ?
+    ORDER BY created_at DESC
     LIMIT 10
 ");
-$sales_stmt->bind_param("i", $branch_id);
-$sales_stmt->execute();
-$sales_result = $sales_stmt->get_result();
-$sales_stmt->close();
+$debtors_stmt->bind_param("i", $branch_id);
+$debtors_stmt->execute();
+$debtors_result = $debtors_stmt->get_result();
+$debtors_stmt->close();
+
 // Handle debtor record (no invoice/receipt)
 if (isset($_POST['record_debtor'])) {
     $debtor_name    = trim($_POST['debtor_name']);
@@ -407,20 +404,6 @@ $cust_stmt->close();
 
 
     <!-- Tabs for Sales and Debtors -->
-    <?php
-    // Fetch debtors for this branch
-    $debtors_stmt = $conn->prepare("
-        SELECT id, debtor_name, debtor_contact, debtor_email, item_taken, quantity_taken, amount_paid, balance, is_paid, created_at 
-        FROM debtors 
-        WHERE branch_id = ? 
-        ORDER BY created_at DESC 
-        LIMIT 10
-    ");
-    $debtors_stmt->bind_param("i", $branch_id);
-    $debtors_stmt->execute();
-    $debtors_result = $debtors_stmt->get_result();
-    $debtors_stmt->close();
-    ?>
     <ul class="nav nav-tabs mb-4" id="salesTabs" role="tablist">
         <li class="nav-item" role="presentation">
             <button class="nav-link active" id="sales-tab" data-bs-toggle="tab" data-bs-target="#sales-table" type="button" role="tab" aria-controls="sales-table" aria-selected="true">
@@ -434,7 +417,7 @@ $cust_stmt->close();
         </li>
     </ul>
     <div class="tab-content" id="salesTabsContent">
-        <!-- Recent Sales Table Tab (styled like sales.php, but only last 10 sales) -->
+        <!-- Recent Sales Table Tab (copied from sales.php, last 10 only, no pagination/filter) -->
         <div class="tab-pane fade show active" id="sales-table" role="tabpanel" aria-labelledby="sales-tab">
             <div class="card mb-4 chart-card">
                 <div class="card-header bg-light text-black d-flex flex-wrap justify-content-between align-items-center" style="border-radius:12px 12px 0 0;">
@@ -461,12 +444,12 @@ $cust_stmt->close();
                                 ?>
                                     <tr>
                                         <td><?= $i++ ?></td>
-                                        <td><span class="badge bg-primary"><?= htmlspecialchars($row['name']) ?></span></td>
+                                        <td><span class="badge bg-primary"><?= htmlspecialchars($row['product-name']) ?></span></td>
                                         <td><?= $row['quantity'] ?></td>
                                         <td><span class="fw-bold text-success">UGX <?= number_format($row['amount'], 2) ?></span></td>
                                         <td><?= htmlspecialchars($row['payment_method']) ?></td>
                                         <td><small class="text-muted"><?= date("M d, Y H:i", strtotime($row['date'])) ?></small></td>
-                                        <td><?= htmlspecialchars($username) ?></td>
+                                        <td><?= htmlspecialchars($row['sold-by']) ?></td>
                                     </tr>
                                 <?php endwhile; ?>
                                 <?php if ($i === 1): ?>
@@ -478,7 +461,7 @@ $cust_stmt->close();
                 </div>
             </div>
         </div>
-        <!-- Debtors Table Tab (styled and functional like sales.php, last 10 debtors only) -->
+        <!-- Debtors Table Tab (copied from sales.php, last 10 only, no pagination/filter) -->
         <div class="tab-pane fade" id="debtors-table" role="tabpanel" aria-labelledby="debtors-tab">
             <div class="card mb-4 chart-card">
                 <div class="card-header bg-light text-black fw-bold d-flex flex-wrap justify-content-between align-items-center" style="border-radius:12px 12px 0 0;">
@@ -574,106 +557,6 @@ $cust_stmt->close();
     window.customers = <?php echo json_encode($customers_list); ?>;
 </script>
 <script src="staff_dashboard.js"></script>
-<script>
-(function() {
-  function ensureBootstrap(cb) {
-    if (window.bootstrap) return cb();
-    const src = 'https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js';
-    if (document.querySelector('script[src="'+src+'"]')) {
-      const t = setInterval(() => { if (window.bootstrap) { clearInterval(t); cb(); } }, 50);
-      return;
-    }
-    const s = document.createElement('script');
-    s.src = src;
-    s.onload = cb;
-    s.onerror = function() { console.error('Failed to load Bootstrap bundle.'); cb(); };
-    document.head.appendChild(s);
-  }
-
-  function initPayModal() {
-    const payButtons = document.querySelectorAll('.btn-pay-debtor');
-    if (!payButtons.length) return;
-
-    const payModalEl = document.getElementById('payDebtorModal');
-    const payModal = new bootstrap.Modal(payModalEl);
-    const pdDebtorLabel = document.getElementById('pdDebtorLabel');
-    const pdBalanceText = document.getElementById('pdBalanceText');
-    const pdDebtorId = document.getElementById('pdDebtorId');
-    const pdAmount = document.getElementById('pdAmount');
-    const pdMsg = document.getElementById('pdMsg');
-    const pdConfirmBtn = document.getElementById('pdConfirmBtn');
-
-    payButtons.forEach(btn => {
-      btn.addEventListener('click', () => {
-        const id = btn.getAttribute('data-id');
-        const balance = parseFloat(btn.getAttribute('data-balance') || 0);
-        const name = btn.getAttribute('data-name') || 'Debtor';
-        pdDebtorId.value = id;
-        pdAmount.value = '';
-        pdDebtorLabel.textContent = `Debtor: ${name}`;
-        pdBalanceText.textContent = 'UGX ' + balance.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2});
-        pdMsg.innerHTML = '';
-        payModalEl.dataset.outstanding = String(balance);
-        payModal.show();
-      });
-    });
-
-    pdConfirmBtn.addEventListener('click', async () => {
-      const id = pdDebtorId.value;
-      let amount = parseFloat(pdAmount.value || 0);
-      const outstanding = parseFloat(payModalEl.dataset.outstanding || 0);
-
-      pdMsg.innerHTML = '';
-      if (!id) { pdMsg.innerHTML = '<div class="alert alert-warning">Invalid debtor selected.</div>'; return; }
-      if (!amount || amount <= 0) { pdMsg.innerHTML = '<div class="alert alert-warning">Enter a valid amount.</div>'; return; }
-      if (amount > outstanding) { pdMsg.innerHTML = '<div class="alert alert-warning">Amount cannot exceed outstanding balance.</div>'; return; }
-
-      pdConfirmBtn.disabled = true;
-      pdConfirmBtn.textContent = 'Processing...';
-      try {
-        const res = await fetch('handle_debtor_payment.php', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: `pay_debtor=1&id=${encodeURIComponent(id)}&amount=${encodeURIComponent(amount)}`
-        });
-
-        const text = await res.text();
-        let data;
-        try {
-          data = JSON.parse(text);
-        } catch (parseErr) {
-          console.error('Invalid JSON response from server:', text);
-          pdMsg.innerHTML = '<div class="alert alert-danger">Server returned an invalid response. See console for details.</div>';
-          pdConfirmBtn.disabled = false;
-          pdConfirmBtn.textContent = 'OK';
-          return;
-        }
-
-        pdConfirmBtn.disabled = false;
-        pdConfirmBtn.textContent = 'OK';
-
-        if (data && data.reload) {
-          payModal.hide();
-          window.location.reload();
-        } else {
-          pdMsg.innerHTML = '<div class="alert alert-info">' + (data.message || 'Payment recorded') + '</div>';
-        }
-      } catch (err) {
-        console.error('Request error:', err);
-        pdConfirmBtn.disabled = false;
-        pdConfirmBtn.textContent = 'OK';
-        pdMsg.innerHTML = '<div class="alert alert-danger">Error processing payment. Check console.</div>';
-      }
-    });
-  }
-
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => ensureBootstrap(initPayModal));
-  } else {
-    ensureBootstrap(initPayModal);
-  }
-})();
-</script>
 <?php include '../includes/footer.php'; ?>
 
 

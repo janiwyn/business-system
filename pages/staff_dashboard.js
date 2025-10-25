@@ -127,116 +127,171 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('addSaleForm').reset();
     };
 
-    // REMOVE this entire block if present (do not just comment it):
-    /*
-    document.querySelectorAll('.btn-pay-debtor').forEach(function(btn) {
-        btn.onclick = function() {
-            const row = btn.closest('tr');
-            const debtorId = btn.getAttribute('data-id');
-            const debtorName = row.querySelector('td:nth-child(2)').textContent;
-            const balance = parseFloat(row.querySelector('td:nth-child(7)').textContent.replace(/[^\d.]/g, '')) || 0;
-
-            // Show prompt for amount
-            let amount = prompt(`Enter amount paid for ${debtorName} (Balance: UGX ${balance.toLocaleString()}):`, balance);
-            if (amount === null) return; // Cancelled
-            amount = parseFloat(amount);
-            if (isNaN(amount) || amount <= 0) {
-                alert('Please enter a valid amount.');
-                return;
-            }
-            if (amount > balance) {
-                alert('Amount cannot be greater than the balance.');
-                return;
-            }
-
-            // AJAX to process payment
-            fetch('staff_dashboard.php', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-                body: `pay_debtor=1&id=${debtorId}&amount=${amount}`
-            })
-            .then(res => res.json())
-            .then(data => {
-                alert(data.message);
-                if (data.reload) window.location.reload();
-            });
-        };
-    });
-    */
-
-    // If you have any other code that needs to run after DOM is ready, put it here.
-});
-
-// Welcome balls animation (IIFE can stay outside DOMContentLoaded)
-(function() {
-  const banner = document.querySelector('.welcome-banner');
-  const ballsContainer = document.querySelector('.welcome-balls');
-  if (!banner || !ballsContainer) return;
-
-  function getColors() {
-    if (document.body.classList.contains('dark-mode')) {
-      return ['#ffd200', '#1abc9c', '#56ccf2', '#23243a', '#fff'];
-    } else {
-      return ['#1abc9c', '#56ccf2', '#ffd200', '#3498db', '#fff'];
+    // Debtor Pay Modal logic (moved from staff_dashboard.php)
+    function ensureBootstrap(cb) {
+        if (window.bootstrap) return cb();
+        const src = 'https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js';
+        if (document.querySelector('script[src="'+src+'"]')) {
+            const t = setInterval(() => { if (window.bootstrap) { clearInterval(t); cb(); } }, 50);
+            return;
+        }
+        const s = document.createElement('script');
+        s.src = src;
+        s.onload = cb;
+        s.onerror = function() { console.error('Failed to load Bootstrap bundle.'); cb(); };
+        document.head.appendChild(s);
     }
-  }
 
-  ballsContainer.innerHTML = '';
-  ballsContainer.style.position = 'absolute';
-  ballsContainer.style.top = 0;
-  ballsContainer.style.left = 0;
-  ballsContainer.style.width = '100%';
-  ballsContainer.style.height = '100%';
-  ballsContainer.style.zIndex = 1;
-  ballsContainer.style.pointerEvents = 'none';
+    function initPayModal() {
+        const payButtons = document.querySelectorAll('.btn-pay-debtor');
+        if (!payButtons.length) return;
 
-  const balls = [];
-  const colors = getColors();
-  const numBalls = 7;
-  for (let i = 0; i < numBalls; i++) {
-    const ball = document.createElement('div');
-    ball.className = 'welcome-ball';
-    ball.style.position = 'absolute';
-    ball.style.borderRadius = '50%';
-    ball.style.opacity = '0.18';
-    ball.style.background = colors[i % colors.length];
-    ball.style.width = ball.style.height = (32 + Math.random() * 32) + 'px';
-    ball.style.top = (10 + Math.random() * 60) + '%';
-    ball.style.left = (5 + Math.random() * 85) + '%';
-    ballsContainer.appendChild(ball);
-    balls.push({
-      el: ball,
-      x: parseFloat(ball.style.left),
-      y: parseFloat(ball.style.top),
-      r: Math.random() * 0.5 + 0.2,
-      dx: (Math.random() - 0.5) * 0.2,
-      dy: (Math.random() - 0.5) * 0.2
-    });
-  }
+        const payModalEl = document.getElementById('payDebtorModal');
+        const payModal = new bootstrap.Modal(payModalEl);
+        const pdDebtorLabel = document.getElementById('pdDebtorLabel');
+        const pdBalanceText = document.getElementById('pdBalanceText');
+        const pdDebtorId = document.getElementById('pdDebtorId');
+        const pdAmount = document.getElementById('pdAmount');
+        const pdMsg = document.getElementById('pdMsg');
+        const pdConfirmBtn = document.getElementById('pdConfirmBtn');
 
-  function animateBalls() {
-    balls.forEach(ball => {
-      ball.x += ball.dx;
-      ball.y += ball.dy;
-      if (ball.x < 0 || ball.x > 95) ball.dx *= -1;
-      if (ball.y < 5 || ball.y > 80) ball.dy *= -1;
-      ball.el.style.left = ball.x + '%';
-      ball.el.style.top = ball.y + '%';
-    });
-    requestAnimationFrame(animateBalls);
-  }
-  animateBalls();
+        payButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const id = btn.getAttribute('data-id');
+                const balance = parseFloat(btn.getAttribute('data-balance') || 0);
+                const name = btn.getAttribute('data-name') || 'Debtor';
+                pdDebtorId.value = id;
+                pdAmount.value = '';
+                pdDebtorLabel.textContent = `Debtor: ${name}`;
+                pdBalanceText.textContent = 'UGX ' + balance.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2});
+                pdMsg.innerHTML = '';
+                payModalEl.dataset.outstanding = String(balance);
+                payModal.show();
+            });
+        });
 
-  window.addEventListener('storage', () => {
-    const newColors = getColors();
-    balls.forEach((ball, i) => {
-      ball.el.style.background = newColors[i % newColors.length];
-    });
-  });
-  document.getElementById('themeToggle')?.addEventListener('change', () => {
-    const newColors = getColors();
-    balls.forEach((ball, i) => {
-      ball.el.style.background = newColors[i % newColors.length];
-    });
-  });
-})();
+        pdConfirmBtn.addEventListener('click', async () => {
+            const id = pdDebtorId.value;
+            let amount = parseFloat(pdAmount.value || 0);
+            const outstanding = parseFloat(payModalEl.dataset.outstanding || 0);
+
+            pdMsg.innerHTML = '';
+            if (!id) { pdMsg.innerHTML = '<div class="alert alert-warning">Invalid debtor selected.</div>'; return; }
+            if (!amount || amount <= 0) { pdMsg.innerHTML = '<div class="alert alert-warning">Enter a valid amount.</div>'; return; }
+            if (amount > outstanding) { pdMsg.innerHTML = '<div class="alert alert-warning">Amount cannot exceed outstanding balance.</div>'; return; }
+
+            pdConfirmBtn.disabled = true;
+            pdConfirmBtn.textContent = 'Processing...';
+            try {
+                const res = await fetch('handle_debtor_payment.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: `pay_debtor=1&id=${encodeURIComponent(id)}&amount=${encodeURIComponent(amount)}`
+                });
+
+                const text = await res.text();
+                let data;
+                try {
+                    data = JSON.parse(text);
+                } catch (parseErr) {
+                    console.error('Invalid JSON response from server:', text);
+                    pdMsg.innerHTML = '<div class="alert alert-danger">Server returned an invalid response. See console for details.</div>';
+                    pdConfirmBtn.disabled = false;
+                    pdConfirmBtn.textContent = 'OK';
+                    return;
+                }
+
+                pdConfirmBtn.disabled = false;
+                pdConfirmBtn.textContent = 'OK';
+
+                if (data && data.reload) {
+                    payModal.hide();
+                    window.location.reload();
+                } else {
+                    pdMsg.innerHTML = '<div class="alert alert-info">' + (data.message || 'Payment recorded') + '</div>';
+                }
+            } catch (err) {
+                console.error('Request error:', err);
+                pdConfirmBtn.disabled = false;
+                pdConfirmBtn.textContent = 'OK';
+                pdMsg.innerHTML = '<div class="alert alert-danger">Error processing payment. Check console.</div>';
+            }
+        });
+    }
+
+    ensureBootstrap(initPayModal);
+
+    // Welcome balls animation (IIFE can stay outside DOMContentLoaded)
+    (function() {
+      const banner = document.querySelector('.welcome-banner');
+      const ballsContainer = document.querySelector('.welcome-balls');
+      if (!banner || !ballsContainer) return;
+
+      function getColors() {
+        if (document.body.classList.contains('dark-mode')) {
+          return ['#ffd200', '#1abc9c', '#56ccf2', '#23243a', '#fff'];
+        } else {
+          return ['#1abc9c', '#56ccf2', '#ffd200', '#3498db', '#fff'];
+        }
+      }
+
+      ballsContainer.innerHTML = '';
+      ballsContainer.style.position = 'absolute';
+      ballsContainer.style.top = 0;
+      ballsContainer.style.left = 0;
+      ballsContainer.style.width = '100%';
+      ballsContainer.style.height = '100%';
+      ballsContainer.style.zIndex = 1;
+      ballsContainer.style.pointerEvents = 'none';
+
+      const balls = [];
+      const colors = getColors();
+      const numBalls = 7;
+      for (let i = 0; i < numBalls; i++) {
+        const ball = document.createElement('div');
+        ball.className = 'welcome-ball';
+        ball.style.position = 'absolute';
+        ball.style.borderRadius = '50%';
+        ball.style.opacity = '0.18';
+        ball.style.background = colors[i % colors.length];
+        ball.style.width = ball.style.height = (32 + Math.random() * 32) + 'px';
+        ball.style.top = (10 + Math.random() * 60) + '%';
+        ball.style.left = (5 + Math.random() * 85) + '%';
+        ballsContainer.appendChild(ball);
+        balls.push({
+          el: ball,
+          x: parseFloat(ball.style.left),
+          y: parseFloat(ball.style.top),
+          r: Math.random() * 0.5 + 0.2,
+          dx: (Math.random() - 0.5) * 0.2,
+          dy: (Math.random() - 0.5) * 0.2
+        });
+      }
+
+      function animateBalls() {
+        balls.forEach(ball => {
+          ball.x += ball.dx;
+          ball.y += ball.dy;
+          if (ball.x < 0 || ball.x > 95) ball.dx *= -1;
+          if (ball.y < 5 || ball.y > 80) ball.dy *= -1;
+          ball.el.style.left = ball.x + '%';
+          ball.el.style.top = ball.y + '%';
+        });
+        requestAnimationFrame(animateBalls);
+      }
+      animateBalls();
+
+      window.addEventListener('storage', () => {
+        const newColors = getColors();
+        balls.forEach((ball, i) => {
+          ball.el.style.background = newColors[i % newColors.length];
+        });
+      });
+      document.getElementById('themeToggle')?.addEventListener('change', () => {
+        const newColors = getColors();
+        balls.forEach((ball, i) => {
+          ball.el.style.background = newColors[i % newColors.length];
+        });
+      });
+    })();
+});
