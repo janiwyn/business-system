@@ -3,14 +3,13 @@ ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
+// Always include db/auth BEFORE AJAX handler!
 session_start();
 include '../includes/db.php';
 include '../includes/auth.php';
 require_role(["admin","manager","staff"]);
 
-
-
-// Handle AJAX and form requests (create/update/add-money/delete/fetch)
+// --- AJAX HANDLER MUST BE BEFORE ANY HTML OR INCLUDES ---
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     header('Content-Type: application/json; charset=utf-8');
     $action = $_POST['action'];
@@ -111,7 +110,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         exit;
     }
 }
-
 if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['fetch_transactions'])) {
     $customer_id = intval($_GET['customer_id'] ?? 0);
     $out = ['success'=>false,'rows'=>[]];
@@ -179,7 +177,7 @@ $customers = $customers_res ? $customers_res->fetch_all(MYSQLI_ASSOC) : [];
                 <input name="opening_date" type="date" class="form-control" value="<?= date('Y-m-d') ?>">
               </div>
               <div class="col-12 text-end">
-                <button class="btn btn-primary" id="createCustomerBtn">Create Customer</button>
+                <button type="submit" class="btn btn-primary" id="createCustomerBtn">Create Customer</button>
               </div>
             </form>
             <div id="createMsg" class="mt-3"></div>
@@ -336,7 +334,8 @@ document.getElementById('createCustomerForm').addEventListener('submit', async f
   e.preventDefault();
   const form = new FormData(this);
   form.append('action','create_customer');
-  const res = await fetch('customer_management.php', {method:'POST', body: form});
+  // Use current page for AJAX POST
+  const res = await fetch(location.pathname, {method:'POST', body: form});
   const data = await res.json();
   const msg = document.getElementById('createMsg');
   if (data.success) {
