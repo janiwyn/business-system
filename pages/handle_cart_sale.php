@@ -1,4 +1,4 @@
- <?php
+<?php
  
 include '../includes/db.php';
 
@@ -39,57 +39,60 @@ if (isset($_POST['submit_cart']) && !empty($_POST['cart_data'])) {
         $total_profit = $total_price - $cost_price;
         $total += $total_price;
 
-        // Only record sale if amount_paid >= total (fully paid)
-        // If not fully paid, do NOT record sale here (handled by debtor logic)
-      $date = date('Y-m-d');
+        $date = date('Y-m-d');
 
-$stmt = $conn->prepare("INSERT INTO sales (`product-id`, `branch-id`, quantity, amount, `sold-by`, `cost-price`, total_profits, date, payment_method) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
-$stmt->bind_param("iiiidddss", $product_id, $branch_id, $quantity, $total_price, $user_id, $cost_price, $total_profit, $date, $payment_method);
-$stmt->execute();
-$stmt->close();
-
-
-            // Update stock
-            $new_stock = $product['stock'] - $quantity;
-            $update = $conn->prepare("UPDATE products SET stock = ? WHERE id = ?");
-            $update->bind_param("ii", $new_stock, $product_id);
-            $update->execute();
-            $update->close();
-
-            // Update profits
-            $stmt = $conn->prepare("SELECT * FROM profits WHERE date = ? AND `branch-id` = ?");
-            $stmt->bind_param("si", $currentDate, $branch_id);
-            $stmt->execute();
-            $profit_result = $stmt->get_result()->fetch_assoc();
+        // Insert sale row
+        $stmt = $conn->prepare("INSERT INTO sales (`product-id`, `branch-id`, quantity, amount, `sold-by`, `cost-price`, total_profits, date, payment_method) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
+        $stmt->bind_param("iiiidddss", $product_id, $branch_id, $quantity, $total_price, $user_id, $cost_price, $total_profit, $date, $payment_method);
+        if (!$stmt->execute()) {
+            $success = false;
+            $messages[] = "Failed to record sale for " . htmlspecialchars($item['name']);
             $stmt->close();
-            if ($profit_result) {
-                $total_amount = $profit_result['total'] + $total_profit;
-                $expenses     = $profit_result['expenses'] ?? 0;
-                $net_profit   = $total_amount - $expenses;
-                $stmt2 = $conn->prepare("UPDATE profits SET total=?, `net-profits`=? WHERE date=? AND `branch-id`=?");
-                $stmt2->bind_param("ddsi", $total_amount, $net_profit, $currentDate, $branch_id);
-                $stmt2->execute();
-                $stmt2->close();
-            } else {
-                $total_amount = $total_profit;
-                $net_profit   = $total_profit;
-                $expenses     = 0;
-                $stmt2 = $conn->prepare("INSERT INTO profits (`branch-id`, total, `net-profits`, expenses, date) VALUES (?, ?, ?, ?, ?)");
-                $stmt2->bind_param("iddis", $branch_id, $total_amount, $net_profit, $expenses, $currentDate);
-                $stmt2->execute();
-                $stmt2->close();
-            }
+            break;
         }
-        if ($success) {
-            $conn->commit();
-            $message = '✅ Sale recorded successfully!';
+        $stmt->close();
+
+        // Only update stock/profits if sale insert succeeded
+        $new_stock = $product['stock'] - $quantity;
+        $update = $conn->prepare("UPDATE products SET stock = ? WHERE id = ?");
+        $update->bind_param("ii", $new_stock, $product_id);
+        $update->execute();
+        $update->close();
+
+        // Update profits
+        $stmt = $conn->prepare("SELECT * FROM profits WHERE date = ? AND `branch-id` = ?");
+        $stmt->bind_param("si", $currentDate, $branch_id);
+        $stmt->execute();
+        $profit_result = $stmt->get_result()->fetch_assoc();
+        $stmt->close();
+        if ($profit_result) {
+            $total_amount = $profit_result['total'] + $total_profit;
+            $expenses     = $profit_result['expenses'] ?? 0;
+            $net_profit   = $total_amount - $expenses;
+            $stmt2 = $conn->prepare("UPDATE profits SET total=?, `net-profits`=? WHERE date=? AND `branch-id`=?");
+            $stmt2->bind_param("ddsi", $total_amount, $net_profit, $currentDate, $branch_id);
+            $stmt2->execute();
+            $stmt2->close();
         } else {
-            $conn->rollback();
-            $message = implode(' ', $messages);
+            $total_amount = $total_profit;
+            $net_profit   = $total_profit;
+            $expenses     = 0;
+            $stmt2 = $conn->prepare("INSERT INTO profits (`branch-id`, total, `net-profits`, expenses, date) VALUES (?, ?, ?, ?, ?)");
+            $stmt2->bind_param("iddis", $branch_id, $total_amount, $net_profit, $expenses, $currentDate);
+            $stmt2->execute();
+            $stmt2->close();
         }
-    // } else {
-        // Underpayment: Do not record sale, handled by debtor logic
-        $conn->rollback();
     }
 
+    if ($success) {
+        $conn->commit();
+        $_SESSION['cart_sale_message'] = '✅ Sale recorded successfully!';
+    } else {
+        $conn->rollback();
+        $_SESSION['cart_sale_message'] = '❌ ' . implode(' ', $messages);
+    }
+    // Redirect to avoid resubmission and show message
+    echo "<script>window.location='staff_dashboard.php';</script>";
+    exit;
+}
 ?>
