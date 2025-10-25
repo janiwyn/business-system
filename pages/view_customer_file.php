@@ -76,14 +76,11 @@ if (!$c) { echo "<div class='container mt-5'><div class='alert alert-danger'>Cus
               }
               $tstmt->close();
 
-              // Calculate running balance
-              $start_balance = floatval($c['account_balance'] ?? 0);
-              $start_credited = floatval($c['amount_credited'] ?? 0);
+              // Calculate running balance from zero, process oldest to newest
               $balance = 0;
               $credited = 0;
               $rows = [];
-              // Build rows in reverse (latest first)
-              $dates = array_reverse(array_keys($grouped));
+              $dates = array_keys($grouped); // chronological order
               foreach ($dates as $date_key) {
                   $topup = null;
                   $deduction = null;
@@ -112,12 +109,7 @@ if (!$c) { echo "<div class='container mt-5'><div class='alert alert-danger'>Cus
                       continue;
                   }
 
-                  // Calculate balance after this transaction
-                  // Start from initial balance, subtract all later deductions, add all later topups
-                  // So we process in reverse and update running balance
-                  if ($balance === 0) $balance = $start_balance;
-                  if ($credited === 0) $credited = $start_credited;
-                  // For display, balance after this transaction
+                  // Update running balance
                   $balance += $amount_topup;
                   $balance -= $amount_deducted;
                   $credited -= $amount_credited;
