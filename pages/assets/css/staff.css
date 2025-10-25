@@ -1,5 +1,3 @@
-
-
 /* Welcome Banner (same as admin_dashboard) */
 .welcome-banner {
     background: linear-gradient(90deg, #1abc9c 0%, #56ccf2 100%);
@@ -151,6 +149,31 @@ body.dark-mode .form-select:focus {
 }
 .d-flex.gap-1 > .btn-action:not(:last-child) {
     margin-right: 0.25rem;
+}
+
+/* Table and form titles */
+.card-header,
+.title-card,
+.table-title,
+.form-title,
+h5.card-title,
+h4.card-title,
+h3.card-title {
+    color: #1abc9c !important;
+    font-weight: bold !important;
+    /* If you want larger font, you can add: font-size: 1.25rem; */
+}
+
+/* For dark mode, keep the color the same for titles */
+body.dark-mode .card-header,
+body.dark-mode .title-card,
+body.dark-mode .table-title,
+body.dark-mode .form-title,
+body.dark-mode h5.card-title,
+body.dark-mode h4.card-title,
+body.dark-mode h3.card-title {
+    color: #1abc9c !important;
+    font-weight: bold !important;
 }
 
 

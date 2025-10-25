@@ -188,7 +188,7 @@ $customers = $customers_res ? $customers_res->fetch_all(MYSQLI_ASSOC) : [];
       <!-- VIEW -->
       <div class="tab-pane fade" id="tab-view">
         <div class="card mb-4">
-          <div class="card-header">View Customer Files</div>
+          <div class="card-header" color = #1abc9c><b>View Customer Files</b></div>
           <div class="card-body">
             <?php if (count($customers)): ?>
               <div class="transactions-table">
@@ -327,6 +327,55 @@ $customers = $customers_res ? $customers_res->fetch_all(MYSQLI_ASSOC) : [];
     </div>
   </div>
 
+
+<style>
+/* ...existing code... */
+body.dark-mode,
+body.dark-mode .card,
+body.dark-mode .card-header,
+body.dark-mode .title-card,
+body.dark-mode .form-label,
+body.dark-mode label,
+body.dark-mode .card-body,
+body.dark-mode .transactions-table thead,
+body.dark-mode .transactions-table tbody td,
+body.dark-mode .transactions-table tbody tr,
+body.dark-mode .alert,
+body.dark-mode .nav-tabs .nav-link,
+body.dark-mode .accordion-button,
+body.dark-mode .accordion-body {
+    color: #fff !important;
+    background-color: #23243a !important;
+}
+body.dark-mode .transactions-table thead {
+    background-color: #1abc9c !important;
+    color: #fff !important;
+}
+body.dark-mode .transactions-table tbody tr {
+    background-color: #2c2c3a !important;
+}
+body.dark-mode .transactions-table tbody tr:nth-child(even) {
+    background-color: #272734 !important;
+}
+body.dark-mode .form-control,
+body.dark-mode .form-select {
+    background-color: #23243a !important;
+    color: #fff !important;
+    border: 1px solid #444 !important;
+}
+body.dark-mode .form-control:focus,
+body.dark-mode .form-select:focus {
+    background-color: #23243a !important;
+    color: #fff !important;
+}
+body.dark-mode .btn,
+body.dark-mode .btn-primary,
+body.dark-mode .btn-success,
+body.dark-mode .btn-danger,
+body.dark-mode .btn-warning {
+    color: #fff !important;
+}
+</style>
 
 <script>
 /* Create customer via AJAX */
