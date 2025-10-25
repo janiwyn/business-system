@@ -5,9 +5,6 @@ require_role(["admin", "manager", "super"]);
 include '../pages/sidebar.php';
 include '../includes/header.php';
  ?>
-
-<!DOCTYPE html>
-<html>
 <head>
   <title>Account Ledger</title>
 </head>
