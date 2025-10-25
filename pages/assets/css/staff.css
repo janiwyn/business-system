@@ -413,4 +413,74 @@ body.dark-mode .low-stock-info {
     color: #fff !important;
 }
 
+/* Create Customer File Form Styling (match Add Product form) */
+.create-customer-card {
+    border-radius: 12px;
+    box-shadow: 0px 4px 12px rgba(0,0,0,0.08);
+    margin-bottom: 2rem;
+}
+.create-customer-card .card-header {
+    font-weight: bold;
+    background: var(--primary-color);
+    color: #fff !important;
+    border-radius: 12px 12px 0 0 !important;
+    font-size: 1.1rem;
+    letter-spacing: 1px;
+}
+.create-customer-card .form-control,
+.create-customer-card .form-select {
+    border-radius: 8px;
+}
+.create-customer-card .btn-primary {
+    background: var(--primary-color) !important;
+    border: none;
+    border-radius: 8px;
+    font-weight: 600;
+    color: #fff !important;
+    box-shadow: 0px 3px 8px rgba(0,0,0,0.2);
+    transition: background 0.2s;
+}
+.create-customer-card .btn-primary:hover,
+.create-customer-card .btn-primary:focus {
+    background: #159c8c !important;
+    color: #fff !important;
+}
+.create-customer-card .form-label {
+    font-weight: 600;
+}
+.create-customer-card .row.g-3 > div {
+    margin-bottom: 1rem;
+}
+
+/* Dark mode styles for create customer card */
+body.dark-mode .create-customer-card,
+body.dark-mode .create-customer-card .card-header,
+body.dark-mode .create-customer-card .card-body {
+    background-color: #23243a !important;
+    color: #fff !important;
+}
+body.dark-mode .create-customer-card .card-header {
+    background-color: #2c3e50 !important;
+    color: #1abc9c !important;
+}
+body.dark-mode .create-customer-card .form-label,
+body.dark-mode .create-customer-card label {
+    color: #fff !important;
+}
+body.dark-mode .create-customer-card .form-control,
+body.dark-mode .create-customer-card .form-select {
+    background-color: #23243a !important;
+    color: #fff !important;
+    border: 1px solid #444 !important;
+}
+body.dark-mode .create-customer-card .form-control:focus,
+body.dark-mode .create-customer-card .form-select:focus {
+    background-color: #23243a !important;
+    color: #fff !important;
+}
+body.dark-mode .create-customer-card .btn,
+body.dark-mode .create-customer-card .btn-primary {
+    color: #fff !important;
+}
+
 
