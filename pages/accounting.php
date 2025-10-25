@@ -17,8 +17,7 @@ include '../includes/header.php';
 <link rel="stylesheet" href="assets/css/staff.css">
 
 <div class="container mt-4">
-    <h2 class="page-title mb-4">💼 Accounting Module</h2>
-    <div class="row g-4">
+    <div class="accounting-cards-grid">
         <!-- Add Account -->
         <div class="col-md-3">
             <a href="add_account.php" class="text-decoration-none">

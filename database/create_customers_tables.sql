@@ -19,6 +19,9 @@ CREATE TABLE IF NOT EXISTS customer_transactions (
   sold_by VARCHAR(255),
   FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE
 );
+
+
+
 CREATE TABLE businesses (
     id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
@@ -29,6 +32,8 @@ CREATE TABLE businesses (
     date_registered DATETIME DEFAULT CURRENT_TIMESTAMP,
     status ENUM('active', 'suspended') DEFAULT 'active'
 );
+
+
 ALTER TABLE users
 ADD COLUMN business_id INT NULL,
 ADD FOREIGN KEY (business_id) REFERENCES businesses(id) ON DELETE SET NULL;
