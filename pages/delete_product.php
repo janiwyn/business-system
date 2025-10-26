@@ -17,8 +17,8 @@ $stmt = $conn->prepare("DELETE FROM products WHERE id = ?");
 $stmt->bind_param("i", $id);
 
 if ($stmt->execute()) {
-    header("Location: product.php");
-    exit;
+    // header("Location: product.php");
+    // exit;
 } else {
     echo "Failed to delete product: " . $stmt->error;
 }

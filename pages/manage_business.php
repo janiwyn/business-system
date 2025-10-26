@@ -28,34 +28,49 @@ include '../includes/header.php';
                             <th>Action</th>
                         </tr>
                     </thead>
-                    <tbody>
-                        <?php
-                        $result = $conn->query("SELECT * FROM businesses ORDER BY date_registered DESC");
+                   <tbody>
+    <?php
+    $query = "
+        SELECT 
+            b.id,
+            b.name AS business_name,
+            b.phone,
+            b.date_registered,
+            b.status,
+            u.username AS admin_name,
+            u.email AS admin_email
+        FROM businesses b
+        LEFT JOIN users u ON b.id = u.business_id AND u.role = 'admin'
+        ORDER BY b.date_registered DESC
+    ";
 
-                        if ($result->num_rows > 0) {
-                            while ($row = $result->fetch_assoc()) {
-                                $statusClass = $row['status'] === 'active' ? 'badge bg-success' : 'badge bg-danger';
-                                echo "<tr>
-                                        <td>{$row['id']}</td>
-                                        <td>{$row['name']}</td>
-                                        <td>{$row['admin_name']}</td>
-                                        <td>{$row['email']}</td>
-                                        <td>{$row['phone']}</td>
-                                        <td>{$row['date_registered']}</td>
-                                        <td><span class='{$statusClass}'>" . ucfirst($row['status']) . "</span></td>
-                                        <td>
-                                            <a href='view_business.php?id={$row['id']}' class='btn btn-sm btn-info'>View</a>
-                                            <a href='edit_business.php?id={$row['id']}' class='btn btn-sm btn-warning text-white'>Edit</a>
-                                            <a href='toggle_business.php?id={$row['id']}&status={$row['status']}' class='btn btn-sm btn-secondary'>"
-                                            . ($row['status'] == 'active' ? 'Suspend' : 'Activate') . "</a>
-                                        </td>
-                                    </tr>";
-                            }
-                        } else {
-                            echo "<tr><td colspan='8' class='text-center'>No businesses registered yet.</td></tr>";
-                        }
-                        ?>
-                    </tbody>
+    $result = $conn->query($query);
+
+    if ($result->num_rows > 0) {
+        while ($row = $result->fetch_assoc()) {
+            $statusClass = $row['status'] === 'active' ? 'badge bg-success' : 'badge bg-danger';
+            echo "<tr>
+                    <td>{$row['id']}</td>
+                    <td>{$row['business_name']}</td>
+                    <td>" . (!empty($row['admin_name']) ? $row['admin_name'] : "<em>No admin yet</em>") . "</td>
+                    <td>" . (!empty($row['admin_email']) ? $row['admin_email'] : "<em>—</em>") . "</td>
+                    <td>{$row['phone']}</td>
+                    <td>{$row['date_registered']}</td>
+                    <td><span class='{$statusClass}'>" . ucfirst($row['status']) . "</span></td>
+                    <td>
+                        <a href='view_business.php?id={$row['id']}' class='btn btn-sm btn-info'>View</a>
+                        <a href='edit_business.php?id={$row['id']}' class='btn btn-sm btn-warning text-white'>Edit</a>
+                        <a href='toggle_business.php?id={$row['id']}&status={$row['status']}' class='btn btn-sm btn-secondary'>"
+                        . ($row['status'] == 'active' ? 'Suspend' : 'Activate') . "</a>
+                    </td>
+                </tr>";
+        }
+    } else {
+        echo "<tr><td colspan='8' class='text-center'>No businesses registered yet.</td></tr>";
+    }
+    ?>
+</tbody>
+
                 </table>
             </div>
         </div>
