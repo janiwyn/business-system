@@ -129,7 +129,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['fetch_transactions'])) 
 // include sidebar/header (keeps layout consistent)
 include '../pages/sidebar.php';
 include '../includes/header.php';
+?>
+<link rel="stylesheet" href="assets/css/staff.css">
+<!-- If you want global styles, also add: -->
+<!-- <link rel="stylesheet" href="assets/css/style.css"> -->
 
+<?php
 // Load customers list for page render
 $customers_res = $conn->query("SELECT * FROM customers ORDER BY id DESC");
 $customers = $customers_res ? $customers_res->fetch_all(MYSQLI_ASSOC) : [];
@@ -156,7 +161,7 @@ $customers = $customers_res ? $customers_res->fetch_all(MYSQLI_ASSOC) : [];
 
       <!-- CREATE -->
       <div class="tab-pane fade show active" id="tab-create">
-        <div class="card mb-4">
+        <div class="card create-customer-card mb-4">
           <div class="card-header">Create Customer File</div>
           <div class="card-body">
             <form id="createCustomerForm" class="row g-3">

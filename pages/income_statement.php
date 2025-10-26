@@ -4,28 +4,19 @@ include '../includes/auth.php';
 require_role(["admin", "manager", "super"]);
 include '../pages/sidebar.php';
 include '../includes/header.php';
- ?>
-
-<!DOCTYPE html>
-<html>
-<head>
-  <title>Income Statement (Profit & Loss)</title>
-</head>
-<body class="bg-light">
+?>
+<link rel="stylesheet" href="assets/css/accounting.css">
 
 <div class="container mt-5 mb-5">
-  <h2 class="text-center mb-4">Income Statement (Profit & Loss)</h2>
-
+  <h2 class="page-title mb-4 text-center">Income Statement (Profit & Loss)</h2>
   <div class="row">
     <!-- Income Section -->
     <div class="col-md-6">
-      <div class="card shadow-sm mb-3">
-        <div class="card-header bg-success text-white fw-bold">
-          Income
-        </div>
+      <div class="card income-card mb-4">
+        <div class="card-header income-header">Income</div>
         <div class="card-body">
-          <table class="table table-bordered">
-            <thead class="table-light">
+          <table class="income-table align-middle">
+            <thead>
               <tr>
                 <th>Account</th>
                 <th class="text-end">Amount</th>
@@ -68,16 +59,13 @@ include '../includes/header.php';
         </div>
       </div>
     </div>
-
     <!-- Expenses Section -->
     <div class="col-md-6">
-      <div class="card shadow-sm mb-3">
-        <div class="card-header bg-danger text-white fw-bold">
-          Expenses
-        </div>
+      <div class="card expense-card mb-4">
+        <div class="card-header expense-header">Expenses</div>
         <div class="card-body">
-          <table class="table table-bordered">
-            <thead class="table-light">
+          <table class="expense-table align-middle">
+            <thead>
               <tr>
                 <th>Account</th>
                 <th class="text-end">Amount</th>
@@ -121,10 +109,9 @@ include '../includes/header.php';
       </div>
     </div>
   </div>
-
   <!-- Net Profit / Loss -->
-  <div class="card shadow-sm mt-4">
-    <div class="card-header bg-dark text-white fw-bold text-center">
+  <div class="card net-result-card shadow-sm mt-4 mb-4">
+    <div class="card-header net-result-header text-center">
       Net Result
     </div>
     <div class="card-body text-center">
@@ -139,11 +126,9 @@ include '../includes/header.php';
       }
       ?>
     </div>
-    
   </div>
-      <a href="accounting.php" class="btn btn-secondary">← Back</a>
-
+  <div class="text-end">
+    <a href="accounting.php" class="btn btn-secondary">← Back</a>
+  </div>
 </div>
-
-</body>
-</html>
+<?php include '../includes/footer.php'; ?>

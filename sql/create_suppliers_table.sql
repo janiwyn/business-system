@@ -1,0 +1,8 @@
+CREATE TABLE suppliers (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    location VARCHAR(255),
+    products VARCHAR(255),
+    unit_price DECIMAL(12,2) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);

@@ -121,4 +121,13 @@ if ($role == 'admin' || $role == 'manager' || $role == 'staff') {
     </a>
 </li>';
 }
+
+// Add a navigation link to the Suppliers page for admin and manager users.
+if ($role == 'admin' || $role == 'manager') {
+    echo '<li>
+    <a href="suppliers.php" class="' . basename($_SERVER['PHP_SELF']) === 'suppliers.php' ? 'active' : '' . '">
+        <i class="fa-solid fa-truck"></i> Suppliers
+    </a>
+</li>';
+}
 ?>

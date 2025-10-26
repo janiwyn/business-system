@@ -2,27 +2,22 @@
 include '../includes/db.php';
 include '../includes/auth.php';
 require_role(["manager", "admin"]);
-include '../includes/header.php';
 
-// Determine dashboard link based on role
-$role = $_SESSION['role'] ?? '';
-$dashboard = '#';
-if ($role === 'manager') {
-    $dashboard = '../pages/manager_dashboard.php';
-} elseif ($role === 'admin') {
-    $dashboard = '../pages/admin_dashboard.php';
-}else{
-    $dashboard = '../pages/super.php';
+// Sidebar for admin/manager
+if ($_SESSION['role'] === 'manager') {
+    include '../pages/sidebar.php';
+} elseif ($_SESSION['role'] === 'admin') {
+    include '../pages/sidebar.php';
+} else {
+    include '../pages/sidebar_staff.php';
 }
+include '../includes/header.php';
 ?>
 
-<div class="container mt-4">
-       <a href="<?= $dashboard ?>"  class="btn btn-secondary mb-4">
-        <i class="fa-solid fa-arrow-left"></i> Back to Dashboard
-    </a>
-    <h1 class="mb-4">💼 Accounting Module</h1>
+<link rel="stylesheet" href="assets/css/staff.css">
 
-    <div class="row g-4">
+<div class="container mt-4">
+    <div class="accounting-cards-grid">
         <!-- Add Account -->
         <div class="col-md-3">
             <a href="add_account.php" class="text-decoration-none">
@@ -128,19 +123,5 @@ if ($role === 'manager') {
         </div>
     </div>
 </div>
-
-<style>
-.hover-card:hover {
-    transform: translateY(-5px);
-    transition: all 0.3s ease;
-    box-shadow: 0 8px 20px rgba(0,0,0,0.15);
-}
-.card-title {
-    font-weight: 600;
-}
-.card-text {
-    font-size: 0.85rem;
-}
-</style>
 
 <?php include '../includes/footer.php'; ?>
