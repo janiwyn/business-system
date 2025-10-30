@@ -338,17 +338,18 @@ document.querySelectorAll('#suppliersAccordion .accordion-button').forEach(btn=>
       const res = await fetch('suppliers.php', {method:'POST', body: form});
       data = await res.json();
     } catch (err) {
-      container.innerHTML = '<div class="text-muted">No transactions.</div>';
-      container.dataset.loaded = '1';
-      return;
+      data = {success: false, rows: []};
     }
+    // Always show table headers
+    let html = '<div class="transactions-table"><table><thead><tr><th>Date & Time</th><th>Products</th><th class="text-center">Quantity</th><th class="text-end">Unit Price</th><th class="text-end">Amount</th><th>Payment Method</th><th class="text-end">Amount Paid</th><th class="text-end">Balance</th><th>Actions</th></tr></thead><tbody>';
     if (!data.success || !Array.isArray(data.rows) || !data.rows.length) {
-      container.innerHTML = '<div class="text-muted">No transactions.</div>';
+      html += '<tr><td colspan="9" class="text-center text-muted">No transactions found.</td></tr>';
+      html += '</tbody></table></div>';
+      container.innerHTML = html;
       container.dataset.loaded = '1';
       return;
     }
 
-    let html = '<div class="transactions-table"><table><thead><tr><th>Date & Time</th><th>Products</th><th class="text-center">Quantity</th><th class="text-end">Unit Price</th><th class="text-end">Amount</th><th>Payment Method</th><th class="text-end">Amount Paid</th><th class="text-end">Balance</th><th>Actions</th></tr></thead><tbody>';
     data.rows.forEach(r=>{
       const paid = parseFloat(r.amount_paid || 0).toFixed(2);
       const balance = parseFloat(r.balance || 0).toFixed(2);
