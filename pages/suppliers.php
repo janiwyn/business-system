@@ -1,4 +1,31 @@
 <?php
+// --- FIX: Handle AJAX actions before any output ---
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
+    if ($_POST['action'] === 'delete_supplier') {
+        header('Content-Type: application/json');
+        include '../includes/db.php';
+        $id = intval($_POST['id']);
+        $conn->query("DELETE FROM suppliers WHERE id = $id");
+        echo json_encode(['success'=>true]);
+        exit;
+    }
+    if ($_POST['action'] === 'edit_supplier') {
+        header('Content-Type: application/json');
+        include '../includes/db.php';
+        $id = intval($_POST['id']);
+        $name = trim($_POST['name'] ?? '');
+        $location = trim($_POST['location'] ?? '');
+        $products = trim($_POST['products'] ?? '');
+        $unit_price = floatval($_POST['unit_price'] ?? 0);
+        $stmt = $conn->prepare("UPDATE suppliers SET name=?, location=?, products=?, unit_price=? WHERE id=?");
+        $stmt->bind_param("sssdi", $name, $location, $products, $unit_price, $id);
+        $ok = $stmt->execute();
+        $stmt->close();
+        echo json_encode(['success'=>$ok]);
+        exit;
+    }
+}
+
 include '../includes/db.php';
 include '../includes/auth.php';
 require_role(["admin", "manager", "staff", "super"]);
@@ -23,29 +50,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     } else {
         $message = "<div class='alert alert-danger'>Supplier name is required.</div>";
     }
-}
-
-// Handle delete supplier
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'delete_supplier') {
-    $id = intval($_POST['id']);
-    $conn->query("DELETE FROM suppliers WHERE id = $id");
-    echo json_encode(['success'=>true]);
-    exit;
-}
-
-// Handle edit supplier (AJAX)
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'edit_supplier') {
-    $id = intval($_POST['id']);
-    $name = trim($_POST['name'] ?? '');
-    $location = trim($_POST['location'] ?? '');
-    $products = trim($_POST['products'] ?? '');
-    $unit_price = floatval($_POST['unit_price'] ?? 0);
-    $stmt = $conn->prepare("UPDATE suppliers SET name=?, location=?, products=?, unit_price=? WHERE id=?");
-    $stmt->bind_param("sssdi", $name, $location, $products, $unit_price, $id);
-    $ok = $stmt->execute();
-    $stmt->close();
-    echo json_encode(['success'=>$ok]);
-    exit;
 }
 
 // Fetch suppliers for manage tab
@@ -223,8 +227,16 @@ document.getElementById('editSupplierForm').addEventListener('submit', function(
     fetch('suppliers.php', {
         method: 'POST',
         body: form
-    }).then(res => res.json()).then(data => {
+    }).then(async res => {
+        let data;
+        try {
+            data = await res.json();
+        } catch (err) {
+            alert('Error: Could not update supplier. Please try again.');
+            return;
+        }
         if (data.success) location.reload();
+        else alert('Failed to update supplier.');
     });
 });
 </script>
