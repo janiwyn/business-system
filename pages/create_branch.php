@@ -38,8 +38,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
                 // Redirect back to branch.php with new branch ID
                 $new_branch_id = $stmt->insert_id;
-                header("Location: list_branches.php");
-                exit;
+                // header("Location: list_branches.php");
+                // exit;
             } else {
                 $message = "Failed to create branch. Try again.";
                 $message_class = "alert-danger";

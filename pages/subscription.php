@@ -22,8 +22,21 @@ $conn->query("UPDATE businesses SET subscription_status='expired' WHERE subscrip
 
 // Search
 $search = $_GET['q'] ?? '';
-$search_sql = $search ? "AND (name LIKE '%$search%' OR email LIKE '%$search%')" : '';
-$result = $conn->query("SELECT * FROM businesses WHERE 1 $search_sql ORDER BY subscription_end DESC");
+$search_sql = $search ? "AND (b.name LIKE '%$search%' OR u.email LIKE '%$search%')" : '';
+
+$query = "
+    SELECT 
+        b.*,
+        u.email AS admin_email,
+        u.username AS admin_name
+    FROM businesses b
+    LEFT JOIN users u ON b.id = u.business_id AND u.role = 'admin'
+    WHERE 1 $search_sql
+    ORDER BY b.subscription_end DESC
+";
+
+$result = $conn->query($query);
+
 ?>
 
 <div class="container mt-4">
@@ -63,7 +76,8 @@ $result = $conn->query("SELECT * FROM businesses WHERE 1 $search_sql ORDER BY su
                         ?>
                         <tr>
                             <td><?= htmlspecialchars($b['name']); ?></td>
-                            <td><?= htmlspecialchars($b['email']); ?></td>
+                            <td><?= htmlspecialchars($b['admin_email'] ?? '—'); ?></td>
+
                             <td>
                                 <form method="POST" class="d-flex flex-wrap align-items-center gap-2">
                                     <input type="hidden" name="id" value="<?= $b['id']; ?>">

@@ -62,10 +62,10 @@ if (!$checkCTCol || $checkCTCol->num_rows === 0) {
     }
 }
 
-if ($_SESSION['role'] !== 'staff') {
-    header("Location: ../auth/login.php");
-    exit();
-}
+// if ($_SESSION['role'] !== 'staff') {
+//     header("Location: ../auth/login.php");
+//     exit();
+// }
 
 $user_id   = $_SESSION['user_id'];
 $username  = $_SESSION['username'];
