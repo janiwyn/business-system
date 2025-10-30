@@ -156,6 +156,268 @@ include '../includes/header.php';
 ?>
 <link rel="stylesheet" href="assets/css/accounting.css">
 
+<!-- Improved Styling for Suppliers Page -->
+<style>
+/* Tabs */
+.nav-tabs {
+    border-bottom: 2px solid #e0e0e0;
+    background: #f8f9fa;
+    border-radius: 12px 12px 0 0;
+    padding: 0.5rem 1rem 0 1rem;
+}
+.nav-tabs .nav-link {
+    border: none;
+    border-radius: 8px 8px 0 0;
+    color: var(--primary-color);
+    font-weight: 600;
+    background: transparent;
+    margin-right: 4px;
+    padding: 0.7rem 1.5rem;
+    transition: background 0.2s, color 0.2s;
+}
+.nav-tabs .nav-link.active, .nav-tabs .nav-link:focus, .nav-tabs .nav-link:hover {
+    background: var(--primary-color);
+    color: #fff !important;
+}
+body.dark-mode .nav-tabs {
+    background: #23243a;
+    border-bottom: 2px solid #444;
+}
+body.dark-mode .nav-tabs .nav-link {
+    color: #1abc9c;
+    background: transparent;
+}
+body.dark-mode .nav-tabs .nav-link.active, 
+body.dark-mode .nav-tabs .nav-link:focus, 
+body.dark-mode .nav-tabs .nav-link:hover {
+    background: #1abc9c;
+    color: #fff !important;
+}
+
+/* Card Styling */
+.card {
+    border-radius: 12px;
+    box-shadow: 0px 4px 12px rgba(0,0,0,0.08);
+    transition: transform 0.2s;
+    border: none;
+}
+.card-header {
+    background: var(--primary-color);
+    color: #fff;
+    font-weight: 600;
+    border-radius: 12px 12px 0 0 !important;
+    font-size: 1.1rem;
+    letter-spacing: 1px;
+}
+body.dark-mode .card-header {
+    background: #1abc9c !important;
+    color: #fff !important;
+}
+body.dark-mode .card {
+    background: #23243a !important;
+    box-shadow: 0 4px 12px rgba(44,62,80,0.18);
+}
+
+/* Table Styling */
+.transactions-table table {
+    width: 100%;
+    border-collapse: collapse;
+    background: #fff;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 2px 10px rgba(44,62,80,0.08);
+    margin-bottom: 1rem;
+}
+.transactions-table thead {
+    background: var(--primary-color);
+    color: #fff;
+    font-weight: 600;
+    font-size: 14px;
+    letter-spacing: 1px;
+}
+.transactions-table th, .transactions-table td {
+    padding: 0.85rem 1rem;
+    text-align: left;
+    vertical-align: middle;
+}
+.transactions-table tbody tr {
+    background-color: #f8fafc;
+    transition: background 0.2s;
+}
+.transactions-table tbody tr:nth-child(even) {
+    background-color: #eef2f7;
+}
+.transactions-table tbody tr:hover {
+    background-color: #e0f7fa;
+}
+.transactions-table tfoot td {
+    background: #f4f6f9;
+    font-weight: bold;
+    color: var(--primary-color);
+    border-top: 2px solid #e0e0e0;
+}
+body.dark-mode .transactions-table table {
+    background: #23243a;
+    box-shadow: 0 2px 10px rgba(44,62,80,0.18);
+}
+body.dark-mode .transactions-table thead {
+    background-color: #1abc9c !important;
+    color: #fff !important;
+}
+body.dark-mode .transactions-table th, 
+body.dark-mode .transactions-table td {
+    color: #fff !important;
+    background-color: #23243a !important;
+}
+body.dark-mode .transactions-table tbody tr {
+    background-color: #2c2c3a !important;
+}
+body.dark-mode .transactions-table tbody tr:nth-child(even) {
+    background-color: #272734 !important;
+}
+body.dark-mode .transactions-table tbody tr:hover {
+    background-color: #1abc9c22 !important;
+}
+body.dark-mode .transactions-table tfoot td {
+    background: #23243a !important;
+    color: #1abc9c !important;
+    border-top: 2px solid #444 !important;
+}
+
+/* Form Styling */
+form .form-control, form .form-select, form textarea {
+    border-radius: 8px;
+    border: 1px solid #dee2e6;
+    background: #fff;
+    color: #222;
+    transition: border 0.2s, background 0.2s;
+}
+form .form-control:focus, form .form-select:focus, form textarea:focus {
+    border-color: var(--primary-color);
+    background: #f8f9fa;
+    color: #222;
+}
+body.dark-mode form .form-control, 
+body.dark-mode form .form-select, 
+body.dark-mode form textarea {
+    background: #23243a !important;
+    color: #fff !important;
+    border: 1px solid #444 !important;
+}
+body.dark-mode form .form-control:focus, 
+body.dark-mode form .form-select:focus, 
+body.dark-mode form textarea:focus {
+    background: #23243a !important;
+    color: #fff !important;
+    border-color: #1abc9c !important;
+}
+.form-label, .modal-title {
+    font-weight: 600;
+    color: var(--primary-color);
+}
+body.dark-mode .form-label, body.dark-mode .modal-title {
+    color: #1abc9c !important;
+}
+
+/* Buttons */
+.btn-primary {
+    background: var(--primary-color) !important;
+    border: none;
+    border-radius: 8px;
+    padding: 8px 18px;
+    font-weight: 600;
+    box-shadow: 0px 3px 8px rgba(0,0,0,0.2);
+    color: #fff !important;
+    transition: background 0.2s;
+}
+.btn-primary:hover, .btn-primary:focus {
+    background: #159c8c !important;
+    color: #fff !important;
+}
+.btn-warning {
+    border-radius: 8px;
+    font-weight: 600;
+}
+.btn-danger {
+    border-radius: 8px;
+    font-weight: 600;
+}
+.btn-success {
+    border-radius: 8px;
+    font-weight: 600;
+}
+body.dark-mode .btn-primary {
+    background: #1abc9c !important;
+    color: #fff !important;
+}
+body.dark-mode .btn-warning {
+    background: #f39c12 !important;
+    color: #fff !important;
+}
+body.dark-mode .btn-danger {
+    background: #e74c3c !important;
+    color: #fff !important;
+}
+body.dark-mode .btn-success {
+    background: #27ae60 !important;
+    color: #fff !important;
+}
+
+/* Modal Styling */
+.modal-content {
+    border-radius: 12px;
+    background: #fff;
+}
+body.dark-mode .modal-content {
+    background: #23243a !important;
+    color: #fff !important;
+}
+body.dark-mode .modal-header, body.dark-mode .modal-footer {
+    border-color: #444 !important;
+}
+body.dark-mode .modal-title {
+    color: #1abc9c !important;
+}
+
+/* Misc */
+.page-title {
+    color: var(--primary-color);
+    font-weight: 700;
+    letter-spacing: 1px;
+}
+body.dark-mode .page-title {
+    color: #1abc9c !important;
+}
+.accordion-button {
+    font-weight: 600;
+    color: var(--primary-color);
+    background: #f8f9fa;
+    border-radius: 8px !important;
+}
+body.dark-mode .accordion-button {
+    color: #1abc9c !important;
+    background: #23243a !important;
+}
+.accordion-button:not(.collapsed) {
+    background: var(--primary-color);
+    color: #fff !important;
+}
+body.dark-mode .accordion-button:not(.collapsed) {
+    background: #1abc9c !important;
+    color: #fff !important;
+}
+.accordion-item {
+    border-radius: 12px !important;
+    border: none;
+    margin-bottom: 0.5rem;
+    box-shadow: 0 2px 8px rgba(44,62,80,0.06);
+}
+body.dark-mode .accordion-item {
+    background: #23243a !important;
+    box-shadow: 0 2px 8px rgba(44,62,80,0.18);
+}
+</style>
+
 <?php
 // --- Always fetch suppliers fresh after any changes ---
 $suppliers_res = $conn->query("SELECT * FROM suppliers ORDER BY id DESC");
