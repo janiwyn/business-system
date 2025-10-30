@@ -8,18 +8,28 @@ include '../includes/header.php';
 $message = "";
 $amount = 0;
 
+// Fetch branches and suppliers for dropdowns
+$branches_res = $conn->query("SELECT id, name FROM branch ORDER BY name ASC");
+$branches = $branches_res ? $branches_res->fetch_all(MYSQLI_ASSOC) : [];
+$suppliers_res = $conn->query("SELECT id, name, products, unit_price FROM suppliers ORDER BY name ASC");
+$suppliers = $suppliers_res ? $suppliers_res->fetch_all(MYSQLI_ASSOC) : [];
+
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $category   = mysqli_real_escape_string($conn, $_POST['category']);
     $branch_id  = mysqli_real_escape_string($conn, $_POST['branch_id']);
+    $supplier_id = mysqli_real_escape_string($conn, $_POST['supplier_id']);
+    $product    = mysqli_real_escape_string($conn, $_POST['product']);
+    $quantity   = intval($_POST['quantity']);
+    $unit_price = floatval($_POST['unit_price']);
     $amount     = floatval($_POST['amount']);
     $description = mysqli_real_escape_string($conn, $_POST['description']);
     $date       = $_POST['date'];
     $spent_by   = mysqli_real_escape_string($conn, $_POST['spent_by']);
 
-    if (!empty($category) && !empty($amount) && !empty($date)) {
-        $sql = "INSERT INTO expenses (category, `branch-id`, amount, description, date, `spent-by`) 
-                VALUES ('$category', '$branch_id', $amount, '$description', '$date', '$spent_by')";
+    if (!empty($category) && !empty($branch_id) && !empty($supplier_id) && !empty($product) && $quantity > 0 && $unit_price > 0 && !empty($date)) {
+        $sql = "INSERT INTO expenses (category, `branch-id`, supplier_id, product, quantity, unit_price, amount, description, date, `spent-by`) 
+                VALUES ('$category', '$branch_id', '$supplier_id', '$product', $quantity, $unit_price, $amount, '$description', '$date', '$spent_by')";
         if ($conn->query($sql)) {
             $message = "Expense added successfully.";
         } else {
@@ -88,9 +98,6 @@ $expenses = $conn->query("
 $total_result = $conn->query("SELECT SUM(e.amount) AS total_expenses FROM expenses e $whereClause");
 $total_data = $total_result->fetch_assoc();
 $total_expenses = $total_data['total_expenses'] ?? 0;
-
-// Fetch branches for filter
-$branches = $conn->query("SELECT id, name FROM branch");
 ?>
 
 <!-- Custom Styling -->
@@ -306,25 +313,56 @@ body.dark-mode .card .card-header.bg-light input[type="date"]:focus {
     <div class="card mb-4">
         <div class="card-header title-card">➕ Add New Expense</div>
         <div class="card-body">
-            <form method="post">
+            <form method="post" id="addExpenseForm">
                 <div class="row g-3">
-                    <div class="col-md-4">
+                    <div class="col-md-3">
                         <label for="category" class="form-label fw-semibold">Category *</label>
                         <input type="text" name="category" id="category" class="form-control" required>
                     </div>
-                    <div class="col-md-4">
-                        <label for="branch_id" class="form-label fw-semibold">Branch ID *</label>
-                        <input type="text" name="branch_id" id="branch_id" class="form-control" required>
+                    <div class="col-md-3">
+                        <label for="branch_id" class="form-label fw-semibold">Branch *</label>
+                        <select name="branch_id" id="branch_id" class="form-select" required>
+                            <option value="">Select branch</option>
+                            <?php foreach($branches as $b): ?>
+                                <option value="<?= $b['id'] ?>"><?= htmlspecialchars($b['name']) ?></option>
+                            <?php endforeach; ?>
+                        </select>
                     </div>
-                    <div class="col-md-4">
-                        <label for="amount" class="form-label fw-semibold">Amount *</label>
-                        <input type="number" name="amount" step="0.01" id="amount" class="form-control" required>
+                    <div class="col-md-3">
+                        <label for="supplier_id" class="form-label fw-semibold">Supplier *</label>
+                        <select name="supplier_id" id="supplier_id" class="form-select" required>
+                            <option value="">Select supplier</option>
+                            <?php foreach($suppliers as $s): ?>
+                                <option value="<?= $s['id'] ?>" data-products="<?= htmlspecialchars($s['products']) ?>" data-unit_price="<?= $s['unit_price'] ?>">
+                                    <?= htmlspecialchars($s['name']) ?>
+                            </option>
+                            <?php endforeach; ?>
+                        </select>
                     </div>
-                    <div class="col-md-4">
+                    <div class="col-md-3">
+                        <label for="product" class="form-label fw-semibold">Product *</label>
+                        <select name="product" id="product" class="form-select" required>
+                            <option value="">Select product</option>
+                            <!-- Populated by JS -->
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label for="unit_price" class="form-label fw-semibold">Unit Price</label>
+                        <input type="number" name="unit_price" id="unit_price" class="form-control" readonly>
+                    </div>
+                    <div class="col-md-2">
+                        <label for="quantity" class="form-label fw-semibold">Quantity *</label>
+                        <input type="number" name="quantity" id="quantity" class="form-control" min="1" required>
+                    </div>
+                    <div class="col-md-2">
+                        <label for="amount" class="form-label fw-semibold">Amount</label>
+                        <input type="number" name="amount" id="amount" class="form-control" readonly>
+                    </div>
+                    <div class="col-md-2">
                         <label for="date" class="form-label fw-semibold">Date *</label>
-                        <input type="date" name="date" id="date" class="form-control" required>
+                        <input type="date" name="date" id="date" class="form-control" required value="<?= date('Y-m-d') ?>">
                     </div>
-                    <div class="col-md-6">
+                    <div class="col-md-2">
                         <label for="spent_by" class="form-label fw-semibold">Spent By *</label>
                         <select name="spent_by" id="spent_by" class="form-select" required>
                             <option value="">-- Select User --</option>
@@ -336,7 +374,7 @@ body.dark-mode .card .card-header.bg-light input[type="date"]:focus {
                             ?>
                         </select>
                     </div>
-                    <div class="col-md-6">
+                    <div class="col-md-4">
                         <label for="description" class="form-label fw-semibold">Description</label>
                         <textarea name="description" id="description" class="form-control" rows="1"></textarea>
                     </div>
@@ -429,3 +467,37 @@ body.dark-mode .card .card-header.bg-light input[type="date"]:focus {
 <?php
 include '../includes/footer.php';
 ?>
+
+<script>
+// Populate products dropdown and unit price when supplier is selected
+document.getElementById('supplier_id').addEventListener('change', function() {
+    const selected = this.options[this.selectedIndex];
+    const productsStr = selected.getAttribute('data-products') || '';
+    const unitPrice = selected.getAttribute('data-unit_price') || '';
+    const products = productsStr.split(',').map(p => p.trim()).filter(p => p);
+    const productSelect = document.getElementById('product');
+    productSelect.innerHTML = '<option value="">Select product</option>';
+    products.forEach(p => {
+        productSelect.innerHTML += `<option value="${p}">${p}</option>`;
+    });
+    document.getElementById('unit_price').value = unitPrice;
+    document.getElementById('quantity').value = '';
+    document.getElementById('amount').value = '';
+});
+
+// When product is selected, show unit price (if supplier has only one price, otherwise keep as is)
+document.getElementById('product').addEventListener('change', function() {
+    const supplierSelect = document.getElementById('supplier_id');
+    const unitPrice = supplierSelect.options[supplierSelect.selectedIndex].getAttribute('data-unit_price') || '';
+    document.getElementById('unit_price').value = unitPrice;
+    document.getElementById('quantity').value = '';
+    document.getElementById('amount').value = '';
+});
+
+// Calculate amount when quantity changes
+document.getElementById('quantity').addEventListener('input', function() {
+    const qty = parseFloat(this.value) || 0;
+    const unitPrice = parseFloat(document.getElementById('unit_price').value) || 0;
+    document.getElementById('amount').value = (qty * unitPrice).toFixed(2);
+});
+</script>

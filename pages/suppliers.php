@@ -61,6 +61,72 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         echo json_encode(['success'=>$ok]);
         exit;
     }
+    // --- AJAX HANDLERS for supplier products ---
+    if ($_POST['action'] === 'fetch_supplier_products') {
+        header('Content-Type: application/json');
+        include '../includes/db.php';
+        $supplier_id = intval($_POST['supplier_id'] ?? 0);
+        $rows = [];
+        if ($supplier_id > 0) {
+            $stmt = $conn->prepare("SELECT * FROM supplier_products WHERE supplier_id = ? ORDER BY product_name ASC");
+            $stmt->bind_param("i", $supplier_id);
+            $stmt->execute();
+            $res = $stmt->get_result();
+            while ($r = $res->fetch_assoc()) $rows[] = $r;
+            $stmt->close();
+        }
+        echo json_encode(['success'=>true, 'rows'=>$rows]);
+        exit;
+    }
+    if ($_POST['action'] === 'add_supplier_product') {
+        header('Content-Type: application/json');
+        include '../includes/db.php';
+        $supplier_id = intval($_POST['supplier_id'] ?? 0);
+        $product_name = trim($_POST['product_name'] ?? '');
+        $unit_price = floatval($_POST['unit_price'] ?? 0);
+        if ($supplier_id > 0 && $product_name !== '' && $unit_price > 0) {
+            $stmt = $conn->prepare("INSERT INTO supplier_products (supplier_id, product_name, unit_price) VALUES (?, ?, ?)");
+            $stmt->bind_param("isd", $supplier_id, $product_name, $unit_price);
+            $ok = $stmt->execute();
+            $stmt->close();
+            echo json_encode(['success'=>$ok]);
+        } else {
+            echo json_encode(['success'=>false]);
+        }
+        exit;
+    }
+    if ($_POST['action'] === 'edit_supplier_product') {
+        header('Content-Type: application/json');
+        include '../includes/db.php';
+        $id = intval($_POST['id'] ?? 0);
+        $product_name = trim($_POST['product_name'] ?? '');
+        $unit_price = floatval($_POST['unit_price'] ?? 0);
+        if ($id > 0 && $product_name !== '' && $unit_price > 0) {
+            $stmt = $conn->prepare("UPDATE supplier_products SET product_name=?, unit_price=? WHERE id=?");
+            $stmt->bind_param("sdi", $product_name, $unit_price, $id);
+            $ok = $stmt->execute();
+            $stmt->close();
+            echo json_encode(['success'=>$ok]);
+        } else {
+            echo json_encode(['success'=>false]);
+        }
+        exit;
+    }
+    if ($_POST['action'] === 'delete_supplier_product') {
+        header('Content-Type: application/json');
+        include '../includes/db.php';
+        $id = intval($_POST['id'] ?? 0);
+        if ($id > 0) {
+            $stmt = $conn->prepare("DELETE FROM supplier_products WHERE id=?");
+            $stmt->bind_param("i", $id);
+            $ok = $stmt->execute();
+            $stmt->close();
+            echo json_encode(['success'=>$ok]);
+        } else {
+            echo json_encode(['success'=>false]);
+        }
+        exit;
+    }
 }
 
 include '../includes/db.php';
@@ -105,6 +171,9 @@ $suppliers_arr = $suppliers_res ? $suppliers_res->fetch_all(MYSQLI_ASSOC) : [];
         </li>
         <li class="nav-item">
             <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-trans">Supplier Transactions</button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-products">Supplier Products</button>
         </li>
     </ul>
     <div class="tab-content mt-3">
@@ -245,6 +314,35 @@ $suppliers_arr = $suppliers_res ? $suppliers_res->fetch_all(MYSQLI_ASSOC) : [];
                 </div>
             </div>
         </div>
+        <!-- SUPPLIER PRODUCTS TAB -->
+        <div class="tab-pane fade" id="tab-products">
+            <div class="card mb-4">
+                <div class="card-header">Supplier Products</div>
+                <div class="card-body">
+                    <?php if (count($suppliers_arr) > 0): ?>
+                        <div class="accordion" id="supplierProductsAccordion">
+                            <?php foreach($suppliers_arr as $s): ?>
+                                <div class="accordion-item mb-2">
+                                    <h2 class="accordion-header" id="headingP<?= $s['id'] ?>">
+                                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseP<?= $s['id'] ?>" aria-expanded="false" aria-controls="collapseP<?= $s['id'] ?>">
+                                            <?= htmlspecialchars($s['name']) ?> — Location: <?= htmlspecialchars($s['location']) ?>
+                                        </button>
+                                    </h2>
+                                    <div id="collapseP<?= $s['id'] ?>" class="accordion-collapse collapse" aria-labelledby="headingP<?= $s['id'] ?>" data-bs-parent="#supplierProductsAccordion">
+                                        <div class="accordion-body">
+                                            <button class="btn btn-success btn-sm mb-2 add-supply-btn" data-supplier="<?= $s['id'] ?>">Add Supply</button>
+                                            <div id="productsContainer<?= $s['id'] ?>">Loading products...</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+                    <?php else: ?>
+                        <div class="alert alert-info">No suppliers found.</div>
+                    <?php endif; ?>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -269,6 +367,35 @@ $suppliers_arr = $suppliers_res ? $suppliers_res->fetch_all(MYSQLI_ASSOC) : [];
         <button class="btn btn-primary" id="payConfirmBtn">Confirm</button>
       </div>
     </div>
+  </div>
+</div>
+
+<!-- Add/Edit Supplier Product Modal -->
+<div class="modal fade" id="supplierProductModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <form class="modal-content" id="supplierProductForm">
+      <div class="modal-header">
+        <h5 class="modal-title" id="supplierProductModalTitle">Add Supply</h5>
+        <button class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="spSupplierId" name="supplier_id">
+        <input type="hidden" id="spProductId" name="id">
+        <div class="mb-3">
+          <label class="form-label">Product Name</label>
+          <input name="product_name" id="spProductName" class="form-control" required>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Unit Price</label>
+          <input name="unit_price" id="spUnitPrice" class="form-control" type="number" step="0.01" min="0" required>
+        </div>
+        <div id="spMsg"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="submit" class="btn btn-primary" id="spSubmitBtn">Add</button>
+      </div>
+    </form>
   </div>
 </div>
 
@@ -411,6 +538,116 @@ document.getElementById('payConfirmBtn').addEventListener('click', async () => {
     setTimeout(()=>location.reload(),700);
   } else {
     document.getElementById('payMsg').innerHTML = '<div class="alert alert-danger">Error. Try again.</div>';
+  }
+});
+
+// Supplier Products Accordion
+document.querySelectorAll('#supplierProductsAccordion .accordion-button').forEach(btn=>{
+  btn.addEventListener('click', async (e) => {
+    const target = e.target.closest('.accordion-button');
+    const collapseId = target.getAttribute('data-bs-target').substring(1);
+    const supplierId = collapseId.replace('collapseP','');
+    const container = document.getElementById('productsContainer'+supplierId);
+    if (container.dataset.loaded) return;
+    container.innerHTML = '<div class="text-muted">Loading...</div>';
+    const form = new FormData();
+    form.append('action','fetch_supplier_products');
+    form.append('supplier_id', supplierId);
+    let data;
+    try {
+      const res = await fetch('suppliers.php', {method:'POST', body: form});
+      data = await res.json();
+    } catch (err) {
+      data = {success: false, rows: []};
+    }
+    let html = '<div class="transactions-table"><table><thead><tr><th>Product</th><th class="text-end">Unit Price</th><th>Actions</th></tr></thead><tbody>';
+    if (!data.success || !Array.isArray(data.rows) || !data.rows.length) {
+      html += '<tr><td colspan="3" class="text-center text-muted">No products found.</td></tr>';
+      html += '</tbody></table></div>';
+      container.innerHTML = html;
+      container.dataset.loaded = '1';
+      return;
+    }
+    data.rows.forEach(r=>{
+      html += `<tr>
+        <td>${escapeHtml(r.product_name)}</td>
+        <td class="text-end">UGX ${parseFloat(r.unit_price).toFixed(2)}</td>
+        <td>
+          <button class="btn btn-warning btn-sm edit-supply-btn" data-id="${r.id}" data-supplier="${r.supplier_id}" data-name="${escapeHtml(r.product_name)}" data-price="${r.unit_price}">Edit</button>
+          <button class="btn btn-danger btn-sm delete-supply-btn" data-id="${r.id}">Delete</button>
+        </td>
+      </tr>`;
+    });
+    html += '</tbody></table></div>';
+    container.innerHTML = html;
+    container.dataset.loaded = '1';
+
+    // Attach edit/delete events
+    container.querySelectorAll('.edit-supply-btn').forEach(btn=>{
+      btn.addEventListener('click', () => {
+        document.getElementById('supplierProductModalTitle').textContent = 'Edit Supply';
+        document.getElementById('spSupplierId').value = btn.getAttribute('data-supplier');
+        document.getElementById('spProductId').value = btn.getAttribute('data-id');
+        document.getElementById('spProductName').value = btn.getAttribute('data-name');
+        document.getElementById('spUnitPrice').value = btn.getAttribute('data-price');
+        document.getElementById('spMsg').innerHTML = '';
+        document.getElementById('spSubmitBtn').textContent = 'Update';
+        new bootstrap.Modal(document.getElementById('supplierProductModal')).show();
+      });
+    });
+    container.querySelectorAll('.delete-supply-btn').forEach(btn=>{
+      btn.addEventListener('click', async () => {
+        if (!confirm('Delete this product?')) return;
+        const form = new FormData();
+        form.append('action','delete_supplier_product');
+        form.append('id', btn.getAttribute('data-id'));
+        const res = await fetch('suppliers.php', {method:'POST', body: form});
+        const data = await res.json();
+        if (data.success) location.reload();
+        else alert('Delete failed');
+      });
+    });
+  });
+});
+
+// Add Supply button
+document.querySelectorAll('.add-supply-btn').forEach(btn=>{
+  btn.addEventListener('click', () => {
+    document.getElementById('supplierProductModalTitle').textContent = 'Add Supply';
+    document.getElementById('spSupplierId').value = btn.getAttribute('data-supplier');
+    document.getElementById('spProductId').value = '';
+    document.getElementById('spProductName').value = '';
+    document.getElementById('spUnitPrice').value = '';
+    document.getElementById('spMsg').innerHTML = '';
+    document.getElementById('spSubmitBtn').textContent = 'Add';
+    new bootstrap.Modal(document.getElementById('supplierProductModal')).show();
+  });
+});
+
+// Add/Edit Supplier Product form submit
+document.getElementById('supplierProductForm').addEventListener('submit', async function(e){
+  e.preventDefault();
+  const supplier_id = document.getElementById('spSupplierId').value;
+  const id = document.getElementById('spProductId').value;
+  const product_name = document.getElementById('spProductName').value;
+  const unit_price = document.getElementById('spUnitPrice').value;
+  const form = new FormData();
+  if (id) {
+    form.append('action','edit_supplier_product');
+    form.append('id', id);
+  } else {
+    form.append('action','add_supplier_product');
+    form.append('supplier_id', supplier_id);
+  }
+  form.append('product_name', product_name);
+  form.append('unit_price', unit_price);
+  const res = await fetch('suppliers.php', {method:'POST', body: form});
+  const data = await res.json();
+  if (data.success) {
+    document.getElementById('spMsg').innerHTML = '<div class="alert alert-success">Saved.</div>';
+    setTimeout(()=>location.reload(),700);
+  } else {
+    document.getElementById('spMsg').innerHTML = '<div class="alert alert-danger">Error. Please check your input.</div>';
   }
 });
 
