@@ -9,5 +9,6 @@ CREATE TABLE supplier_transactions (
     payment_method VARCHAR(100),
     amount_paid DECIMAL(12,2) NOT NULL DEFAULT 0,
     balance DECIMAL(12,2) NOT NULL DEFAULT 0,
+    branch VARCHAR(100), -- Branch column added
     FOREIGN KEY (supplier_id) REFERENCES suppliers(id) ON DELETE CASCADE
 );

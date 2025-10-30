@@ -341,9 +341,9 @@ document.querySelectorAll('#suppliersAccordion .accordion-button').forEach(btn=>
       data = {success: false, rows: []};
     }
     // Always show table headers
-    let html = '<div class="transactions-table"><table><thead><tr><th>Date & Time</th><th>Products</th><th class="text-center">Quantity</th><th class="text-end">Unit Price</th><th class="text-end">Amount</th><th>Payment Method</th><th class="text-end">Amount Paid</th><th class="text-end">Balance</th><th>Actions</th></tr></thead><tbody>';
+    let html = '<div class="transactions-table"><table><thead><tr><th>Date & Time</th><th>Branch</th><th>Products</th><th class="text-center">Quantity</th><th class="text-end">Unit Price</th><th class="text-end">Amount</th><th>Payment Method</th><th class="text-end">Amount Paid</th><th class="text-end">Balance</th><th>Actions</th></tr></thead><tbody>';
     if (!data.success || !Array.isArray(data.rows) || !data.rows.length) {
-      html += '<tr><td colspan="9" class="text-center text-muted">No transactions found.</td></tr>';
+      html += '<tr><td colspan="10" class="text-center text-muted">No transactions found.</td></tr>';
       html += '</tbody></table></div>';
       container.innerHTML = html;
       container.dataset.loaded = '1';
@@ -359,6 +359,7 @@ document.querySelectorAll('#suppliersAccordion .accordion-button').forEach(btn=>
       const qty = escapeHtml(r.quantity || '');
       const method = escapeHtml(r.payment_method || '');
       const date = escapeHtml(r.date_time || '');
+      const branch = escapeHtml(r.branch || '');
       let actions = '';
       if (parseFloat(balance) > 0) {
         actions = `<button class="btn btn-success btn-sm pay-supplier-btn" data-id="${r.id}" data-balance="${balance}">Pay</button>`;
@@ -367,6 +368,7 @@ document.querySelectorAll('#suppliersAccordion .accordion-button').forEach(btn=>
       }
       html += `<tr>
         <td>${date}</td>
+        <td>${branch}</td>
         <td>${products}</td>
         <td class="text-center">${qty}</td>
         <td class="text-end">UGX ${unitPrice}</td>
