@@ -108,6 +108,64 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['fetch_supplier_produ
     }
 }
 
+// --- Handle form submission for multiple products (cart) ---
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['fetch_supplier_products'])) {
+    $cart = json_decode($_POST['cart_json'] ?? '[]', true);
+    $branch_id  = mysqli_real_escape_string($conn, $_POST['branch_id']);
+    $supplier_id = mysqli_real_escape_string($conn, $_POST['supplier_id']);
+    $date       = $_POST['date'];
+    $spent_by   = mysqli_real_escape_string($conn, $_POST['spent_by']);
+    $category   = mysqli_real_escape_string($conn, $_POST['category']);
+    $description = mysqli_real_escape_string($conn, $_POST['description']);
+    // For each cart item, insert into expenses and supplier_transactions
+    if (is_array($cart) && count($cart) > 0) {
+        foreach ($cart as $item) {
+            $product    = mysqli_real_escape_string($conn, $item['product']);
+            $quantity   = isset($item['quantity']) ? intval($item['quantity']) : 0;
+            $unit_price = isset($item['unit_price']) ? floatval($item['unit_price']) : 0;
+            $amount     = isset($item['amount']) ? floatval($item['amount']) : 0;
+            $amount_paid = isset($item['amount_paid']) ? floatval($item['amount_paid']) : 0;
+            // Insert into expenses
+            $sql = "INSERT INTO expenses (category, `branch-id`, supplier_id, product, quantity, unit_price, amount, description, date, `spent-by`) 
+                    VALUES ('$category', '$branch_id', '$supplier_id', '$product', $quantity, $unit_price, $amount, '$description', '$date', '$spent_by')";
+            $conn->query($sql);
+            // Insert into supplier_transactions
+            $products_res = $conn->query("SELECT product_name FROM supplier_products WHERE id = $product");
+            $product_name = '';
+            if ($products_res && $row = $products_res->fetch_assoc()) {
+                $product_name = $row['product_name'];
+            }
+            $branch_name = '';
+            $branch_res = $conn->query("SELECT name FROM branch WHERE id = $branch_id");
+            if ($branch_res && $brow = $branch_res->fetch_assoc()) {
+                $branch_name = $brow['name'];
+            }
+            $balance = $amount - $amount_paid;
+            $now = date('Y-m-d H:i:s');
+            $payment_method = ''; // Set as needed
+            $stmt = $conn->prepare("INSERT INTO supplier_transactions (supplier_id, date_time, branch, products_supplied, quantity, unit_price, amount, payment_method, amount_paid, balance) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+            $stmt->bind_param(
+                "isssiddsdd",
+                $supplier_id,
+                $now,
+                $branch_name,
+                $product_name,
+                $quantity,
+                $unit_price,
+                $amount,
+                $payment_method,
+                $amount_paid,
+                $balance
+            );
+            $stmt->execute();
+            $stmt->close();
+        }
+        $message = "Expenses added successfully.";
+    } else {
+        $message = "Please add at least one product to the cart.";
+    }
+}
+
 // Filters
 $branch_filter = $_GET['branch'] ?? '';
 $date_from = $_GET['date_from'] ?? '';
@@ -356,6 +414,122 @@ body.dark-mode .card .card-header.bg-light input[type="date"]:focus {
     color: #fff !important;
     background-color: #23243a !important;
 }
+
+/* Make Add to Cart button match Add Expense button */
+.add-to-cart-btn {
+    background: var(--primary-color) !important;
+    border: none;
+    border-radius: 8px;
+    font-weight: 600;
+    color: #fff !important;
+    box-shadow: 0px 3px 8px rgba(0,0,0,0.2);
+    transition: background 0.2s;
+    font-size: 1rem;
+    padding: 8px 18px;
+}
+.add-to-cart-btn:hover, .add-to-cart-btn:focus {
+    background: #159c8c !important;
+    color: #fff !important;
+}
+.add-to-cart-btn i {
+    margin-right: 6px;
+    font-size: 1.1em;
+    vertical-align: middle;
+}
+
+/* Cart Table Styling */
+.cart-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    background: #fff;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 2px 10px rgba(44,62,80,0.08);
+    margin-bottom: 1rem;
+}
+.cart-table thead {
+    background: var(--primary-color);
+    color: #fff;
+    font-weight: 600;
+    font-size: 14px;
+    letter-spacing: 1px;
+}
+.cart-table th, .cart-table td {
+    padding: 0.85rem 1rem;
+    text-align: left;
+    vertical-align: middle;
+}
+.cart-table tbody tr {
+    background-color: #f8fafc;
+    transition: background 0.2s;
+}
+.cart-table tbody tr:nth-child(even) {
+    background-color: #eef2f7;
+}
+.cart-table tbody tr:hover {
+    background-color: #e0f7fa;
+}
+.cart-table tfoot td {
+    background: #f4f6f9;
+    font-weight: bold;
+    color: var(--primary-color);
+    border-top: 2px solid #e0e0e0;
+}
+.cart-table .btn-danger {
+    border-radius: 6px;
+    font-size: 0.95rem;
+    padding: 4px 14px;
+    font-weight: 600;
+    background: #e74c3c !important;
+    border: none;
+    transition: background 0.15s;
+}
+.cart-table .btn-danger:hover, .cart-table .btn-danger:focus {
+    background: #c0392b !important;
+}
+
+/* Cart section header */
+#cartSection h6 {
+    font-size: 1.15rem;
+    font-weight: bold;
+    color: var(--primary-color);
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+}
+#cartSection h6 i {
+    margin-right: 8px;
+    font-size: 1.2em;
+    color: #1abc9c;
+}
+body.dark-mode .cart-table {
+    background: #23243a;
+    box-shadow: 0 2px 10px rgba(44,62,80,0.18);
+}
+body.dark-mode .cart-table thead {
+    background-color: #1abc9c !important;
+    color: #fff !important;
+}
+body.dark-mode .cart-table th, 
+body.dark-mode .cart-table td {
+    color: #fff !important;
+    background-color: #23243a !important;
+}
+body.dark-mode .cart-table tbody tr {
+    background-color: #2c2c3a !important;
+}
+body.dark-mode .cart-table tbody tr:nth-child(even) {
+    background-color: #272734 !important;
+}
+body.dark-mode .cart-table tbody tr:hover {
+    background-color: #1abc9c22 !important;
+}
+body.dark-mode .cart-table tfoot td {
+    background: #23243a !important;
+    color: #1abc9c !important;
+    border-top: 2px solid #444 !important;
+}
 </style>
 
 <div class="container-fluid mt-5">
@@ -395,27 +569,46 @@ body.dark-mode .card .card-header.bg-light input[type="date"]:focus {
                     </div>
                     <div class="col-md-3">
                         <label for="product" class="form-label fw-semibold">Product *</label>
-                        <select name="product" id="product" class="form-select" required>
+                        <select name="product" id="product" class="form-select">
                             <option value="">Select product</option>
                             <!-- Populated by JS -->
                         </select>
                     </div>
                     <div class="col-md-2">
                         <label for="unit_price" class="form-label fw-semibold">Unit Price</label>
-                        <input type="number" name="unit_price" id="unit_price" class="form-control" readonly>
+                        <input type="number" id="unit_price" class="form-control" readonly>
                     </div>
                     <div class="col-md-2">
                         <label for="quantity" class="form-label fw-semibold">Quantity *</label>
-                        <input type="number" name="quantity" id="quantity" class="form-control" min="1" required>
+                        <input type="number" id="quantity" class="form-control" min="1">
                     </div>
                     <div class="col-md-2">
                         <label for="amount" class="form-label fw-semibold">Amount</label>
-                        <input type="number" name="amount" id="amount" class="form-control" readonly>
+                        <input type="number" id="amount" class="form-control" readonly>
                     </div>
-                    <!-- Add Amount Paid input field after Amount -->
                     <div class="col-md-2">
                         <label for="amount_paid" class="form-label fw-semibold">Amount Paid</label>
-                        <input type="number" name="amount_paid" id="amount_paid" class="form-control" min="0" step="0.01">
+                        <input type="number" id="amount_paid" class="form-control" min="0" step="0.01">
+                    </div>
+                    <div class="col-md-1 d-flex align-items-end">
+                        <button type="button" id="addToCartBtn" class="btn btn-primary w-100 add-to-cart-btn" title="Add to Cart" style="display:flex;align-items:center;justify-content:center;">
+        <!-- Use a Bootstrap or FontAwesome icon, fallback to SVG if not available -->
+        <span style="font-size:1.4em;line-height:1;">
+            <!-- Bootstrap icon (if using Bootstrap Icons) -->
+            <i class="bi bi-cart-plus"></i>
+            <!-- If Bootstrap Icons not loaded, fallback to SVG: -->
+            <!--
+            <svg xmlns="http://www.w3.org/2000/svg" width="1.4em" height="1.4em" fill="currentColor" viewBox="0 0 16 16">
+                <path d="M8 7V4a.5.5 0 0 1 1 0v3h3a.5.5 0 0 1 0 1H9v3a.5.5 0 0 1-1 0V8H5a.5.5 0 0 1 0-1h3z"/>
+                <path d="M0 1.5A.5.5 0 0 1 .5 1h1a.5.5 0 0 1 .485.379L2.89 5H14.5a.5.5 0 0 1 .49.598l-1.5 7A.5.5 0 0 1 13 13H4a.5.5 0 0 1-.491-.408L1.01 2H.5a.5.5 0 0 1-.5-.5zm3.14 4l1.25 6h7.22l1.25-6H3.14z"/>
+            </svg>
+            -->
+        </span>
+    </button>
+                    </div>
+                    <div class="col-md-4">
+                        <label for="description" class="form-label fw-semibold">Description</label>
+                        <textarea name="description" id="description" class="form-control" rows="1"></textarea>
                     </div>
                     <div class="col-md-2">
                         <label for="date" class="form-label fw-semibold">Date *</label>
@@ -433,13 +626,38 @@ body.dark-mode .card .card-header.bg-light input[type="date"]:focus {
                             ?>
                         </select>
                     </div>
-                    <div class="col-md-4">
-                        <label for="description" class="form-label fw-semibold">Description</label>
-                        <textarea name="description" id="description" class="form-control" rows="1"></textarea>
+                </div>
+                <!-- Cart Section -->
+                <div id="cartSection" style="display:none; margin-top:1.5rem;">
+                    <h6 style="font-size:1.15rem; font-weight:bold; color:var(--primary-color); margin-bottom:1rem;">
+        <i class="bi bi-cart4"></i> Cart
+    </h6>
+                    <div class="table-responsive">
+                        <table class="cart-table align-middle shadow-sm" style="border-radius:12px; overflow:hidden;">
+                            <thead style="background:var(--primary-color);color:#fff;">
+                                <tr>
+                                    <th>Product</th>
+                                    <th>Quantity</th>
+                                    <th>Unit Price</th>
+                                    <th>Amount</th>
+                                    <th>Amount Paid</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody id="cartItems"></tbody>
+                            <tfoot>
+                                <tr>
+                                    <td colspan="3" class="text-end fw-bold">Total</td>
+                                    <td id="cartTotal" class="fw-bold" style="color:#1abc9c;">0</td>
+                                    <td colspan="2"></td>
+                                </tr>
+                            </tfoot>
+                        </table>
                     </div>
-                    <div class="col-12 text-end">
-                        <button type="submit" class="btn btn-primary">Add Expense</button>
-                    </div>
+                </div>
+                <input type="hidden" name="cart_json" id="cart_json">
+                <div class="col-12 text-end mt-3">
+                    <button type="submit" class="btn btn-primary">Add Expense</button>
                 </div>
             </form>
         </div>
@@ -591,5 +809,80 @@ document.getElementById('quantity').addEventListener('input', function() {
     const qty = parseFloat(this.value) || 0;
     const unitPrice = parseFloat(document.getElementById('unit_price').value) || 0;
     document.getElementById('amount').value = (qty * unitPrice).toFixed(2);
+});
+
+let cart = [];
+
+function updateCartTable() {
+    const cartSection = document.getElementById('cartSection');
+    const cartItems = document.getElementById('cartItems');
+    const cartTotal = document.getElementById('cartTotal');
+    if (cart.length === 0) {
+        cartSection.style.display = 'none';
+        cartItems.innerHTML = '';
+        cartTotal.textContent = '0';
+        return;
+    }
+    cartSection.style.display = '';
+    let total = 0;
+    cartItems.innerHTML = '';
+    cart.forEach((item, idx) => {
+        total += parseFloat(item.amount || 0);
+        cartItems.innerHTML += `
+            <tr>
+                <td>${item.product_name}</td>
+                <td>${item.quantity}</td>
+                <td>UGX ${parseFloat(item.unit_price).toFixed(2)}</td>
+                <td>UGX ${parseFloat(item.amount).toFixed(2)}</td>
+                <td>UGX ${parseFloat(item.amount_paid).toFixed(2)}</td>
+                <td><button type="button" class="btn btn-danger btn-sm" onclick="removeCartItem(${idx})">Remove</button></td>
+            </tr>
+        `;
+    });
+    cartTotal.textContent = 'UGX ' + total.toFixed(2);
+}
+
+function removeCartItem(idx) {
+    cart.splice(idx, 1);
+    updateCartTable();
+}
+
+document.getElementById('addToCartBtn').addEventListener('click', function() {
+    const productSelect = document.getElementById('product');
+    const productId = productSelect.value;
+    const productName = productSelect.options[productSelect.selectedIndex]?.text || '';
+    const unitPrice = parseFloat(document.getElementById('unit_price').value) || 0;
+    const quantity = parseInt(document.getElementById('quantity').value) || 0;
+    const amount = parseFloat(document.getElementById('amount').value) || 0;
+    const amountPaid = parseFloat(document.getElementById('amount_paid').value) || 0;
+    if (!productId || quantity <= 0 || unitPrice <= 0) {
+        alert('Please select a product and enter valid quantity and unit price.');
+        return;
+    }
+    cart.push({
+        product: productId,
+        product_name: productName,
+        quantity: quantity,
+        unit_price: unitPrice,
+        amount: amount,
+        amount_paid: amountPaid
+    });
+    updateCartTable();
+    // Reset product fields
+    productSelect.selectedIndex = 0;
+    document.getElementById('unit_price').value = '';
+    document.getElementById('quantity').value = '';
+    document.getElementById('amount').value = '';
+    document.getElementById('amount_paid').value = '';
+});
+
+document.getElementById('addExpenseForm').addEventListener('submit', function(e) {
+    if (cart.length === 0) {
+        alert('Please add at least one product to the cart.');
+        e.preventDefault();
+        return false;
+    }
+    document.getElementById('cart_json').value = JSON.stringify(cart);
+    // Allow form to submit
 });
 </script>
