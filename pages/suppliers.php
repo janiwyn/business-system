@@ -15,10 +15,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         $id = intval($_POST['id']);
         $name = trim($_POST['name'] ?? '');
         $location = trim($_POST['location'] ?? '');
-        $products = trim($_POST['products'] ?? '');
-        $unit_price = floatval($_POST['unit_price'] ?? 0);
-        $stmt = $conn->prepare("UPDATE suppliers SET name=?, location=?, products=?, unit_price=? WHERE id=?");
-        $stmt->bind_param("sssdi", $name, $location, $products, $unit_price, $id);
+        $contact = trim($_POST['contact'] ?? '');
+        $email = trim($_POST['email'] ?? '');
+        $stmt = $conn->prepare("UPDATE suppliers SET name=?, location=?, contact=?, email=? WHERE id=?");
+        $stmt->bind_param("ssssi", $name, $location, $contact, $email, $id);
         $ok = $stmt->execute();
         $stmt->close();
         echo json_encode(['success'=>$ok]);
@@ -142,11 +142,11 @@ include '../includes/header.php';
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'create_supplier') {
     $name = trim($_POST['name'] ?? '');
     $location = trim($_POST['location'] ?? '');
-    $products = trim($_POST['products'] ?? '');
-    $unit_price = floatval($_POST['unit_price'] ?? 0);
+    $contact = trim($_POST['contact'] ?? '');
+    $email = trim($_POST['email'] ?? '');
     if ($name !== '') {
-        $stmt = $conn->prepare("INSERT INTO suppliers (name, location, products, unit_price) VALUES (?, ?, ?, ?)");
-        $stmt->bind_param("sssd", $name, $location, $products, $unit_price);
+        $stmt = $conn->prepare("INSERT INTO suppliers (name, location, contact, email) VALUES (?, ?, ?, ?)");
+        $stmt->bind_param("ssss", $name, $location, $contact, $email);
         $stmt->execute();
         $stmt->close();
         $message = "<div class='alert alert-success'>Supplier created successfully.</div>";
@@ -194,12 +194,12 @@ $suppliers_arr = $suppliers_res ? $suppliers_res->fetch_all(MYSQLI_ASSOC) : [];
                             <input type="text" name="location" class="form-control">
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label">Products Supplied</label>
-                            <input type="text" name="products" class="form-control" required>
+                            <label class="form-label">Contact</label>
+                            <input type="text" name="contact" class="form-control">
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label">Unit Price</label>
-                            <input type="number" step="0.01" name="unit_price" class="form-control" required>
+                            <label class="form-label">Email</label>
+                            <input type="email" name="email" class="form-control">
                         </div>
                         <div class="col-12 text-end">
                             <button type="submit" class="btn btn-primary">Create Supplier</button>
@@ -219,8 +219,8 @@ $suppliers_arr = $suppliers_res ? $suppliers_res->fetch_all(MYSQLI_ASSOC) : [];
                                 <tr>
                                     <th>Name</th>
                                     <th>Location</th>
-                                    <th>Products Supplied</th>
-                                    <th>Unit Price</th>
+                                    <th>Contact</th>
+                                    <th>Email</th>
                                     <th>Actions</th>
                                 </tr>
                             </thead>
@@ -230,15 +230,15 @@ $suppliers_arr = $suppliers_res ? $suppliers_res->fetch_all(MYSQLI_ASSOC) : [];
                                         <tr data-id="<?= $s['id'] ?>">
                                             <td><?= htmlspecialchars($s['name']) ?></td>
                                             <td><?= htmlspecialchars($s['location']) ?></td>
-                                            <td><?= htmlspecialchars($s['products']) ?></td>
-                                            <td>UGX <?= number_format($s['unit_price'],2) ?></td>
+                                            <td><?= htmlspecialchars($s['contact']) ?></td>
+                                            <td><?= htmlspecialchars($s['email']) ?></td>
                                             <td>
                                                 <button class="btn btn-warning btn-sm edit-supplier-btn" 
                                                     data-id="<?= $s['id'] ?>"
                                                     data-name="<?= htmlspecialchars($s['name']) ?>"
                                                     data-location="<?= htmlspecialchars($s['location']) ?>"
-                                                    data-products="<?= htmlspecialchars($s['products']) ?>"
-                                                    data-unit_price="<?= $s['unit_price'] ?>">Edit</button>
+                                                    data-contact="<?= htmlspecialchars($s['contact']) ?>"
+                                                    data-email="<?= htmlspecialchars($s['email']) ?>">Edit</button>
                                                 <button class="btn btn-danger btn-sm delete-supplier-btn" data-id="<?= $s['id'] ?>">Delete</button>
                                             </td>
                                         </tr>
@@ -270,12 +270,12 @@ $suppliers_arr = $suppliers_res ? $suppliers_res->fetch_all(MYSQLI_ASSOC) : [];
                                 <input type="text" name="location" id="editSupplierLocation" class="form-control">
                             </div>
                             <div class="col-md-6">
-                                <label class="form-label">Products Supplied</label>
-                                <input type="text" name="products" id="editSupplierProducts" class="form-control" required>
+                                <label class="form-label">Contact</label>
+                                <input type="text" name="contact" id="editSupplierContact" class="form-control">
                             </div>
                             <div class="col-md-6">
-                                <label class="form-label">Unit Price</label>
-                                <input type="number" step="0.01" name="unit_price" id="editSupplierUnitPrice" class="form-control" required>
+                                <label class="form-label">Email</label>
+                                <input type="email" name="email" id="editSupplierEmail" class="form-control">
                             </div>
                         </div>
                         <div class="modal-footer">
@@ -421,8 +421,8 @@ document.querySelectorAll('.edit-supplier-btn').forEach(btn => {
         document.getElementById('editSupplierId').value = btn.getAttribute('data-id');
         document.getElementById('editSupplierName').value = btn.getAttribute('data-name');
         document.getElementById('editSupplierLocation').value = btn.getAttribute('data-location');
-        document.getElementById('editSupplierProducts').value = btn.getAttribute('data-products');
-        document.getElementById('editSupplierUnitPrice').value = btn.getAttribute('data-unit_price');
+        document.getElementById('editSupplierContact').value = btn.getAttribute('data-contact');
+        document.getElementById('editSupplierEmail').value = btn.getAttribute('data-email');
         new bootstrap.Modal(document.getElementById('editSupplierModal')).show();
     });
 });
