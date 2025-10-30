@@ -379,6 +379,11 @@ body.dark-mode .card .card-header.bg-light input[type="date"]:focus {
                         <label for="amount" class="form-label fw-semibold">Amount</label>
                         <input type="number" name="amount" id="amount" class="form-control" readonly>
                     </div>
+                    <!-- Add Amount Paid input field after Amount -->
+                    <div class="col-md-2">
+                        <label for="amount_paid" class="form-label fw-semibold">Amount Paid</label>
+                        <input type="number" name="amount_paid" id="amount_paid" class="form-control" min="0" step="0.01">
+                    </div>
                     <div class="col-md-2">
                         <label for="date" class="form-label fw-semibold">Date *</label>
                         <input type="date" name="date" id="date" class="form-control" required value="<?= date('Y-m-d') ?>">
