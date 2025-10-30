@@ -35,15 +35,19 @@ while ($row = $products_res->fetch_assoc()) {
     $products_lookup[$row['id']] = $row['product_name'];
 }
 
-// Handle form submission
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['fetch_supplier_products'])) {
+// Handle form submission (single product, only if cart_json is not set or empty)
+if (
+    $_SERVER['REQUEST_METHOD'] === 'POST' &&
+    !isset($_POST['fetch_supplier_products']) &&
+    (empty($_POST['cart_json']) || $_POST['cart_json'] === '[]')
+) {
     $category   = mysqli_real_escape_string($conn, $_POST['category']);
     $branch_id  = mysqli_real_escape_string($conn, $_POST['branch_id']);
     $supplier_id = mysqli_real_escape_string($conn, $_POST['supplier_id']);
     $product    = mysqli_real_escape_string($conn, $_POST['product']);
-    $quantity   = intval($_POST['quantity']);
-    $unit_price = floatval($_POST['unit_price']);
-    $amount     = floatval($_POST['amount']);
+    $quantity   = isset($_POST['quantity']) ? intval($_POST['quantity']) : 0;
+    $unit_price = isset($_POST['unit_price']) ? floatval($_POST['unit_price']) : 0;
+    $amount     = isset($_POST['amount']) ? floatval($_POST['amount']) : 0;
     $description = mysqli_real_escape_string($conn, $_POST['description']);
     $date       = $_POST['date'];
     $spent_by   = mysqli_real_escape_string($conn, $_POST['spent_by']);
@@ -109,7 +113,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['fetch_supplier_produ
 }
 
 // --- Handle form submission for multiple products (cart) ---
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['fetch_supplier_products'])) {
+if (
+    $_SERVER['REQUEST_METHOD'] === 'POST' &&
+    !isset($_POST['fetch_supplier_products']) &&
+    !empty($_POST['cart_json']) && $_POST['cart_json'] !== '[]'
+) {
     $cart = json_decode($_POST['cart_json'] ?? '[]', true);
     $branch_id  = mysqli_real_escape_string($conn, $_POST['branch_id']);
     $supplier_id = mysqli_real_escape_string($conn, $_POST['supplier_id']);
