@@ -13,11 +13,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['fetch_supplier_produc
     exit;
 }
 
+// --- BEGIN: Handle form submissions and redirects BEFORE any output ---
 include '../includes/db.php';
-include '../includes/auth.php';
-require_role(["admin", "manager"]);
-include '../pages/sidebar.php';
-include '../includes/header.php';
 
 $message = "";
 $amount = 0;
@@ -90,6 +87,9 @@ if (
             $stmt->close();
             // --- End supplier_transactions insert ---
             $message = "Expense added successfully.";
+            // PRG pattern: redirect after successful insert
+            header("Location: expense.php?added=1");
+            exit;
         } else {
             $message = "Error: " . $conn->error;
         }
@@ -169,10 +169,25 @@ if (
             $stmt->close();
         }
         $message = "Expenses added successfully.";
+        // PRG pattern: redirect after successful insert
+        header("Location: expense.php?added=1");
+        exit;
     } else {
         $message = "Please add at least one product to the cart.";
     }
 }
+
+// Show success message if redirected after creation
+if (isset($_GET['added']) && $_GET['added'] == '1') {
+    $message = "Expense(s) added successfully.";
+}
+
+// --- END: Handle form submissions and redirects BEFORE any output ---
+
+include '../includes/auth.php';
+require_role(["admin", "manager"]);
+include '../pages/sidebar.php';
+include '../includes/header.php';
 
 // Filters
 $branch_filter = $_GET['branch'] ?? '';
