@@ -1,4 +1,18 @@
 <?php
+// --- MOVE THIS BLOCK TO THE VERY TOP OF THE FILE ---
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['fetch_supplier_products'])) {
+    include '../includes/db.php'; // Ensure DB connection
+    header('Content-Type: application/json');
+    $supplier_id = intval($_POST['supplier_id'] ?? 0);
+    $products = [];
+    if ($supplier_id > 0) {
+        $res = $conn->query("SELECT id, product_name, unit_price FROM supplier_products WHERE supplier_id = $supplier_id ORDER BY product_name ASC");
+        while ($row = $res->fetch_assoc()) $products[] = $row;
+    }
+    echo json_encode(['success'=>true, 'products'=>$products]);
+    exit;
+}
+
 include '../includes/db.php';
 include '../includes/auth.php';
 require_role(["admin", "manager"]);
@@ -11,7 +25,7 @@ $amount = 0;
 // Fetch branches and suppliers for dropdowns
 $branches_res = $conn->query("SELECT id, name FROM branch ORDER BY name ASC");
 $branches = $branches_res ? $branches_res->fetch_all(MYSQLI_ASSOC) : [];
-$suppliers_res = $conn->query("SELECT id, name, products, unit_price FROM suppliers ORDER BY name ASC");
+$suppliers_res = $conn->query("SELECT id, name FROM suppliers ORDER BY name ASC");
 $suppliers = $suppliers_res ? $suppliers_res->fetch_all(MYSQLI_ASSOC) : [];
 
 // Handle form submission
@@ -333,9 +347,9 @@ body.dark-mode .card .card-header.bg-light input[type="date"]:focus {
                         <select name="supplier_id" id="supplier_id" class="form-select" required>
                             <option value="">Select supplier</option>
                             <?php foreach($suppliers as $s): ?>
-                                <option value="<?= $s['id'] ?>" data-products="<?= htmlspecialchars($s['products']) ?>" data-unit_price="<?= $s['unit_price'] ?>">
+                                <option value="<?= $s['id'] ?>">
                                     <?= htmlspecialchars($s['name']) ?>
-                            </option>
+                                </option>
                             <?php endforeach; ?>
                         </select>
                     </div>
@@ -471,24 +485,31 @@ include '../includes/footer.php';
 <script>
 // Populate products dropdown and unit price when supplier is selected
 document.getElementById('supplier_id').addEventListener('change', function() {
-    const selected = this.options[this.selectedIndex];
-    const productsStr = selected.getAttribute('data-products') || '';
-    const unitPrice = selected.getAttribute('data-unit_price') || '';
-    const products = productsStr.split(',').map(p => p.trim()).filter(p => p);
+    const supplierId = this.value;
     const productSelect = document.getElementById('product');
     productSelect.innerHTML = '<option value="">Select product</option>';
-    products.forEach(p => {
-        productSelect.innerHTML += `<option value="${p}">${p}</option>`;
-    });
-    document.getElementById('unit_price').value = unitPrice;
+    document.getElementById('unit_price').value = '';
     document.getElementById('quantity').value = '';
     document.getElementById('amount').value = '';
+    if (!supplierId) return;
+    // Fetch products for this supplier via AJAX
+    fetch('expense.php', {
+        method: 'POST',
+        headers: {'Content-Type':'application/x-www-form-urlencoded'},
+        body: 'fetch_supplier_products=1&supplier_id=' + encodeURIComponent(supplierId)
+    }).then(res => res.json()).then(data => {
+        if (data.success && Array.isArray(data.products)) {
+            data.products.forEach(p => {
+                productSelect.innerHTML += `<option value="${p.id}" data-unit_price="${p.unit_price}">${p.product_name}</option>`;
+            });
+        }
+    });
 });
 
-// When product is selected, show unit price (if supplier has only one price, otherwise keep as is)
+// When product is selected, show unit price
 document.getElementById('product').addEventListener('change', function() {
-    const supplierSelect = document.getElementById('supplier_id');
-    const unitPrice = supplierSelect.options[supplierSelect.selectedIndex].getAttribute('data-unit_price') || '';
+    const selected = this.options[this.selectedIndex];
+    const unitPrice = selected.getAttribute('data-unit_price') || '';
     document.getElementById('unit_price').value = unitPrice;
     document.getElementById('quantity').value = '';
     document.getElementById('amount').value = '';
