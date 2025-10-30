@@ -1,9 +1,9 @@
 <?php
+include '../includes/db.php';
 // --- FIX: Handle AJAX actions before any output ---
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     if ($_POST['action'] === 'delete_supplier') {
         header('Content-Type: application/json');
-        include '../includes/db.php';
         $id = intval($_POST['id']);
         $conn->query("DELETE FROM suppliers WHERE id = $id");
         echo json_encode(['success'=>true]);
@@ -11,7 +11,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     }
     if ($_POST['action'] === 'edit_supplier') {
         header('Content-Type: application/json');
-        include '../includes/db.php';
         $id = intval($_POST['id']);
         $name = trim($_POST['name'] ?? '');
         $location = trim($_POST['location'] ?? '');
@@ -26,11 +25,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     }
     if ($_POST['action'] === 'fetch_supplier_transactions') {
         header('Content-Type: application/json');
-        include '../includes/db.php';
         $supplier_id = intval($_POST['supplier_id'] ?? 0);
         $rows = [];
         if ($supplier_id > 0) {
-            $stmt = $conn->prepare("SELECT * FROM supplier_transactions WHERE supplier_id = ? ORDER BY date_time DESC");
+            $sql = "SELECT * FROM supplier_transactions WHERE supplier_id = ? ORDER BY date_time DESC";
+            $stmt = $conn->prepare($sql);
             $stmt->bind_param("i", $supplier_id);
             $stmt->execute();
             $res = $stmt->get_result();
@@ -42,7 +41,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     }
     if ($_POST['action'] === 'pay_supplier_balance') {
         header('Content-Type: application/json');
-        include '../includes/db.php';
         $trans_id = intval($_POST['trans_id'] ?? 0);
         $amount_paid = floatval($_POST['amount_paid'] ?? 0);
         // Fetch original transaction
@@ -64,7 +62,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     // --- AJAX HANDLERS for supplier products ---
     if ($_POST['action'] === 'fetch_supplier_products') {
         header('Content-Type: application/json');
-        include '../includes/db.php';
         $supplier_id = intval($_POST['supplier_id'] ?? 0);
         $rows = [];
         if ($supplier_id > 0) {
@@ -80,7 +77,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     }
     if ($_POST['action'] === 'add_supplier_product') {
         header('Content-Type: application/json');
-        include '../includes/db.php';
         $supplier_id = intval($_POST['supplier_id'] ?? 0);
         $product_name = trim($_POST['product_name'] ?? '');
         $unit_price = floatval($_POST['unit_price'] ?? 0);
@@ -97,7 +93,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     }
     if ($_POST['action'] === 'edit_supplier_product') {
         header('Content-Type: application/json');
-        include '../includes/db.php';
         $id = intval($_POST['id'] ?? 0);
         $product_name = trim($_POST['product_name'] ?? '');
         $unit_price = floatval($_POST['unit_price'] ?? 0);
@@ -114,7 +109,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     }
     if ($_POST['action'] === 'delete_supplier_product') {
         header('Content-Type: application/json');
-        include '../includes/db.php';
         $id = intval($_POST['id'] ?? 0);
         if ($id > 0) {
             $stmt = $conn->prepare("DELETE FROM supplier_products WHERE id=?");
@@ -664,7 +658,10 @@ document.getElementById('supplierProductForm').addEventListener('submit', async 
   }
 });
 
-function escapeHtml(s){ return s ? s.replace(/[&<>"']/g, c=> ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])) : ''; }
+function escapeHtml(s){
+  s = (s === null || s === undefined) ? '' : String(s);
+  return s.replace(/[&<>"']/g, c=> ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
 </script>
 
 <style>

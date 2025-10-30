@@ -47,11 +47,44 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['fetch_supplier_produ
     $description = mysqli_real_escape_string($conn, $_POST['description']);
     $date       = $_POST['date'];
     $spent_by   = mysqli_real_escape_string($conn, $_POST['spent_by']);
+    $amount_paid = floatval($_POST['amount_paid'] ?? 0);
 
     if (!empty($category) && !empty($branch_id) && !empty($supplier_id) && !empty($product) && $quantity > 0 && $unit_price > 0 && !empty($date)) {
+        // Insert into expenses
         $sql = "INSERT INTO expenses (category, `branch-id`, supplier_id, product, quantity, unit_price, amount, description, date, `spent-by`) 
                 VALUES ('$category', '$branch_id', '$supplier_id', '$product', $quantity, $unit_price, $amount, '$description', '$date', '$spent_by')";
         if ($conn->query($sql)) {
+            // Insert into supplier_transactions
+            $products_res = $conn->query("SELECT product_name FROM supplier_products WHERE id = $product");
+            $product_name = '';
+            if ($products_res && $row = $products_res->fetch_assoc()) {
+                $product_name = $row['product_name'];
+            }
+            $branch_name = '';
+            $branch_res = $conn->query("SELECT name FROM branch WHERE id = $branch_id");
+            if ($branch_res && $brow = $branch_res->fetch_assoc()) {
+                $branch_name = $brow['name'];
+            }
+            $balance = $amount - $amount_paid;
+            $now = date('Y-m-d H:i:s');
+            $payment_method = '';
+            $stmt = $conn->prepare("INSERT INTO supplier_transactions (supplier_id, date_time, branch, products_supplied, quantity, unit_price, amount, payment_method, amount_paid, balance) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+            $stmt->bind_param(
+                "isssiddsdd",
+                $supplier_id,
+                $now,
+                $branch_name,
+                $product_name,
+                $quantity,
+                $unit_price,
+                $amount,
+                $payment_method,
+                $amount_paid,
+                $balance
+            );
+            $stmt->execute();
+            $stmt->close();
+            // --- End supplier_transactions insert ---
             $message = "Expense added successfully.";
         } else {
             $message = "Error: " . $conn->error;
