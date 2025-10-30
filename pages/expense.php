@@ -28,8 +28,15 @@ $branches = $branches_res ? $branches_res->fetch_all(MYSQLI_ASSOC) : [];
 $suppliers_res = $conn->query("SELECT id, name FROM suppliers ORDER BY name ASC");
 $suppliers = $suppliers_res ? $suppliers_res->fetch_all(MYSQLI_ASSOC) : [];
 
+// --- Fetch products for lookup (for table display) ---
+$products_lookup = [];
+$products_res = $conn->query("SELECT id, product_name FROM supplier_products");
+while ($row = $products_res->fetch_assoc()) {
+    $products_lookup[$row['id']] = $row['product_name'];
+}
+
 // Handle form submission
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['fetch_supplier_products'])) {
     $category   = mysqli_real_escape_string($conn, $_POST['category']);
     $branch_id  = mysqli_real_escape_string($conn, $_POST['branch_id']);
     $supplier_id = mysqli_real_escape_string($conn, $_POST['supplier_id']);
@@ -428,31 +435,57 @@ body.dark-mode .card .card-header.bg-light input[type="date"]:focus {
                 <table>
                     <thead>
                         <tr>
-                            <th>#</th>
-                            <?php if (empty($branch_filter)) echo "<th>Branch</th>"; ?>
+                            <th>ID</th>
+                            <th>Date & Time</th>
+                            <th>Supplier</th>
+                            <th>Branch</th>
                             <th>Category</th>
-                            <th>Amount (UGX)</th>
-                            <th>Description</th>
-                            <th>Date</th>
+                            <th>Product</th>
+                            <th>Quantity</th>
+                            <th>Unit Price</th>
+                            <th>Amount Expected</th>
                             <th>Spent By</th>
+                            <th>Description</th>
                         </tr>
                     </thead>
                     <tbody>
                         <?php if ($expenses->num_rows > 0): ?>
-                            <?php $i = $offset + 1; while ($row = $expenses->fetch_assoc()): ?>
+                            <?php while ($row = $expenses->fetch_assoc()): ?>
                                 <tr>
-                                    <td><?php echo $i++; ?></td>
-                                    <?php if (empty($branch_filter)) echo "<td>" . htmlspecialchars($row['branch_name']) . "</td>"; ?>
-                                    <td><?php echo htmlspecialchars($row['category']); ?></td>
-                                    <td><span class="expense-value"><?php echo number_format($row['amount'], 2); ?></span></td>
-                                    <td><?php echo htmlspecialchars($row['description']); ?></td>
-                                    <td><?php echo $row['date']; ?></td>
-                                    <td><?php echo htmlspecialchars($row['username']); ?></td>
+                                    <td><?= isset($row['id']) ? htmlspecialchars($row['id']) : '' ?></td>
+                                    <td><?= isset($row['date']) ? htmlspecialchars($row['date']) : '' ?></td>
+                                    <td>
+                                        <?php
+                                        $sup_name = '';
+                                        if (isset($row['supplier_id'])) {
+                                            foreach ($suppliers as $sup) {
+                                                if ($sup['id'] == $row['supplier_id']) {
+                                                    $sup_name = $sup['name'];
+                                                    break;
+                                                }
+                                            }
+                                        }
+                                        echo htmlspecialchars($sup_name);
+                                        ?>
+                                    </td>
+                                    <td><?= isset($row['branch_name']) ? htmlspecialchars($row['branch_name']) : '' ?></td>
+                                    <td><?= isset($row['category']) ? htmlspecialchars($row['category']) : '' ?></td>
+                                    <td>
+                                        <?php
+                                        $prod_name = (isset($row['product']) && isset($products_lookup[$row['product']])) ? $products_lookup[$row['product']] : '';
+                                        echo htmlspecialchars($prod_name);
+                                        ?>
+                                    </td>
+                                    <td><?= isset($row['quantity']) ? htmlspecialchars($row['quantity']) : '' ?></td>
+                                    <td><?= isset($row['unit_price']) ? number_format($row['unit_price'], 2) : '0.00' ?></td>
+                                    <td><?= isset($row['amount']) ? number_format($row['amount'], 2) : '0.00' ?></td>
+                                    <td><?= isset($row['username']) ? htmlspecialchars($row['username']) : '' ?></td>
+                                    <td><?= isset($row['description']) ? htmlspecialchars($row['description']) : '' ?></td>
                                 </tr>
                             <?php endwhile; ?>
                         <?php else: ?>
                             <tr>
-                                <td colspan="<?php echo empty($branch_filter) ? 7 : 6; ?>" class="text-center text-muted">No expenses recorded yet.</td>
+                                <td colspan="11" class="text-center text-muted">No expenses recorded yet.</td>
                             </tr>
                         <?php endif; ?>
                     </tbody>
