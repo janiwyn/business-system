@@ -129,6 +129,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     }
 }
 
+// --- FIX: Only handle create supplier if NOT an AJAX POST ---
+$is_ajax = ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] !== 'create_supplier');
+if (!$is_ajax && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'create_supplier') {
+    include '../includes/db.php'; // Ensure DB is available
+    $name = trim($_POST['name'] ?? '');
+    $location = trim($_POST['location'] ?? '');
+    $contact = trim($_POST['contact'] ?? '');
+    $email = trim($_POST['email'] ?? '');
+    if ($name !== '') {
+        $stmt = $conn->prepare("INSERT INTO suppliers (name, location, contact, email) VALUES (?, ?, ?, ?)");
+        $stmt->bind_param("ssss", $name, $location, $contact, $email);
+        $ok = $stmt->execute();
+        $stmt->close();
+        if ($ok) {
+            // --- PRG pattern: redirect after successful creation ---
+            header("Location: suppliers.php?created=1");
+            exit;
+        } else {
+            $message = "<div class='alert alert-danger'>Error creating supplier.</div>";
+        }
+    } else {
+        $message = "<div class='alert alert-danger'>Supplier name is required.</div>";
+    }
+}
+
 include '../includes/db.php';
 include '../includes/auth.php';
 require_role(["admin", "manager", "staff", "super"]);
@@ -138,26 +163,14 @@ include '../includes/header.php';
 <link rel="stylesheet" href="assets/css/accounting.css">
 
 <?php
-// Handle create supplier
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'create_supplier') {
-    $name = trim($_POST['name'] ?? '');
-    $location = trim($_POST['location'] ?? '');
-    $contact = trim($_POST['contact'] ?? '');
-    $email = trim($_POST['email'] ?? '');
-    if ($name !== '') {
-        $stmt = $conn->prepare("INSERT INTO suppliers (name, location, contact, email) VALUES (?, ?, ?, ?)");
-        $stmt->bind_param("ssss", $name, $location, $contact, $email);
-        $stmt->execute();
-        $stmt->close();
-        $message = "<div class='alert alert-success'>Supplier created successfully.</div>";
-    } else {
-        $message = "<div class='alert alert-danger'>Supplier name is required.</div>";
-    }
-}
-
-// Fetch suppliers for manage tab
+// --- Always fetch suppliers fresh after any changes ---
 $suppliers_res = $conn->query("SELECT * FROM suppliers ORDER BY id DESC");
 $suppliers_arr = $suppliers_res ? $suppliers_res->fetch_all(MYSQLI_ASSOC) : [];
+
+// Show success message if redirected after creation
+if (isset($_GET['created']) && $_GET['created'] == '1') {
+    $message = "<div class='alert alert-success'>Supplier created successfully.</div>";
+}
 ?>
 
 <div class="container mt-5 mb-5">
