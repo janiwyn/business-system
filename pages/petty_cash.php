@@ -175,6 +175,38 @@ body.dark-mode .petty-filters-header input[type="date"]:focus {
     color: #222 !important;
     background-color: #fff !important;
 }
+
+/* Responsive petty cash transactions table for small devices */
+@media (max-width: 991.98px) {
+    .petty-transactions-card .table-responsive-sm {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    .petty-transactions-card .transactions-table table {
+        min-width: 600px;
+    }
+    .petty-action-icon-btn {
+        background: none;
+        border: none;
+        color: #1abc9c;
+        font-size: 1.25em;
+        padding: 4px 8px;
+        cursor: pointer;
+        transition: color 0.2s;
+    }
+    .petty-action-icon-btn:active,
+    .petty-action-icon-btn:focus {
+        color: #159c8c;
+        outline: none;
+    }
+    .petty-action-icon-btn.pay {
+        color: #27ae60;
+    }
+    .petty-action-icon-btn.pay:active,
+    .petty-action-icon-btn.pay:focus {
+        color: #159c8c;
+    }
+}
 </style>
 <div class="container mt-5 mb-5">
     <h2 class="page-title mb-4 text-center">Petty Cash Management</h2>
@@ -341,8 +373,76 @@ body.dark-mode .petty-filters-header input[type="date"]:focus {
                 </form>
             </div>
             <?php endif; ?>
-            <!-- Transactions Table -->
-            <div class="transactions-table">
+            <!-- Responsive Table for Small Devices -->
+            <div class="d-block d-md-none mb-4 petty-transactions-card">
+                <div class="card transactions-card">
+                    <div class="card-body">
+                        <div class="table-responsive-sm">
+                            <div class="transactions-table">
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th>Date & Time</th>
+                                            <th>Branch</th>
+                                            <th>Name</th>
+                                            <th>Purpose</th>
+                                            <th>Reason</th>
+                                            <th>Amount</th>
+                                            <th>Balance</th>
+                                            <th>Approved By</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <?php if ($transactions && $transactions->num_rows > 0): ?>
+                                            <?php while ($row = $transactions->fetch_assoc()): ?>
+                                                <tr>
+                                                    <td><?= htmlspecialchars($row['created_at']) ?></td>
+                                                    <td><?= htmlspecialchars($row['branch_name']) ?></td>
+                                                    <td><?= htmlspecialchars($row['name']) ?></td>
+                                                    <td><?= htmlspecialchars(ucfirst($row['purpose'])) ?></td>
+                                                    <td><?= htmlspecialchars($row['reason']) ?></td>
+                                                    <td>UGX <?= number_format($row['amount'], 2) ?></td>
+                                                    <td>
+                                                        <?php if ($row['purpose'] === 'personal'): ?>
+                                                            UGX <?= number_format($row['balance'], 2) ?>
+                                                        <?php else: ?>
+                                                            -
+                                                        <?php endif; ?>
+                                                    </td>
+                                                    <td><?= htmlspecialchars($row['approved_by']) ?></td>
+                                                    <td>
+                                                        <?php
+                                                        // Use icons for actions on small devices
+                                                        if ($row['purpose'] === 'company') {
+                                                            echo '<span class="badge bg-info">Company Use</span>';
+                                                        } elseif ($row['purpose'] === 'personal') {
+                                                            if ($row['balance'] > 0 && (!isset($row['action_type']) || $row['action_type'] != 'repaid')) {
+                                                                echo '<button class="petty-action-icon-btn pay pay-petty-btn" title="Pay" data-id="'.$row['id'].'" data-balance="'.$row['balance'].'"><i class="fa-solid fa-money-bill-wave"></i></button>';
+                                                            } elseif ($row['balance'] == 0 && isset($row['action_type']) && $row['action_type'] == 'repaid') {
+                                                                echo '<span class="badge bg-success">Repaid</span>';
+                                                            } elseif ($row['balance'] == 0) {
+                                                                echo '<span class="badge bg-secondary">Cleared</span>';
+                                                            }
+                                                        }
+                                                        ?>
+                                                    </td>
+                                                </tr>
+                                            <?php endwhile; ?>
+                                        <?php else: ?>
+                                            <tr>
+                                                <td colspan="9" class="text-center text-muted">No petty cash transactions found.</td>
+                                            </tr>
+                                        <?php endif; ?>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- Table for medium and large devices -->
+            <div class="transactions-table d-none d-md-block">
                 <table>
                     <thead>
                         <tr>
@@ -358,41 +458,45 @@ body.dark-mode .petty-filters-header input[type="date"]:focus {
                         </tr>
                     </thead>
                     <tbody>
-                        <?php if ($transactions && $transactions->num_rows > 0): ?>
-                            <?php while ($row = $transactions->fetch_assoc()): ?>
-                                <tr>
-                                    <td><?= htmlspecialchars($row['created_at']) ?></td>
-                                    <td><?= htmlspecialchars($row['branch_name']) ?></td>
-                                    <td><?= htmlspecialchars($row['name']) ?></td>
-                                    <td><?= htmlspecialchars(ucfirst($row['purpose'])) ?></td>
-                                    <td><?= htmlspecialchars($row['reason']) ?></td>
-                                    <td>UGX <?= number_format($row['amount'], 2) ?></td>
-                                    <td>
-                                        <?php if ($row['purpose'] === 'personal'): ?>
-                                            UGX <?= number_format($row['balance'], 2) ?>
-                                        <?php else: ?>
-                                            -
-                                        <?php endif; ?>
-                                    </td>
-                                    <td><?= htmlspecialchars($row['approved_by']) ?></td>
-                                    <td>
-                                        <?php
-                                        if ($row['purpose'] === 'company') {
-                                            echo '<span class="badge bg-info">Company Use</span>';
-                                        } elseif ($row['purpose'] === 'personal') {
-                                            if ($row['balance'] > 0 && (!isset($row['action_type']) || $row['action_type'] != 'repaid')) {
-                                                echo '<button class="btn btn-success btn-sm pay-petty-btn" data-id="'.$row['id'].'" data-balance="'.$row['balance'].'">Pay</button>';
-                                            } elseif ($row['balance'] == 0 && isset($row['action_type']) && $row['action_type'] == 'repaid') {
-                                                echo '<span class="badge bg-success">Repaid</span>';
-                                            } elseif ($row['balance'] == 0) {
-                                                echo '<span class="badge bg-secondary">Cleared</span>';
-                                            }
+                        <?php
+                        // Reset pointer for $transactions
+                        if ($transactions && $transactions->num_rows > 0) $transactions->data_seek(0);
+                        if ($transactions && $transactions->num_rows > 0):
+                            while ($row = $transactions->fetch_assoc()):
+                        ?>
+                            <tr>
+                                <td><?= htmlspecialchars($row['created_at']) ?></td>
+                                <td><?= htmlspecialchars($row['branch_name']) ?></td>
+                                <td><?= htmlspecialchars($row['name']) ?></td>
+                                <td><?= htmlspecialchars(ucfirst($row['purpose'])) ?></td>
+                                <td><?= htmlspecialchars($row['reason']) ?></td>
+                                <td>UGX <?= number_format($row['amount'], 2) ?></td>
+                                <td>
+                                    <?php if ($row['purpose'] === 'personal'): ?>
+                                        UGX <?= number_format($row['balance'], 2) ?>
+                                    <?php else: ?>
+                                        -
+                                    <?php endif; ?>
+                                </td>
+                                <td><?= htmlspecialchars($row['approved_by']) ?></td>
+                                <td>
+                                    <?php
+                                    // Regular buttons for medium/large devices
+                                    if ($row['purpose'] === 'company') {
+                                        echo '<span class="badge bg-info">Company Use</span>';
+                                    } elseif ($row['purpose'] === 'personal') {
+                                        if ($row['balance'] > 0 && (!isset($row['action_type']) || $row['action_type'] != 'repaid')) {
+                                            echo '<button class="btn btn-success btn-sm pay-petty-btn" data-id="'.$row['id'].'" data-balance="'.$row['balance'].'">Pay</button>';
+                                        } elseif ($row['balance'] == 0 && isset($row['action_type']) && $row['action_type'] == 'repaid') {
+                                            echo '<span class="badge bg-success">Repaid</span>';
+                                        } elseif ($row['balance'] == 0) {
+                                            echo '<span class="badge bg-secondary">Cleared</span>';
                                         }
-                                        ?>
-                                    </td>
-                                </tr>
-                            <?php endwhile; ?>
-                        <?php else: ?>
+                                    }
+                                    ?>
+                                </td>
+                            </tr>
+                        <?php endwhile; else: ?>
                             <tr>
                                 <td colspan="9" class="text-center text-muted">No petty cash transactions found.</td>
                             </tr>
@@ -501,7 +605,7 @@ document.getElementById('companyReasonSelect').addEventListener('change', functi
         document.getElementById('reasonDiv').classList.add('d-none');
     }
 });
-// Pay button logic
+// Pay button logic (works for both icon and regular button)
 document.querySelectorAll('.pay-petty-btn').forEach(btn => {
     btn.addEventListener('click', function() {
         document.getElementById('payPettyId').value = btn.getAttribute('data-id');
