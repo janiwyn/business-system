@@ -365,44 +365,49 @@ $username = $_SESSION['username'];
  
 
   <!-- Recent Transactions -->
-<div class="transactions-table mt-5">
-  <h5 class="transactions-title">Recent Transactions</h5>
-  <table>
-      <thead>
-        <tr>
-          <th>#</th>
-          <th>Product</th>
-          <th>Quantity</th>
-          <th>Amount</th>
-          <th>Date</th>
-          <th>Sold By</th>
-        </tr>
-      </thead>
-      <tbody>
-        <?php
-        $salesData = $conn->query("
-            SELECT sales.id, products.name AS product_name, sales.quantity, sales.amount, sales.`sold-by`, sales.date
-            FROM sales
-            JOIN products ON sales.`product-id` = products.id
-            ORDER BY sales.id DESC
-            LIMIT 10
-        ");
-        $i = 1;
-        while ($row = $salesData->fetch_assoc()):
-        ?>
-          <tr>
-            <td><?= $i++ ?></td>
-            <td><?= $row['product_name'] ?></td>
-            <td><?= $row['quantity'] ?></td>
-            <td>$<?= number_format($row['amount'], 2) ?></td>
-            <td><?= date('d-M-Y', strtotime($row['date'])) ?></td>
-            <td><?= $row['sold-by'] ?></td>
-          </tr>
-        <?php endwhile; ?>
-      </tbody>
-    </table>
+  <div class="card mb-4 transactions-card">
+    <div class="card-body">
+      <h5 class="transactions-title">Recent Transactions</h5>
+      <div class="table-responsive-sm">
+        <div class="transactions-table">
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Product</th>
+                <th>Quantity</th>
+                <th>Amount</th>
+                <th>Date</th>
+                <th>Sold By</th>
+              </tr>
+            </thead>
+            <tbody>
+              <?php
+              $salesData = $conn->query("
+                  SELECT sales.id, products.name AS product_name, sales.quantity, sales.amount, sales.`sold-by`, sales.date
+                  FROM sales
+                  JOIN products ON sales.`product-id` = products.id
+                  ORDER BY sales.id DESC
+                  LIMIT 10
+              ");
+              $i = 1;
+              while ($row = $salesData->fetch_assoc()):
+              ?>
+                <tr>
+                  <td><?= $i++ ?></td>
+                  <td><?= $row['product_name'] ?></td>
+                  <td><?= $row['quantity'] ?></td>
+                  <td>$<?= number_format($row['amount'], 2) ?></td>
+                  <td><?= date('d-M-Y', strtotime($row['date'])) ?></td>
+                  <td><?= $row['sold-by'] ?></td>
+                </tr>
+              <?php endwhile; ?>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
   </div>
-</div>
 
 <?php include '../includes/footer.php'; ?>
 
