@@ -139,6 +139,9 @@ body.dark-mode .sidebar::-webkit-scrollbar-thumb:horizontal {
         <li><a href="../pages/report.php"><i class="fa-solid fa-chart-line"></i> Reports</a></li>
         <li><a href="../pages/payroll.php"><i class="fa-solid fa-money-check-dollar"></i> Payroll</a></li>
         <li><a href="../pages/suppliers.php"><i class="fa-solid fa-truck"></i> Suppliers</a></li>
+        <li>
+            <a href="petty_cash.php"><i class="fa fa-money-bill"></i> Petty Cash</a>
+        </li>
         <li style="margin-top:2rem;">
             <a href="../auth/logout.php" class="text-danger fw-bold"><i class="fa-solid fa-right-from-bracket"></i> Logout</a>
         </li>
