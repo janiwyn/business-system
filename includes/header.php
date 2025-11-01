@@ -197,6 +197,47 @@
         display: none;
       }
     }
+
+    /* Animated Hamburger/X Icon */
+    .hamburger {
+      width: 40px;
+      height: 40px;
+      background: none;
+      border: none;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: color 0.2s;
+      z-index: 2100;
+    }
+    .hamburger .bar {
+      position: absolute;
+      left: 8px;
+      right: 8px;
+      height: 3px;
+      background: #fff;
+      border-radius: 2px;
+      transition: all 0.35s cubic-bezier(.4,0,.2,1);
+    }
+    .hamburger .bar1 { top: 13px; }
+    .hamburger .bar2 { top: 19px; }
+    .hamburger .bar3 { top: 25px; }
+
+    .hamburger.active .bar1 {
+      top: 19px;
+      transform: rotate(45deg);
+      background: #e74c3c;
+    }
+    .hamburger.active .bar2 {
+      opacity: 0;
+      transform: scaleX(0.5);
+    }
+    .hamburger.active .bar3 {
+      top: 19px;
+      transform: rotate(-45deg);
+      background: #e74c3c;
+    }
   </style>
 </head>
 <body>
@@ -222,7 +263,9 @@
     </div>
     <!-- Hamburger icon should be after theme toggle -->
     <button id="sidebarToggle" class="hamburger d-lg-none ms-auto" aria-label="Open sidebar">
-      <i class="fa-solid fa-bars"></i>
+      <span class="bar bar1"></span>
+      <span class="bar bar2"></span>
+      <span class="bar bar3"></span>
     </button>
   </div>
 </header>
@@ -274,23 +317,30 @@
   // Sidebar toggle for small/medium devices
   const sidebarToggle = document.getElementById('sidebarToggle');
   const sidebar = document.querySelector('.sidebar');
-  const mainContainer = document.querySelector('.main-container');
 
   function openSidebar() {
     if (sidebar) {
       sidebar.classList.add('sidebar-open');
       document.body.classList.add('sidebar-overlay');
+      sidebarToggle.classList.add('active'); // Animate to X
     }
   }
   function closeSidebar() {
     if (sidebar) {
       sidebar.classList.remove('sidebar-open');
       document.body.classList.remove('sidebar-overlay');
+      sidebarToggle.classList.remove('active'); // Animate to hamburger
     }
   }
 
   if (sidebarToggle) {
-    sidebarToggle.addEventListener('click', openSidebar);
+    sidebarToggle.addEventListener('click', function() {
+      if (sidebar.classList.contains('sidebar-open')) {
+        closeSidebar();
+      } else {
+        openSidebar();
+      }
+    });
   }
   // Close sidebar when clicking outside (overlay)
   document.addEventListener('click', function(e) {
