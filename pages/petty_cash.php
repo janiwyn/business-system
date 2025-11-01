@@ -91,30 +91,38 @@ $balance_actions = $conn->query("SELECT * FROM petty_cash_balance ORDER BY creat
 <link rel="stylesheet" href="assets/css/accounting.css">
 <style>
 /* ...existing styles... */
+
+/* Petty balance styling: bold, green, matches Business Systems title */
 .petty-balance {
     font-size: 1.5rem;
     font-weight: bold;
-    color: #1abc9c;
+    color: #1abc9c !important;
+    letter-spacing: 1px;
+    /* Optionally add text-shadow for more pop */
+    text-shadow: 0 1px 2px rgba(0,0,0,0.04);
 }
-.petty-action-btn {
-    margin-left: 1rem;
-    font-weight: 600;
-    border-radius: 8px;
+body.dark-mode .petty-balance {
+    color: #1abc9c !important;
 }
-/* New styles for balance actions table */
-.balance-actions-table {
-    width: 100%;
-    margin-top: 1.5rem;
-    border-collapse: collapse;
+
+/* Petty Cash Balance Actions table header: match sidebar bg in dark mode, light in light mode */
+.petty-balance-header {
+    background-color: #f8f9fa !important;
+    color: #222 !important;
+    border-radius: 12px 12px 0 0;
+    font-weight: 700;
+    font-size: 1.1rem;
+    letter-spacing: 1px;
+    display: flex;
+    align-items: center;
+    padding: 1rem 1.25rem;
 }
-.balance-actions-table th, .balance-actions-table td {
-    border: 1px solid #ddd;
-    padding: 8px;
+body.dark-mode .petty-balance-header {
+    background-color: #23243a !important; /* Match sidebar dark bg */
+    color: #fff !important;
 }
-.balance-actions-table th {
-    background: #f8f9fa;
-    font-weight: 600;
-}
+
+/* Remove any old .balance-actions-table or badge-action-add/badge-action-remove styles if present */
 </style>
 <div class="container mt-5 mb-5">
     <h2 class="page-title mb-4 text-center">Petty Cash Management</h2>
@@ -140,42 +148,46 @@ $balance_actions = $conn->query("SELECT * FROM petty_cash_balance ORDER BY creat
                     </div>
                 </div>
             </div>
-            <!-- New: Balance Actions Table -->
+            <!-- Improved: Balance Actions Table styled like expenses table -->
             <div class="card">
-                <div class="card-header">Petty Cash Balance Actions</div>
-                <div class="card-body">
-                    <table class="balance-actions-table">
-                        <thead>
-                            <tr>
-                                <th>Date & Time</th>
-                                <th>Action</th>
-                                <th>Amount</th>
-                                <th>Approved By</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php if ($balance_actions && $balance_actions->num_rows > 0): ?>
-                                <?php while ($row = $balance_actions->fetch_assoc()): ?>
-                                    <tr>
-                                        <td><?= htmlspecialchars($row['created_at']) ?></td>
-                                        <td>
-                                            <?php if ($row['type'] === 'add'): ?>
-                                                <span class="badge bg-success">Add</span>
-                                            <?php else: ?>
-                                                <span class="badge bg-danger">Remove</span>
-                                            <?php endif; ?>
-                                        </td>
-                                        <td>UGX <?= number_format($row['amount'], 2) ?></td>
-                                        <td><?= htmlspecialchars($row['approved_by']) ?></td>
-                                    </tr>
-                                <?php endwhile; ?>
-                            <?php else: ?>
+                <div class="petty-balance-header">
+                    <span class="fw-bold title-card"><i class="fa-solid fa-wallet"></i> Petty Cash Balance Actions</span>
+                </div>
+                <div class="card-body p-0">
+                    <div class="transactions-table">
+                        <table>
+                            <thead>
                                 <tr>
-                                    <td colspan="4" class="text-center text-muted">No balance actions found.</td>
+                                    <th>Date & Time</th>
+                                    <th>Action</th>
+                                    <th>Amount</th>
+                                    <th>Approved By</th>
                                 </tr>
-                            <?php endif; ?>
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody>
+                                <?php if ($balance_actions && $balance_actions->num_rows > 0): ?>
+                                    <?php while ($row = $balance_actions->fetch_assoc()): ?>
+                                        <tr>
+                                            <td><?= htmlspecialchars($row['created_at']) ?></td>
+                                            <td>
+                                                <?php if ($row['type'] === 'add'): ?>
+                                                    <span class="badge bg-success">Add</span>
+                                                <?php else: ?>
+                                                    <span class="badge bg-danger">Remove</span>
+                                                <?php endif; ?>
+                                            </td>
+                                            <td>UGX <?= number_format($row['amount'], 2) ?></td>
+                                            <td><?= htmlspecialchars($row['approved_by']) ?></td>
+                                        </tr>
+                                    <?php endwhile; ?>
+                                <?php else: ?>
+                                    <tr>
+                                        <td colspan="4" class="text-center text-muted">No balance actions found.</td>
+                                    </tr>
+                                <?php endif; ?>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>
