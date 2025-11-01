@@ -219,51 +219,105 @@ body.dark-mode .transactions-table tbody tr:hover {
         </div>
     </div>
 
-    <!-- Payroll Records -->
-    <div class="card mb-4">
-        <div class="card-header">Payroll Records</div>
+    <!-- Payroll Records Table for Small Devices -->
+    <div class="d-block d-md-none mb-4">
+      <div class="card transactions-card">
         <div class="card-body">
+          <div class="table-responsive-sm">
             <div class="transactions-table">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Employee</th>
-                            <th>Gross</th>
-                            <th>Deductions</th>
-                            <th>Net</th>
-                            <th>Month</th>
-                            <th>Status</th>
-                            <th>Action</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                    <?php
-                    $sql = "SELECT p.*, u.username 
-                        FROM payroll p
-                        JOIN employees e ON p.`user-id` = e.id
-                        JOIN users u ON e.`user-id` = u.id
-                        ORDER BY p.id DESC";
-                    $records = mysqli_query($conn, $sql);
-                    while ($row = mysqli_fetch_assoc($records)) {
-                        $deductions = $row['nssf'] + $row['tax'] + $row['loan'] + $row['other_deductions'];
-                        echo "<tr>
-                                <td>{$row['username']}</td>
-                                <td>{$row['gross_salary']}</td>
-                                <td>{$deductions}</td>
-                                <td><b>{$row['net_salary']}</b></td>
-                                <td>{$row['month']}</td>
-                                <td>{$row['status']}</td>
-                                <td>
-                                    <a href='payroll.php?mark_paid={$row['id']}' class='btn btn-success btn-sm'>Mark Paid</a>
-                                    <a href='payslip.php?id={$row['id']}' class='btn btn-secondary btn-sm'>Payslip</a>
-                                </td>
-                              </tr>";
-                    }
-                    ?>
-                    </tbody>
-                </table>
+              <table>
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Employee</th>
+                    <th>Month</th>
+                    <th>Amount</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <?php
+                  // Fetch payroll records for small devices
+                  $payroll_records = mysqli_query($conn, "
+                    SELECT p.id, u.username as employee_name, p.month, p.net_salary as amount, p.status
+                    FROM payroll p
+                    JOIN employees e ON p.`user-id` = e.id
+                    JOIN users u ON e.`user-id` = u.id
+                    ORDER BY p.id DESC
+                  ");
+                  $i = 1;
+                  while ($row = mysqli_fetch_assoc($payroll_records)) {
+                    echo "<tr>
+                            <td>{$i}</td>
+                            <td>" . htmlspecialchars($row['employee_name']) . "</td>
+                            <td>" . htmlspecialchars($row['month']) . "</td>
+                            <td>UGX " . number_format($row['amount'], 2) . "</td>
+                            <td>" . htmlspecialchars($row['status']) . "</td>
+                            <td>
+                              <a href='payroll.php?mark_paid={$row['id']}' class='btn btn-sm btn-success me-1' title='Mark as Paid'>
+                                <i class='fa fa-check'></i>
+                              </a>
+                              <a href='payslip.php?id={$row['id']}' class='btn btn-sm btn-info' title='Payslip'>
+                                <i class='fa fa-file-signature'></i>
+                              </a>
+                            </td>
+                          </tr>";
+                    $i++;
+                  }
+                  ?>
+                </tbody>
+              </table>
             </div>
+          </div>
         </div>
+      </div>
+    </div>
+
+    <!-- Payroll Records Table for Medium and Large Devices -->
+    <div class="card mb-4 d-none d-md-block">
+      <div class="card-header">Payroll Records</div>
+      <div class="card-body">
+        <div class="transactions-table">
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Employee</th>
+                <th>Month</th>
+                <th>Amount</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <?php
+              // Existing code for payroll records with text buttons
+              $sql = "SELECT p.*, u.username 
+                  FROM payroll p
+                  JOIN employees e ON p.`user-id` = e.id
+                  JOIN users u ON e.`user-id` = u.id
+                  ORDER BY p.id DESC";
+              $records = mysqli_query($conn, $sql);
+              while ($row = mysqli_fetch_assoc($records)) {
+                  $deductions = $row['nssf'] + $row['tax'] + $row['loan'] + $row['other_deductions'];
+                  echo "<tr>
+                          <td>{$row['id']}</td>
+                          <td>{$row['username']}</td>
+                          <td>{$row['month']}</td>
+                          <td>{$row['net_salary']}</td>
+                          <td>{$row['status']}</td>
+                          <td>
+                              <a href='payroll.php?mark_paid={$row['id']}' class='btn btn-success btn-sm'>Mark Paid</a>
+                              <a href='payslip.php?id={$row['id']}' class='btn btn-secondary btn-sm'>Payslip</a>
+                          </td>
+                        </tr>";
+              }
+              ?>
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
 
     <!-- Payroll Summary -->
