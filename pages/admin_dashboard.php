@@ -179,76 +179,104 @@ $username = $_SESSION['username'];
     </div>
   </div>
 
-  <!-- Responsive Summary Tabs for Small Devices -->
+  <!-- Responsive Summary Carousel for Small Devices -->
   <div class="d-block d-md-none mb-4">
-    <ul class="nav nav-tabs" id="summaryTab" role="tablist">
-      <li class="nav-item" role="presentation">
-        <button class="nav-link active" id="employees-tab" data-bs-toggle="tab" data-bs-target="#employees" type="button" role="tab">Employees</button>
-      </li>
-      <li class="nav-item" role="presentation">
-        <button class="nav-link" id="branches-tab" data-bs-toggle="tab" data-bs-target="#branches" type="button" role="tab">Branches</button>
-      </li>
-      <li class="nav-item" role="presentation">
-        <button class="nav-link" id="stock-tab" data-bs-toggle="tab" data-bs-target="#stock" type="button" role="tab">Stock</button>
-      </li>
-      <li class="nav-item" role="presentation">
-        <button class="nav-link" id="profit-tab" data-bs-toggle="tab" data-bs-target="#profit" type="button" role="tab">Profit</button>
-      </li>
-    </ul>
-    <div class="tab-content pt-3" id="summaryTabContent">
-      <div class="tab-pane fade show active" id="employees" role="tabpanel">
-        <!-- Total Employees Card -->
-        <div class="card stat-card gradient-primary">
-          <div class="card-body d-flex justify-content-between align-items-center">
-            <div>
-              <h6>Total Employees</h6>
-              <h3><?= $employee ?></h3>
+    <div id="summaryCarousel" class="carousel slide" data-bs-ride="carousel">
+      <div class="carousel-inner">
+        <div class="carousel-item active">
+          <!-- Total Employees Card -->
+          <div class="card stat-card gradient-primary">
+            <div class="card-body d-flex justify-content-between align-items-center">
+              <div>
+                <h6>Total Employees</h6>
+                <h3><?= $employee ?></h3>
+              </div>
+              <i class="fa-solid fa-users stat-icon"></i>
             </div>
-            <i class="fa-solid fa-users stat-icon"></i>
+          </div>
+        </div>
+        <div class="carousel-item">
+          <!-- Total Branches Card -->
+          <div class="card stat-card gradient-success">
+            <div class="card-body d-flex justify-content-between align-items-center">
+              <div>
+                <h6>Total Branches</h6>
+                <h3><?= $totalbranches ?></h3>
+              </div>
+              <i class="fa-solid fa-building stat-icon"></i>
+            </div>
+          </div>
+        </div>
+        <div class="carousel-item">
+          <!-- Total Stock Card -->
+          <div class="card stat-card gradient-warning">
+            <div class="card-body d-flex justify-content-between align-items-center">
+              <div>
+                <h6>Total Stock</h6>
+                <h3><?= $totalStock ?></h3>
+              </div>
+              <i class="fa-solid fa-cubes stat-icon"></i>
+            </div>
+          </div>
+        </div>
+        <div class="carousel-item">
+          <!-- Total Profit Card -->
+          <div class="card stat-card gradient-danger">
+            <div class="card-body d-flex justify-content-between align-items-center">
+              <div>
+                <h6>Total Profit</h6>
+                <h3>UGX<?= number_format($totalProfits, 2) ?></h3>
+              </div>
+              <i class="fa-solid fa-sack-dollar stat-icon"></i>
+            </div>
           </div>
         </div>
       </div>
-      <div class="tab-pane fade" id="branches" role="tabpanel">
-        <!-- Total Branches Card -->
-        <div class="card stat-card gradient-success">
-          <div class="card-body d-flex justify-content-between align-items-center">
-            <div>
-              <h6>Total Branches</h6>
-              <h3><?= $totalbranches ?></h3>
+      <!-- Move carousel indicators below the cards -->
+      <div class="d-flex justify-content-center mt-3">
+        <div class="carousel-indicators position-static mb-0">
+          <button type="button" data-bs-target="#summaryCarousel" data-bs-slide-to="0" class="active" aria-current="true" aria-label="Employees"></button>
+          <button type="button" data-bs-target="#summaryCarousel" data-bs-slide-to="1" aria-label="Branches"></button>
+          <button type="button" data-bs-target="#summaryCarousel" data-bs-slide-to="2" aria-label="Stock"></button>
+          <button type="button" data-bs-target="#summaryCarousel" data-bs-slide-to="3" aria-label="Profit"></button>
+        </div>
+      </div>
+      <!-- Remove carousel-control-prev and carousel-control-next buttons -->
+    </div>
+  </div>
+
+  <!-- Responsive Charts Carousel for Small Devices -->
+  <div class="d-block d-md-none mb-4">
+    <div id="chartsCarousel" class="carousel slide charts-carousel" data-bs-ride="false" data-bs-touch="true">
+      <div class="carousel-inner">
+        <div class="carousel-item active">
+          <div class="card">
+            <div class="card-body">
+              <h5 class="title-card">Sales vs Profits</h5>
+              <canvas id="barChartMobile"></canvas>
             </div>
-            <i class="fa-solid fa-building stat-icon"></i>
+          </div>
+        </div>
+        <div class="carousel-item">
+          <div class="card">
+            <div class="card-body">
+              <h5 class="title-card">Sales Per Month</h5>
+              <canvas id="lineChartMobile"></canvas>
+            </div>
           </div>
         </div>
       </div>
-      <div class="tab-pane fade" id="stock" role="tabpanel">
-        <!-- Total Stock Card -->
-        <div class="card stat-card gradient-warning">
-          <div class="card-body d-flex justify-content-between align-items-center">
-            <div>
-              <h6>Total Stock</h6>
-              <h3><?= $totalStock ?></h3>
-            </div>
-            <i class="fa-solid fa-cubes stat-icon"></i>
-          </div>
-        </div>
-      </div>
-      <div class="tab-pane fade" id="profit" role="tabpanel">
-        <!-- Total Profit Card -->
-        <div class="card stat-card gradient-danger">
-          <div class="card-body d-flex justify-content-between align-items-center">
-            <div>
-              <h6>Total Profit</h6>
-              <h3>UGX<?= number_format($totalProfits, 2) ?></h3>
-            </div>
-            <i class="fa-solid fa-sack-dollar stat-icon"></i>
-          </div>
+      <div class="d-flex justify-content-center mt-3">
+        <div class="carousel-indicators position-static mb-0">
+          <button type="button" data-bs-target="#chartsCarousel" data-bs-slide-to="0" class="active" aria-current="true" aria-label="Sales vs Profits"></button>
+          <button type="button" data-bs-target="#chartsCarousel" data-bs-slide-to="1" aria-label="Sales Per Month"></button>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- Charts -->
-  <div class="row mb-4">
+  <!-- Existing charts for medium and large devices -->
+  <div class="row mb-4 d-none d-md-flex">
     <div class="col-md-6">
       <div class="card">
         <div class="card-body">
@@ -420,9 +448,68 @@ function createLineChart() {
   });
 }
 
+// Mobile charts initialization
+function createBarChartMobile() {
+  const colors = getChartColors();
+  const el = document.getElementById('barChartMobile');
+  if (el) {
+    new Chart(el, {
+      type: 'bar',
+      data: {
+        labels: branchLabels,
+        datasets: [
+          { label: 'Sales', data: salesData, backgroundColor: colors.salesColor },
+          { label: 'Profits', data: profitData, backgroundColor: colors.profitColor }
+        ]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { labels: { color: colors.fontColor } } },
+        scales: {
+          x: { ticks: { color: colors.fontColor }, grid: { color: colors.gridColor } },
+          y: { ticks: { color: colors.fontColor }, grid: { color: colors.gridColor }, beginAtZero: true }
+        }
+      }
+    });
+  }
+}
+
+function createLineChartMobile() {
+  const colors = getChartColors();
+  const el = document.getElementById('lineChartMobile');
+  if (el) {
+    new Chart(el, {
+      type: 'line',
+      data: {
+        labels: months,
+        datasets: [{
+          label: 'Monthly Sales',
+          data: monthlyTotals,
+          borderColor: colors.monthlyLine,
+          backgroundColor: colors.monthlyFill,
+          fill: true,
+          tension: 0.4
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { labels: { color: colors.fontColor } } },
+        scales: {
+          x: { ticks: { color: colors.fontColor }, grid: { color: colors.gridColor } },
+          y: { ticks: { color: colors.fontColor }, grid: { color: colors.gridColor }, beginAtZero: true }
+        }
+      }
+    });
+  }
+}
+
 // Initialize charts
 createBarChart();
 createLineChart();
+if (window.innerWidth < 992) {
+  createBarChartMobile();
+  createLineChartMobile();
+}
 
 // Re-render charts on dark mode toggle
 document.querySelector('.dark-toggle').addEventListener('click', () => {

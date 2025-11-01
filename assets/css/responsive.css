@@ -74,3 +74,41 @@
     display: none !important;
   }
 }
+
+/* Carousel indicators */
+.carousel-indicators.position-static {
+  position: static;
+  margin-top: 0.5rem;
+}
+.carousel-indicators button {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background-color: #1abc9c;
+  opacity: 0.4;
+  margin: 0 4px;
+  border: none;
+}
+.carousel-indicators .active {
+  opacity: 1;
+  background-color: #3498db;
+}
+
+/* Charts carousel indicators for small devices */
+.charts-carousel .carousel-indicators.position-static {
+  position: static;
+  margin-top: 0.5rem;
+}
+.charts-carousel .carousel-indicators button {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background-color: #1abc9c;
+  opacity: 0.4;
+  margin: 0 4px;
+  border: none;
+}
+.charts-carousel .carousel-indicators .active {
+  opacity: 1;
+  background-color: #3498db;
+}
