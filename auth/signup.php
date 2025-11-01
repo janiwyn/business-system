@@ -123,6 +123,7 @@ $businesses = $conn->query("SELECT id, name FROM businesses ORDER BY name ASC");
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Business System - Sign Up</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/css/responsive.css">
   <style>
     /* Keep your existing CSS unchanged */
     :root{
