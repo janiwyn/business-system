@@ -70,9 +70,21 @@ if ($role === 'staff' || $role === 'manager' || $role === 'admin') {
                             <small class="text-muted float-end" data-created-at="<?= $notification['created_at'] ?>"></small>
                         </div>
                     </div>
-                    <div>
-                        <button class="btn btn-sm btn-warning snooze-btn">Snooze</button>
-                        <button class="btn btn-sm btn-danger confirm-btn">Clear</button>
+                    <div class="d-flex gap-2">
+                        <!-- Snooze button: icon for small devices, text for md+ -->
+                        <button class="btn btn-sm btn-warning snooze-btn d-none d-sm-inline-flex">
+                            <i class="bi bi-clock me-1"></i> Snooze
+                        </button>
+                        <button class="btn btn-sm btn-warning snooze-btn d-inline-flex d-sm-none" title="Snooze">
+                            <i class="bi bi-clock"></i>
+                        </button>
+                        <!-- Clear button: icon for small devices, text for md+ -->
+                        <button class="btn btn-sm btn-danger confirm-btn d-none d-sm-inline-flex">
+                            <i class="bi bi-x-circle me-1"></i> Clear
+                        </button>
+                        <button class="btn btn-sm btn-danger confirm-btn d-inline-flex d-sm-none" title="Clear">
+                            <i class="bi bi-x-circle"></i>
+                        </button>
                     </div>
                 </div>
             <?php endforeach; ?>
@@ -143,7 +155,13 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Change Confirm button to Clear and handle modal
     document.querySelectorAll('.confirm-btn').forEach(btn => {
-        btn.textContent = 'Clear';
+        btn.textContent = ''; // Remove text for icon-only buttons
+        // If icon-only, keep icon only, else add text
+        if (btn.classList.contains('d-sm-inline-flex')) {
+            btn.innerHTML = '<i class="bi bi-x-circle me-1"></i> Clear';
+        } else {
+            btn.innerHTML = '<i class="bi bi-x-circle"></i>';
+        }
         btn.classList.remove('btn-success');
         btn.classList.add('btn-danger');
         btn.addEventListener('click', function () {

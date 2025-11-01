@@ -266,7 +266,8 @@ body.dark-mode .gradient-info {
         </div>
 
         <!-- Sales Table -->
-        <div class="card mb-4 shadow-sm rounded border-0">
+        <!-- Card for medium and large devices -->
+        <div class="card mb-4 shadow-sm rounded border-0 d-none d-md-block">
             <div class="card-header bg-gradient-primary text-white fw-bold d-flex justify-content-between align-items-center">
                 <span><i class="bi bi-bar-chart-line me-2"></i> Recent Sales</span>
                 <form method="GET" class="d-flex align-items-center">
@@ -328,6 +329,81 @@ body.dark-mode .gradient-info {
                         </ul>
                     </nav>
                 <?php endif; ?>
+            </div>
+        </div>
+
+        <!-- Card for small devices: scrollable recent sales table -->
+        <div class="d-block d-md-none mb-4">
+            <div class="card transactions-card">
+                <div class="card-header bg-gradient-primary text-white fw-bold d-flex justify-content-between align-items-center">
+                    <span><i class="bi bi-bar-chart-line me-2"></i> Recent Sales</span>
+                    <form method="GET" class="d-flex align-items-center">
+                        <label class="me-2 fw-bold mb-0">Branch:</label>
+                        <select name="branch" class="form-select form-select-sm" onchange="this.form.submit()">
+                            <option value="">-- All Branches --</option>
+                            <?php
+                            $branches->data_seek(0); // Reset result pointer
+                            while($b = $branches->fetch_assoc()): ?>
+                                <option value="<?= $b['id'] ?>" <?= ($selected_branch == $b['id']) ? 'selected' : '' ?>>
+                                    <?= htmlspecialchars($b['name']) ?>
+                                </option>
+                            <?php endwhile; ?>
+                        </select>
+                    </form>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive-sm">
+                        <div class="transactions-table">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Product</th>
+                                        <th>Qty</th>
+                                        <th>Total</th>
+                                        <th>Sold By</th>
+                                        <th>Branch</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                <?php if ($sales_result->num_rows > 0): ?>
+                                    <?php
+                                    // Re-run sales_result for small devices
+                                    mysqli_data_seek($sales_result, 0);
+                                    while($row = mysqli_fetch_assoc($sales_result)): ?>
+                                        <tr>
+                                            <td><?= $row['date'] ?></td>
+                                            <td><?= htmlspecialchars($row['product_name']) ?></td>
+                                            <td><?= $row['quantity'] ?></td>
+                                            <td>UGX <?= number_format($row['amount']) ?></td>
+                                            <td><?= htmlspecialchars($row['username']) ?></td>
+                                            <td><?= htmlspecialchars($row['branch_name']) ?></td>
+                                        </tr>
+                                    <?php endwhile; ?>
+                                <?php else: ?>
+                                    <tr>
+                                        <td colspan="6" class="text-center text-muted">No sales found.</td>
+                                    </tr>
+                                <?php endif; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <!-- Pagination -->
+                    <?php if ($total_pages > 1): ?>
+                        <div class="pagination-scroll-wrapper" style="overflow-x:auto; -webkit-overflow-scrolling:touch;">
+                            <nav aria-label="Sales pagination">
+                                <ul class="pagination justify-content-center mt-3 mb-0 flex-nowrap" style="white-space:nowrap;">
+                                    <?php for ($p = 1; $p <= $total_pages; $p++): ?>
+                                        <li class="page-item <?= ($p == $page) ? 'active' : '' ?>">
+                                            <a class="page-link" href="?branch=<?= urlencode($selected_branch) ?>&page=<?= $p ?>"><?= $p ?></a>
+                                        </li>
+                                    <?php endfor; ?>
+                                </ul>
+                            </nav>
+                        </div>
+                    <?php endif; ?>
+                </div>
             </div>
         </div>
 
