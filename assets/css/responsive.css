@@ -112,3 +112,22 @@
   opacity: 1;
   background-color: #3498db;
 }
+
+/* Stats carousel indicators for small devices */
+.stats-carousel .carousel-indicators.position-static {
+  position: static;
+  margin-top: 0.5rem;
+}
+.stats-carousel .carousel-indicators button {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background-color: #1abc9c;
+  opacity: 0.4;
+  margin: 0 4px;
+  border: none;
+}
+.stats-carousel .carousel-indicators .active {
+  opacity: 1;
+  background-color: #3498db;
+}

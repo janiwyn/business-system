@@ -296,7 +296,7 @@ $username = $_SESSION['username'];
   </div>
 
   <!-- Extra Stats -->
-  <div class="row mb-4">
+  <div class="row mb-4 d-none d-md-flex">
     <div class="col-md-4">
       <div class="card stat-card gradient-info">
         <div class="card-body">
@@ -322,6 +322,47 @@ $username = $_SESSION['username'];
       </div>
     </div>
   </div>
+
+  <!-- Responsive Extra Stats Carousel for Small Devices -->
+  <div class="d-block d-md-none mb-4">
+    <div id="statsCarousel" class="carousel slide stats-carousel" data-bs-ride="false" data-bs-touch="true">
+      <div class="carousel-inner">
+        <div class="carousel-item active">
+          <div class="card stat-card gradient-info">
+            <div class="card-body">
+              <h6>Most Selling Product</h6>
+              <p><?= $topProduct['name'] ?? 'N/A' ?> (<?= $topProduct['total_sold'] ?? '0' ?> sold)</p>
+            </div>
+          </div>
+        </div>
+        <div class="carousel-item">
+          <div class="card stat-card gradient-secondary">
+            <div class="card-body">
+              <h6>Most Active Branch</h6>
+              <p><?= $topBranch['name'] ?? 'N/A' ?> (<?= $topBranch['sales_count'] ?? '0' ?> sales)</p>
+            </div>
+          </div>
+        </div>
+        <div class="carousel-item">
+          <div class="card stat-card gradient-success">
+            <div class="card-body">
+              <h6>Revenue Growth</h6>
+              <p><?= number_format($growth, 2) ?>% <?= $growth >= 0 ? 'increase 📈' : 'decrease 📉' ?> from last month</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="d-flex justify-content-center mt-3">
+        <div class="carousel-indicators position-static mb-0">
+          <button type="button" data-bs-target="#statsCarousel" data-bs-slide-to="0" class="active" aria-current="true" aria-label="Most Selling Product"></button>
+          <button type="button" data-bs-target="#statsCarousel" data-bs-slide-to="1" aria-label="Most Active Branch"></button>
+          <button type="button" data-bs-target="#statsCarousel" data-bs-slide-to="2" aria-label="Revenue Growth"></button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+ 
 
   <!-- Recent Transactions -->
 <div class="transactions-table mt-5">
