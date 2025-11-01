@@ -188,6 +188,10 @@
         z-index: 10;
         overflow-y: auto; /* Restore vertical scrolling */
         overflow-x: auto;
+        border-top-right-radius: 16px;    /* Rounded right top */
+        border-bottom-right-radius: 16px; /* Rounded right bottom */
+        border-top-left-radius: 0;        /* Straight left top */
+        border-bottom-left-radius: 0;     /* Straight left bottom */
       }
       .sidebar-overlay {
         display: none;
