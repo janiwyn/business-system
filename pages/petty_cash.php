@@ -122,7 +122,57 @@ body.dark-mode .petty-balance-header {
     color: #fff !important;
 }
 
-/* Remove any old .balance-actions-table or badge-action-add/badge-action-remove styles if present */
+/* New: Dark mode styles for labels - increase specificity */
+body.dark-mode label.form-label,
+body.dark-mode label.fw-semibold,
+body.dark-mode .form-label,
+body.dark-mode .fw-semibold {
+    color: #fff !important;
+}
+
+/* Match Add Expense form styling */
+.add-transaction-card {
+    border-radius: 12px;
+    box-shadow: 0px 4px 12px rgba(0,0,0,0.08);
+    transition: transform 0.2s ease-in-out;
+}
+.add-transaction-card:hover {
+    transform: translateY(-2px);
+}
+.add-transaction-card .card-header,
+.add-transaction-card .title-card {
+    color: #fff !important;
+    background: var(--primary-color);
+    font-weight: 600;
+    border-radius: 12px 12px 0 0 !important;
+    font-size: 1.1rem;
+    letter-spacing: 1px;
+}
+body.dark-mode .add-transaction-card .card-header,
+body.dark-mode .add-transaction-card .title-card {
+    color: #fff !important;
+    background-color: #2c3e50 !important;
+}
+.form-control, .form-select {
+    border-radius: 8px;
+}
+body.dark-mode .form-label,
+body.dark-mode .fw-semibold,
+body.dark-mode label,
+body.dark-mode .card-body {
+    color: #fff !important;
+}
+body.dark-mode .form-control,
+body.dark-mode .form-select {
+    background-color: #23243a !important;
+    color: #fff !important;
+    border: 1px solid #444 !important;
+}
+body.dark-mode .form-control:focus,
+body.dark-mode .form-select:focus {
+    background-color: #23243a !important;
+    color: #fff !important;
+}
 </style>
 <div class="container mt-5 mb-5">
     <h2 class="page-title mb-4 text-center">Petty Cash Management</h2>
@@ -193,17 +243,17 @@ body.dark-mode .petty-balance-header {
         </div>
         <!-- Petty Cash Transactions Tab -->
         <div class="tab-pane fade <?= (isset($_GET['tab']) && $_GET['tab'] === 'transactions') ? 'show active' : '' ?>" id="tab-transactions">
-            <div class="card mb-4">
-                <div class="card-header">Add Petty Cash Transaction</div>
+            <div class="card mb-4 add-transaction-card">
+                <div class="card-header title-card">➕ Add Petty Cash Transaction</div>
                 <div class="card-body">
                     <form method="POST" class="row g-3" id="pettyTransForm">
                         <input type="hidden" name="record_petty_transaction" value="1">
                         <div class="col-md-4">
-                            <label class="form-label">Name</label>
+                            <label class="form-label fw-semibold">Name</label>
                             <input type="text" name="name" class="form-control" required>
                         </div>
                         <div class="col-md-4">
-                            <label class="form-label">Branch</label>
+                            <label class="form-label fw-semibold">Branch</label>
                             <select name="branch_id" class="form-select" required>
                                 <option value="">Select branch</option>
                                 <?php foreach($branches as $b): ?>
@@ -212,7 +262,7 @@ body.dark-mode .petty-balance-header {
                             </select>
                         </div>
                         <div class="col-md-4">
-                            <label class="form-label">Purpose</label>
+                            <label class="form-label fw-semibold">Purpose</label>
                             <select name="purpose" id="purposeSelect" class="form-select" required>
                                 <option value="">Select purpose</option>
                                 <option value="company">Company Use</option>
@@ -220,7 +270,7 @@ body.dark-mode .petty-balance-header {
                             </select>
                         </div>
                         <div class="col-md-4 d-none" id="companyReasonDiv">
-                            <label class="form-label">Company Reason</label>
+                            <label class="form-label fw-semibold">Company Reason</label>
                             <select name="company_reason" id="companyReasonSelect" class="form-select">
                                 <option value="">Select reason</option>
                                 <option value="Electricity Bill">Electricity Bill</option>
@@ -232,18 +282,18 @@ body.dark-mode .petty-balance-header {
                             </select>
                         </div>
                         <div class="col-md-4 d-none" id="reasonDiv">
-                            <label class="form-label" id="reasonLabel">Reason</label>
+                            <label class="form-label fw-semibold" id="reasonLabel">Reason</label>
                             <input type="text" name="reason" id="reasonInput" class="form-control">
                         </div>
                         <div class="col-md-4">
-                            <label class="form-label">Amount</label>
+                            <label class="form-label fw-semibold">Amount</label>
                             <input type="number" name="amount" class="form-control" min="0" step="0.01" required>
                         </div>
                         <div class="col-md-4">
-                            <label class="form-label">Approved By</label>
+                            <label class="form-label fw-semibold">Approved By</label>
                             <input type="text" name="approved_by" class="form-control" required>
                         </div>
-                        <div class="col-12 text-end">
+                        <div class="col-12 text-end mt-3">
                             <button type="submit" class="btn btn-primary">Record</button>
                         </div>
                     </form>
