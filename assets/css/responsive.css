@@ -169,6 +169,7 @@
     min-width: 0;
     width: 90vw;
     max-width: 340px;
+    /* Slightly taller for charts */
     min-height: 140px;
     max-height: 200px;
     margin: 0 auto;
@@ -178,8 +179,29 @@
     flex-direction: column;
     justify-content: center;
   }
-  .stats-carousel .card-body,
+  /* Make chart cards taller than summary cards */
+  .charts-carousel .card {
+    min-height: 500px;   /* Increased height */
+    max-height: 360px;
+    min-width: 460px;
+     /* Increased height */
+  }
   .charts-carousel .card-body {
+    padding: 2rem 1rem 1.5rem 1rem; /* More vertical padding */
+    min-height: 220px;              /* Increased min-height */
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+  .charts-carousel canvas {
+    min-height: 180px !important;   /* Increased canvas height */
+    max-height: 220px !important;
+    width: 100% !important;
+    margin: 0 auto;
+    display: block;
+  }
+  /* Summary cards remain as before */
+  .stats-carousel .card-body {
     padding: 1rem 1rem;
     display: flex;
     flex-direction: column;
@@ -202,23 +224,9 @@
     color: #fff;
     margin-bottom: 0;
   }
-  .charts-carousel canvas,
-  .stats-carousel canvas {
-    max-height: 110px;
-    width: 100% !important;
-    margin: 0 auto;
-    display: block;
-  }
-  .donut-wrapper {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 1rem;
-  }
-  .donut-legend {
-    margin-top: 0.5rem;
-  }
 }
 
+/* Welcome banner and auth cards adjustments for small devices */
 @media (max-width: 575.98px) {
   .welcome-banner {
     padding: 0.7rem 1rem !important;
