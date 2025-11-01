@@ -253,7 +253,90 @@ $result = $conn->query("
     </div>
 
     <!-- Product List -->
-    <div class="card mb-5">
+    <!-- Card wrapper for small devices -->
+    <div class="d-block d-md-none mb-4">
+      <div class="card transactions-card">
+        <div class="card-body">
+          <div class="table-responsive-sm">
+            <div class="transactions-table">
+              <table>
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <?php if (empty($selected_branch) && $user_role !== 'staff') echo "<th>Branch</th>"; ?>
+                    <th>Name</th>
+                    <th>Selling Price</th>
+                    <th>Buying Price</th>
+                    <th>Stock</th>
+                    <th>Expiry Date</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <?php
+                  if ($result->num_rows > 0) {
+                      $i = $offset + 1;
+                      while ($row = $result->fetch_assoc()) {
+                          // Check expiry
+$today = date('Y-m-d');
+$expiry = $row['expiry_date'];
+
+// Calculate days left (difference in days)
+$daysLeft = floor((strtotime($expiry) - strtotime($today)) / 86400);
+
+
+// Check if the product expires in - 7 to 0 to +7 days (inclusive)
+if (abs($daysLeft) <= 7 && !$row['sms_sent']) {
+    sendExpirySMS($row['name'], $expiry);
+    $conn->query("UPDATE products SET sms_sent = 1 WHERE id = {$row['id']}");
+}
+
+
+        // Highlight expiring products
+        $highlight = "";
+        foreach($expiring_products as $exp){
+            if($row['id'] == $exp['id']){
+                $highlight = "style='background-color: #ffcccc;'"; // light red
+                break;
+            }
+        }
+
+        echo "<tr $highlight>
+            <td>{$i}</td>";
+        if (empty($selected_branch) && $user_role !== 'staff') {
+            echo "<td>" . htmlspecialchars($row['branch_name']) . "</td>";
+        }
+        echo "<td>" . htmlspecialchars($row['name']) . "</td>
+            <td>UGX " . number_format($row['selling-price'], 2) . "</td>
+            <td>UGX " . number_format($row['buying-price'], 2) . "</td>
+            <td>{$row['stock']}</td>
+            <td>{$row['expiry_date']}</td>
+            <td>
+                <a href='edit_product.php?id={$row['id']}' class='btn btn-sm btn-warning me-1' title='Edit'>
+                  <i class='fa fa-edit'></i>
+                </a>
+                <a href='delete_product.php?id={$row['id']}' class='btn btn-sm btn-danger' title='Delete' onclick='return confirm(\"Are you sure you want to delete this product?\")'>
+                  <i class='fa fa-trash'></i>
+                </a>
+            </td>
+        </tr>";
+        $i++;
+    }
+} else {
+    $colspan = (empty($selected_branch) && $user_role !== 'staff') ? 8 : 7;
+    echo "<tr><td colspan='$colspan' class='text-center text-muted'>No products found.</td></tr>";
+}
+?>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Table for medium and large devices -->
+    <div class="card mb-5 d-none d-md-block">
         <div class="card-header d-flex justify-content-between align-items-center title-card">
             <span>📋 Product List</span>
             <?php if ($user_role !== 'staff'): ?>
