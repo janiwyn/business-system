@@ -687,104 +687,174 @@ body.dark-mode .cart-table tfoot td {
     </div>
 
     <!-- Filter & Table -->
-    <div class="card mb-5">
-        <div class="card-header bg-light text-black d-flex flex-wrap justify-content-between align-items-center" style="border-radius:12px 12px 0 0;">
-            <span class="fw-bold title-card"><i class="fa-solid fa-wallet"></i> All Expenses</span>
-            <form method="GET" class="d-flex align-items-center flex-wrap gap-2" style="gap:1rem;">
-                <label class="fw-bold me-2">From:</label>
-                <input type="date" name="date_from" class="form-select me-2" value="<?= htmlspecialchars($date_from) ?>" style="width:150px;">
-                <label class="fw-bold me-2">To:</label>
-                <input type="date" name="date_to" class="form-select me-2" value="<?= htmlspecialchars($date_to) ?>" style="width:150px;">
-                <label class="fw-bold me-2">Branch:</label>
-                <select name="branch" class="form-select me-2" onchange="this.form.submit()" style="width:180px;">
-                    <option value="">-- All Branches --</option>
-                    <?php
-                    $branches = $conn->query("SELECT id, name FROM branch");
-                    while ($b = $branches->fetch_assoc()):
-                        $selected = ($branch_filter == $b['id']) ? 'selected' : '';
-                        echo "<option value='{$b['id']}' $selected>{$b['name']}</option>";
-                    endwhile;
-                    ?>
-                </select>
-                <button type="submit" class="btn btn-primary ms-2">Filter</button>
-            </form>
-        </div>
-        <div class="card-body p-0">
-            <div class="transactions-table">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>ID</th>
-                            <th>Date & Time</th>
-                            <th>Supplier</th>
-                            <th>Branch</th>
-                            <th>Category</th>
-                            <th>Product</th>
-                            <th>Quantity</th>
-                            <th>Unit Price</th>
-                            <th>Amount Expected</th>
-                            <th>Spent By</th>
-                            <th>Description</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php if ($expenses->num_rows > 0): ?>
-                            <?php while ($row = $expenses->fetch_assoc()): ?>
+    <ul class="nav nav-tabs mb-3" id="expensesTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="expenses-tab" data-bs-toggle="tab" data-bs-target="#expensesTab" type="button" role="tab" aria-controls="expensesTab" aria-selected="true">
+                Expenses
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="total-expenses-tab" data-bs-toggle="tab" data-bs-target="#totalExpensesTab" type="button" role="tab" aria-controls="totalExpensesTab" aria-selected="false">
+                Total Expenses
+            </button>
+        </li>
+    </ul>
+    <div class="tab-content" id="expensesTabsContent">
+        <!-- Expenses Tab -->
+        <div class="tab-pane fade show active" id="expensesTab" role="tabpanel" aria-labelledby="expenses-tab">
+            <div class="card mb-5">
+                <div class="card-header bg-light text-black d-flex flex-wrap justify-content-between align-items-center" style="border-radius:12px 12px 0 0;">
+                    <span class="fw-bold title-card"><i class="fa-solid fa-wallet"></i> All Expenses</span>
+                    <form method="GET" class="d-flex align-items-center flex-wrap gap-2" style="gap:1rem;">
+                        <label class="fw-bold me-2">From:</label>
+                        <input type="date" name="date_from" class="form-select me-2" value="<?= htmlspecialchars($date_from) ?>" style="width:150px;">
+                        <label class="fw-bold me-2">To:</label>
+                        <input type="date" name="date_to" class="form-select me-2" value="<?= htmlspecialchars($date_to) ?>" style="width:150px;">
+                        <label class="fw-bold me-2">Branch:</label>
+                        <select name="branch" class="form-select me-2" onchange="this.form.submit()" style="width:180px;">
+                            <option value="">-- All Branches --</option>
+                            <?php
+                            $branches = $conn->query("SELECT id, name FROM branch");
+                            while ($b = $branches->fetch_assoc()):
+                                $selected = ($branch_filter == $b['id']) ? 'selected' : '';
+                                echo "<option value='{$b['id']}' $selected>{$b['name']}</option>";
+                            endwhile;
+                            ?>
+                        </select>
+                        <button type="submit" class="btn btn-primary ms-2">Filter</button>
+                    </form>
+                </div>
+                <div class="card-body p-0">
+                    <div class="transactions-table">
+                        <table>
+                            <thead>
                                 <tr>
-                                    <td><?= isset($row['id']) ? htmlspecialchars($row['id']) : '' ?></td>
-                                    <td><?= isset($row['date']) ? htmlspecialchars($row['date']) : '' ?></td>
-                                    <td>
-                                        <?php
-                                        $sup_name = '';
-                                        if (isset($row['supplier_id'])) {
-                                            foreach ($suppliers as $sup) {
-                                                if ($sup['id'] == $row['supplier_id']) {
-                                                    $sup_name = $sup['name'];
-                                                    break;
-                                                }
-                                            }
-                                        }
-                                        echo htmlspecialchars($sup_name);
-                                        ?>
-                                    </td>
-                                    <td><?= isset($row['branch_name']) ? htmlspecialchars($row['branch_name']) : '' ?></td>
-                                    <td><?= isset($row['category']) ? htmlspecialchars($row['category']) : '' ?></td>
-                                    <td>
-                                        <?php
-                                        $prod_name = (isset($row['product']) && isset($products_lookup[$row['product']])) ? $products_lookup[$row['product']] : '';
-                                        echo htmlspecialchars($prod_name);
-                                        ?>
-                                    </td>
-                                    <td><?= isset($row['quantity']) ? htmlspecialchars($row['quantity']) : '' ?></td>
-                                    <td><?= isset($row['unit_price']) ? number_format($row['unit_price'], 2) : '0.00' ?></td>
-                                    <td><?= isset($row['amount']) ? number_format($row['amount'], 2) : '0.00' ?></td>
-                                    <td><?= isset($row['username']) ? htmlspecialchars($row['username']) : '' ?></td>
-                                    <td><?= isset($row['description']) ? htmlspecialchars($row['description']) : '' ?></td>
+                                    <th>ID</th>
+                                    <th>Date & Time</th>
+                                    <th>Supplier</th>
+                                    <th>Branch</th>
+                                    <th>Category</th>
+                                    <th>Product</th>
+                                    <th>Quantity</th>
+                                    <th>Unit Price</th>
+                                    <th>Amount Expected</th>
+                                    <th>Spent By</th>
+                                    <th>Description</th>
                                 </tr>
-                            <?php endwhile; ?>
-                        <?php else: ?>
-                            <tr>
-                                <td colspan="11" class="text-center text-muted">No expenses recorded yet.</td>
-                            </tr>
-                        <?php endif; ?>
-                    </tbody>
-                </table>
+                            </thead>
+                            <tbody>
+                                <?php if ($expenses->num_rows > 0): ?>
+                                    <?php while ($row = $expenses->fetch_assoc()): ?>
+                                        <tr>
+                                            <td><?= isset($row['id']) ? htmlspecialchars($row['id']) : '' ?></td>
+                                            <td><?= isset($row['date']) ? htmlspecialchars($row['date']) : '' ?></td>
+                                            <td>
+                                                <?php
+                                                $sup_name = '';
+                                                if (isset($row['supplier_id'])) {
+                                                    foreach ($suppliers as $sup) {
+                                                        if ($sup['id'] == $row['supplier_id']) {
+                                                            $sup_name = $sup['name'];
+                                                            break;
+                                                        }
+                                                    }
+                                                }
+                                                echo htmlspecialchars($sup_name);
+                                                ?>
+                                            </td>
+                                            <td><?= isset($row['branch_name']) ? htmlspecialchars($row['branch_name']) : '' ?></td>
+                                            <td><?= isset($row['category']) ? htmlspecialchars($row['category']) : '' ?></td>
+                                            <td>
+                                                <?php
+                                                $prod_name = (isset($row['product']) && isset($products_lookup[$row['product']])) ? $products_lookup[$row['product']] : '';
+                                                echo htmlspecialchars($prod_name);
+                                                ?>
+                                            </td>
+                                            <td><?= isset($row['quantity']) ? htmlspecialchars($row['quantity']) : '' ?></td>
+                                            <td><?= isset($row['unit_price']) ? number_format($row['unit_price'], 2) : '0.00' ?></td>
+                                            <td><?= isset($row['amount']) ? number_format($row['amount'], 2) : '0.00' ?></td>
+                                            <td><?= isset($row['username']) ? htmlspecialchars($row['username']) : '' ?></td>
+                                            <td><?= isset($row['description']) ? htmlspecialchars($row['description']) : '' ?></td>
+                                        </tr>
+                                    <?php endwhile; ?>
+                                <?php else: ?>
+                                    <tr>
+                                        <td colspan="11" class="text-center text-muted">No expenses recorded yet.</td>
+                                    </tr>
+                                <?php endif; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                    <!-- Pagination -->
+                    <?php if ($total_pages > 1): ?>
+                    <nav aria-label="Page navigation">
+                        <ul class="pagination justify-content-center mt-3">
+                            <?php for ($p = 1; $p <= $total_pages; $p++): ?>
+                                <li class="page-item <?= ($p == $page) ? 'active' : '' ?>">
+                                    <a class="page-link" href="?page=<?= $p ?><?= ($branch_filter ? '&branch=' . $branch_filter : '') ?><?= ($date_from ? '&date_from=' . $date_from : '') ?><?= ($date_to ? '&date_to=' . $date_to : '') ?>"><?= $p ?></a>
+                                </li>
+                            <?php endfor; ?>
+                        </ul>
+                    </nav>
+                    <?php endif; ?>
+                    <!-- Total Expenses Sum -->
+                    <div class="mt-4 text-end">
+                        <h5 class="fw-bold">Total Expenses: <span class="total-expenses-value">UGX <?= number_format($total_expenses, 2) ?></span></h5>
+                    </div>
+                </div>
             </div>
-            <!-- Pagination -->
-            <?php if ($total_pages > 1): ?>
-            <nav aria-label="Page navigation">
-                <ul class="pagination justify-content-center mt-3">
-                    <?php for ($p = 1; $p <= $total_pages; $p++): ?>
-                        <li class="page-item <?= ($p == $page) ? 'active' : '' ?>">
-                            <a class="page-link" href="?page=<?= $p ?><?= ($branch_filter ? '&branch=' . $branch_filter : '') ?><?= ($date_from ? '&date_from=' . $date_from : '') ?><?= ($date_to ? '&date_to=' . $date_to : '') ?>"><?= $p ?></a>
-                        </li>
-                    <?php endfor; ?>
-                </ul>
-            </nav>
-            <?php endif; ?>
-            <!-- Total Expenses Sum -->
-            <div class="mt-4 text-end">
-                <h5 class="fw-bold">Total Expenses: <span class="total-expenses-value">UGX <?= number_format($total_expenses, 2) ?></span></h5>
+        </div>
+        <!-- Total Expenses Tab -->
+        <div class="tab-pane fade" id="totalExpensesTab" role="tabpanel" aria-labelledby="total-expenses-tab">
+            <div class="card mb-5">
+                <div class="card-header bg-light text-black" style="border-radius:12px 12px 0 0;">
+                    <span class="fw-bold title-card"><i class="fa-solid fa-calculator"></i> Total Expenses</span>
+                </div>
+                <div class="card-body p-0">
+                    <div class="transactions-table">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Branch</th>
+                                    <th>Expenses</th>
+                                    <th class="text-end">Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php
+                                // Query: group by date and branch, sum(amount)
+                                $totals_res = $conn->query("
+                                    SELECT DATE(e.date) as expense_date, b.name as branch_name, COUNT(e.id) as expenses_count, SUM(e.amount) as total_expenses
+                                    FROM expenses e
+                                    LEFT JOIN branch b ON e.`branch-id` = b.id
+                                    $whereClause
+                                    GROUP BY expense_date, branch_name
+                                    ORDER BY expense_date DESC, branch_name ASC
+                                ");
+                                $grand_total = 0;
+                                if ($totals_res && $totals_res->num_rows > 0):
+                                    while ($row = $totals_res->fetch_assoc()):
+                                        $grand_total += $row['total_expenses'];
+                                ?>
+                                    <tr>
+                                        <td><?= htmlspecialchars($row['expense_date']) ?></td>
+                                        <td><?= htmlspecialchars($row['branch_name']) ?></td>
+                                        <td><?= htmlspecialchars($row['expenses_count']) ?></td>
+                                        <td class="text-end">UGX <?= number_format($row['total_expenses'], 2) ?></td>
+                                    </tr>
+                                <?php endwhile; else: ?>
+                                    <tr>
+                                        <td colspan="4" class="text-center text-muted">No expense totals found.</td>
+                                    </tr>
+                                <?php endif; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="mt-4 text-end">
+                        <h5 class="fw-bold">Grand Total: <span class="total-expenses-value">UGX <?= number_format($grand_total, 2) ?></span></h5>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
