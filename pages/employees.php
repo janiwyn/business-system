@@ -242,7 +242,63 @@ body.dark-mode .transactions-table tbody tr:hover {
     </div>
 
     <!-- Employee List -->
-    <div class="card">
+    <!-- Card wrapper for small devices -->
+    <div class="d-block d-md-none mb-4">
+      <div class="card transactions-card">
+        <div class="card-body">
+          <div class="table-responsive-sm">
+            <div class="transactions-table">
+              <table>
+                <thead>
+                  <tr>
+                    <th>System User</th>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Phone</th>
+                    <th>Branch</th>
+                    <th>Position</th>
+                    <th>Base Salary</th>
+                    <th>Hire Date</th>
+                    <th>Status</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <?php
+                  $employees = mysqli_query($conn, "
+                      SELECT e.*, b.name as branch_name, u.username as system_user
+                      FROM employees e
+                      LEFT JOIN branch b ON e.`branch-id` = b.id
+                      LEFT JOIN users u ON e.`user-id` = u.id
+                      ORDER BY e.id DESC
+                  ");
+                  while ($row = mysqli_fetch_assoc($employees)) {
+                      echo "<tr>
+                          <td>" . ($row['system_user'] ?? 'N/A') . "</td>
+                          <td>{$row['name']}</td>
+                          <td>{$row['email']}</td>
+                          <td>{$row['phone']}</td>
+                          <td>{$row['branch_name']}</td>
+                          <td>{$row['position']}</td>
+                          <td>{$row['base_salary']}</td>
+                          <td>{$row['hire_date']}</td>
+                          <td>{$row['status']}</td>
+                          <td>
+                              <a href='employees.php?delete={$row['id']}' class='btn btn-danger btn-sm' onclick='return confirm(\"Delete this employee?\")'>Delete</a>
+                          </td>
+                      </tr>";
+                  }
+                  ?>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Table for medium and large devices -->
+    <div class="card d-none d-md-block">
         <div class="card-header">Employee List</div>
         <div class="card-body">
             <div class="transactions-table">
