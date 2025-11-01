@@ -180,12 +180,14 @@
         position: static;
         transform: none;
         width: 250px;
-        height: auto;
+        height: 100vh; /* Ensure full viewport height */
         background: transparent;
         backdrop-filter: none;
         box-shadow: none;
         pointer-events: auto;
         z-index: 10;
+        overflow-y: auto; /* Restore vertical scrolling */
+        overflow-x: auto;
       }
       .sidebar-overlay {
         display: none;
