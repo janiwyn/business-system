@@ -512,8 +512,12 @@ if (isset($_GET['created']) && $_GET['created'] == '1') {
                                     data-name='" . htmlspecialchars($row['name']) . "'
                                     data-location='" . htmlspecialchars($row['location']) . "'
                                     data-contact='" . htmlspecialchars($row['contact']) . "'
-                                    data-email='" . htmlspecialchars($row['email']) . "'>Edit</button>
-                                <button class='btn btn-danger btn-sm delete-supplier-btn' data-id='{$row['id']}'>Delete</button>
+                                    data-email='" . htmlspecialchars($row['email']) . "' title='Edit'>
+                                    <i class='fa fa-edit'></i>
+                                </button>
+                                <button class='btn btn-danger btn-sm delete-supplier-btn' data-id='{$row['id']}' title='Delete'>
+                                    <i class='fa fa-trash'></i>
+                                </button>
                               </td>
                             </tr>";
                             $i++;
@@ -608,31 +612,109 @@ if (isset($_GET['created']) && $_GET['created'] == '1') {
         </div>
         <!-- SUPPLIER TRANSACTIONS TAB -->
         <div class="tab-pane fade" id="tab-trans">
-            <div class="card mb-4">
-                <div class="card-header">Supplier Transactions</div>
-                <div class="card-body">
-                    <?php if (count($suppliers_arr) > 0): ?>
-                        <div class="accordion" id="suppliersAccordion">
-                            <?php foreach($suppliers_arr as $s): ?>
-                                <div class="accordion-item mb-2">
-                                    <h2 class="accordion-header" id="headingS<?= $s['id'] ?>">
-                                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseS<?= $s['id'] ?>" aria-expanded="false" aria-controls="collapseS<?= $s['id'] ?>">
-                                            <?= htmlspecialchars($s['name']) ?> — Location: <?= htmlspecialchars($s['location']) ?>
-                                        </button>
-                                    </h2>
-                                    <div id="collapseS<?= $s['id'] ?>" class="accordion-collapse collapse" aria-labelledby="headingS<?= $s['id'] ?>" data-bs-parent="#suppliersAccordion">
-                                        <div class="accordion-body">
-                                            <div id="transContainerS<?= $s['id'] ?>">Loading transactions...</div>
-                                        </div>
-                                    </div>
-                                </div>
-                            <?php endforeach; ?>
+            <!-- Supplier Transactions Table for Small Devices -->
+            <div class="d-block d-md-none mb-4">
+              <?php if (count($suppliers_arr) > 0): ?>
+                <div class="accordion" id="suppliersAccordionMobile">
+                  <?php foreach($suppliers_arr as $s): ?>
+                    <div class="accordion-item mb-2">
+                      <h2 class="accordion-header" id="headingS<?= $s['id'] ?>m">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseS<?= $s['id'] ?>m" aria-expanded="false" aria-controls="collapseS<?= $s['id'] ?>m">
+                          <?= htmlspecialchars($s['name']) ?> — Location: <?= htmlspecialchars($s['location']) ?>
+                        </button>
+                      </h2>
+                      <div id="collapseS<?= $s['id'] ?>m" class="accordion-collapse collapse" aria-labelledby="headingS<?= $s['id'] ?>m" data-bs-parent="#suppliersAccordionMobile">
+                        <div class="accordion-body">
+                          <div class="card transactions-card">
+                            <div class="card-body">
+                              <div class="table-responsive-sm">
+                                <div class="transactions-table" id="transContainerS<?= $s['id'] ?>m">Loading transactions...</div>
+                              </div>
+                            </div>
+                          </div>
                         </div>
-                    <?php else: ?>
-                        <div class="alert alert-info">No suppliers found.</div>
-                    <?php endif; ?>
+                      </div>
+                    </div>
+                  <?php endforeach; ?>
                 </div>
+                <script>
+                // Mobile Supplier Transactions Accordion
+                document.querySelectorAll('#suppliersAccordionMobile .accordion-button').forEach(btn=>{
+                  btn.addEventListener('click', async (e) => {
+                    const target = e.target.closest('.accordion-button');
+                    const collapseId = target.getAttribute('data-bs-target').substring(1);
+                    const supplierId = collapseId.replace('collapseS','').replace('m','');
+                    const container = document.getElementById('transContainerS'+supplierId+'m');
+                    if (container.dataset.loaded) return;
+                    container.innerHTML = '<div class="text-muted">Loading...</div>';
+                    const form = new FormData();
+                    form.append('action','fetch_supplier_transactions');
+                    form.append('supplier_id', supplierId);
+                    let data;
+                    try {
+                      const res = await fetch('suppliers.php', {method:'POST', body: form});
+                      data = await res.json();
+                    } catch (err) {
+                      data = {success: false, rows: []};
+                    }
+                    let html = '<table><thead><tr><th>Date & Time</th><th>Branch</th><th>Products</th><th class="text-center">Quantity</th><th class="text-end">Unit Price</th><th class="text-end">Amount</th><th>Payment Method</th><th class="text-end">Amount Paid</th><th class="text-end">Balance</th><th>Actions</th></tr></thead><tbody>';
+                    if (!data.success || !Array.isArray(data.rows) || !data.rows.length) {
+                      html += '<tr><td colspan="10" class="text-center text-muted">No transactions found.</td></tr>';
+                      html += '</tbody></table>';
+                      container.innerHTML = html;
+                      container.dataset.loaded = '1';
+                      return;
+                    }
+                    data.rows.forEach(r=>{
+                      const paid = parseFloat(r.amount_paid || 0).toFixed(2);
+                      const balance = parseFloat(r.balance || 0).toFixed(2);
+                      const unitPrice = parseFloat(r.unit_price || 0).toFixed(2);
+                      const amount = parseFloat(r.amount || 0).toFixed(2);
+                      const products = escapeHtml(r.products_supplied || '');
+                      const qty = escapeHtml(r.quantity || '');
+                      const method = escapeHtml(r.payment_method || '');
+                      const date = escapeHtml(r.date_time || '');
+                      const branch = escapeHtml(r.branch || '');
+                      let actions = '';
+                      if (parseFloat(balance) > 0) {
+                        actions = `<button class="btn btn-success btn-sm pay-supplier-btn" data-id="${r.id}" data-balance="${balance}" title="Pay"><i class="fa fa-check"></i></button>`;
+                      } else {
+                        actions = `<span class="badge bg-success">Cleared</span>`;
+                      }
+                      html += `<tr>
+                        <td>${date}</td>
+                        <td>${branch}</td>
+                        <td>${products}</td>
+                        <td class="text-center">${qty}</td>
+                        <td class="text-end">UGX ${unitPrice}</td>
+                        <td class="text-end">UGX ${amount}</td>
+                        <td>${method}</td>
+                        <td class="text-end">UGX ${paid}</td>
+                        <td class="text-end">UGX ${balance}</td>
+                        <td>${actions}</td>
+                      </tr>`;
+                    });
+                    html += '</tbody></table>';
+                    container.innerHTML = html;
+                    container.dataset.loaded = '1';
+
+                    // Attach pay button events
+                    container.querySelectorAll('.pay-supplier-btn').forEach(btn=>{
+                      btn.addEventListener('click', () => {
+                        document.getElementById('payTransId').value = btn.getAttribute('data-id');
+                        document.getElementById('payAmount').value = btn.getAttribute('data-balance');
+                        document.getElementById('payMsg').innerHTML = '';
+                        new bootstrap.Modal(document.getElementById('paySupplierModal')).show();
+                      });
+                    });
+                  });
+                });
+                </script>
+              <?php else: ?>
+                <div class="alert alert-info">No suppliers found.</div>
+              <?php endif; ?>
             </div>
+            <!-- ...existing code for medium/large devices... -->
         </div>
         <!-- SUPPLIER PRODUCTS TAB -->
         <div class="tab-pane fade" id="tab-products">
@@ -651,12 +733,102 @@ if (isset($_GET['created']) && $_GET['created'] == '1') {
                                     <div id="collapseP<?= $s['id'] ?>" class="accordion-collapse collapse" aria-labelledby="headingP<?= $s['id'] ?>" data-bs-parent="#supplierProductsAccordion">
                                         <div class="accordion-body">
                                             <button class="btn btn-success btn-sm mb-2 add-supply-btn" data-supplier="<?= $s['id'] ?>">Add Supply</button>
-                                            <div id="productsContainer<?= $s['id'] ?>">Loading products...</div>
+                                            <!-- Supplier Products Table for Small Devices -->
+                                            <div class="d-block d-md-none mb-2">
+                                                <div class="card transactions-card">
+                                                    <div class="card-body">
+                                                        <div class="table-responsive-sm">
+                                                            <div class="transactions-table" id="productsContainer<?= $s['id'] ?>Mobile">Loading products...</div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <!-- Supplier Products Table for Medium/Large Devices -->
+                                            <div class="d-none d-md-block">
+                                                <div id="productsContainer<?= $s['id'] ?>">Loading products...</div>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
                             <?php endforeach; ?>
                         </div>
+                        <script>
+                        // Mobile Supplier Products Accordion
+                        document.querySelectorAll('#supplierProductsAccordion .accordion-button').forEach(btn=>{
+                          btn.addEventListener('click', async (e) => {
+                            const target = e.target.closest('.accordion-button');
+                            const collapseId = target.getAttribute('data-bs-target').substring(1);
+                            const supplierId = collapseId.replace('collapseP','');
+                            // Mobile table
+                            const containerMobile = document.getElementById('productsContainer'+supplierId+'Mobile');
+                            if (containerMobile && !containerMobile.dataset.loaded) {
+                              containerMobile.innerHTML = '<div class="text-muted">Loading...</div>';
+                              const form = new FormData();
+                              form.append('action','fetch_supplier_products');
+                              form.append('supplier_id', supplierId);
+                              let data;
+                              try {
+                                const res = await fetch('suppliers.php', {method:'POST', body: form});
+                                data = await res.json();
+                              } catch (err) {
+                                data = {success: false, rows: []};
+                              }
+                              let html = '<table><thead><tr><th>Product</th><th class="text-end">Unit Price</th><th>Actions</th></tr></thead><tbody>';
+                              if (!data.success || !Array.isArray(data.rows) || !data.rows.length) {
+                                html += '<tr><td colspan="3" class="text-center text-muted">No products found.</td></tr>';
+                                html += '</tbody></table>';
+                                containerMobile.innerHTML = html;
+                                containerMobile.dataset.loaded = '1';
+                                return;
+                              }
+                              data.rows.forEach(r=>{
+                                html += `<tr>
+                                  <td>${escapeHtml(r.product_name)}</td>
+                                  <td class="text-end">UGX ${parseFloat(r.unit_price).toFixed(2)}</td>
+                                  <td>
+                                    <button class="btn btn-warning btn-sm edit-supply-btn" data-id="${r.id}" data-supplier="${r.supplier_id}" data-name="${escapeHtml(r.product_name)}" data-price="${r.unit_price}" title="Edit">
+                                      <i class="fa fa-edit"></i>
+                                    </button>
+                                    <button class="btn btn-danger btn-sm delete-supply-btn" data-id="${r.id}" title="Delete">
+                                      <i class="fa fa-trash"></i>
+                                    </button>
+                                  </td>
+                                </tr>`;
+                              });
+                              html += '</tbody></table>';
+                              containerMobile.innerHTML = html;
+                              containerMobile.dataset.loaded = '1';
+
+                              // Attach edit/delete events
+                              containerMobile.querySelectorAll('.edit-supply-btn').forEach(btn=>{
+                                btn.addEventListener('click', () => {
+                                  document.getElementById('supplierProductModalTitle').textContent = 'Edit Supply';
+                                  document.getElementById('spSupplierId').value = btn.getAttribute('data-supplier');
+                                  document.getElementById('spProductId').value = btn.getAttribute('data-id');
+                                  document.getElementById('spProductName').value = btn.getAttribute('data-name');
+                                  document.getElementById('spUnitPrice').value = btn.getAttribute('data-price');
+                                  document.getElementById('spMsg').innerHTML = '';
+                                  document.getElementById('spSubmitBtn').textContent = 'Update';
+                                  new bootstrap.Modal(document.getElementById('supplierProductModal')).show();
+                                });
+                              });
+                              containerMobile.querySelectorAll('.delete-supply-btn').forEach(btn=>{
+                                btn.addEventListener('click', async () => {
+                                  if (!confirm('Delete this product?')) return;
+                                  const form = new FormData();
+                                  form.append('action','delete_supplier_product');
+                                  form.append('id', btn.getAttribute('data-id'));
+                                  const res = await fetch('suppliers.php', {method:'POST', body: form});
+                                  const data = await res.json();
+                                  if (data.success) location.reload();
+                                  else alert('Delete failed');
+                                });
+                              });
+                            }
+                            // ...existing code for desktop table...
+                          });
+                        });
+                        </script>
                     <?php else: ?>
                         <div class="alert alert-info">No suppliers found.</div>
                     <?php endif; ?>
