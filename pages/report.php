@@ -148,24 +148,57 @@ $sales_main = $conn->query("
         </div>
     </div>
 
-    <!-- Charts Section -->
-    <div class="row mb-4">
-        <div class="col-md-6">
-            <div class="card chart-card">
-                <div class="card-body">
-                    <h5 class="title-card">Sales</h5>
-                    <canvas id="salesChart"></canvas>
-                </div>
+    <!-- Responsive Charts Carousel for Small Devices -->
+    <div class="d-block d-md-none mb-4">
+      <div id="reportsChartsCarousel" class="carousel slide charts-carousel" data-bs-ride="false" data-bs-touch="true">
+        <div class="carousel-inner">
+          <div class="carousel-item active">
+            <div class="card">
+              <div class="card-header">Sales Report</div>
+              <div class="card-body">
+                <canvas id="salesChartMobile"></canvas>
+              </div>
             </div>
-        </div>
-        <div class="col-md-6">
-            <div class="card chart-card">
-                <div class="card-body">
-                    <h5 class="title-card">Expenses</h5>
-                    <canvas id="expensesChart"></canvas>
-                </div>
+          </div>
+          <div class="carousel-item">
+            <div class="card">
+              <div class="card-header">Profit Report</div>
+              <div class="card-body">
+                <canvas id="profitChartMobile"></canvas>
+              </div>
             </div>
+          </div>
+          <!-- Add more carousel-item blocks for additional charts if needed -->
         </div>
+        <div class="d-flex justify-content-center mt-3">
+          <div class="carousel-indicators position-static mb-0">
+            <button type="button" data-bs-target="#reportsChartsCarousel" data-bs-slide-to="0" class="active" aria-current="true" aria-label="Sales Report"></button>
+            <button type="button" data-bs-target="#reportsChartsCarousel" data-bs-slide-to="1" aria-label="Profit Report"></button>
+            <!-- Add more buttons for additional charts if needed -->
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Charts for medium and large devices -->
+    <div class="row mb-4 d-none d-md-flex">
+      <div class="col-md-6">
+        <div class="card">
+          <div class="card-header">Sales Report</div>
+          <div class="card-body">
+            <canvas id="salesChart"></canvas>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="card">
+          <div class="card-header">Profit Report</div>
+          <div class="card-body">
+            <canvas id="profitChart"></canvas>
+          </div>
+        </div>
+      </div>
+      <!-- Add more chart columns if needed -->
     </div>
 
     <!-- Print Button -->
@@ -321,84 +354,95 @@ function getChartGridColor() {
     return isDarkMode() ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)';
 }
 
-function renderCharts() {
-    // Remove old canvases if re-rendering
-    if (window.salesChartInstance) window.salesChartInstance.destroy();
-    if (window.expensesChartInstance) window.expensesChartInstance.destroy();
-
-    const fontColor = getChartFontColor();
-    const gridColor = getChartGridColor();
-
-    window.salesChartInstance = new Chart(document.getElementById('salesChart'), {
-        type: 'bar',
-        data: {
-            labels: <?= json_encode($months) ?>,
-            datasets: [{
-                label: 'Sales',
-                data: <?= json_encode($salesData) ?>,
-                backgroundColor: 'rgba(40,167,69,0.7)',
-                borderRadius: 10
-            }]
+// Chart data and options for both desktop and mobile
+const salesChartData = {
+    labels: <?= json_encode($months) ?>,
+    datasets: [{
+        label: 'Sales',
+        data: <?= json_encode($salesData) ?>,
+        backgroundColor: 'rgba(40,167,69,0.7)',
+        borderRadius: 10
+    }]
+};
+const salesChartOptions = {
+    responsive: true,
+    plugins: {
+        legend: { display: false },
+        title: { display: false }
+    },
+    scales: {
+        x: {
+            ticks: { color: getChartFontColor() },
+            grid: { color: getChartGridColor() }
         },
-        options: {
-            responsive: true,
-            plugins: {
-                legend: { display: false },
-                title: { display: false }
-            },
-            scales: {
-                x: {
-                    ticks: { color: fontColor },
-                    grid: { color: gridColor }
-                },
-                y: {
-                    beginAtZero: true,
-                    ticks: { color: fontColor },
-                    grid: { color: gridColor }
-                }
-            }
+        y: {
+            beginAtZero: true,
+            ticks: { color: getChartFontColor() },
+            grid: { color: getChartGridColor() }
         }
-    });
+    }
+};
 
-    window.expensesChartInstance = new Chart(document.getElementById('expensesChart'), {
-        type: 'bar',
-        data: {
-            labels: <?= json_encode($expenseMonths) ?>,
-            datasets: [{
-                label: 'Expenses',
-                data: <?= json_encode($expenseData) ?>,
-                backgroundColor: 'rgba(220,53,69,0.7)',
-                borderRadius: 10
-            }]
+const profitChartData = {
+    labels: <?= json_encode($expenseMonths) ?>,
+    datasets: [{
+        label: 'Expenses',
+        data: <?= json_encode($expenseData) ?>,
+        backgroundColor: 'rgba(220,53,69,0.7)',
+        borderRadius: 10
+    }]
+};
+const profitChartOptions = {
+    responsive: true,
+    plugins: {
+        legend: { display: false },
+        title: { display: false }
+    },
+    scales: {
+        x: {
+            ticks: { color: getChartFontColor() },
+            grid: { color: getChartGridColor() }
         },
-        options: {
-            responsive: true,
-            plugins: {
-                legend: { display: false },
-                title: { display: false }
-            },
-            scales: {
-                x: {
-                    ticks: { color: fontColor },
-                    grid: { color: gridColor }
-                },
-                y: {
-                    beginAtZero: true,
-                    ticks: { color: fontColor },
-                    grid: { color: gridColor }
-                }
-            }
+        y: {
+            beginAtZero: true,
+            ticks: { color: getChartFontColor() },
+            grid: { color: getChartGridColor() }
         }
-    });
+    }
+};
+
+// Desktop charts initialization
+new Chart(document.getElementById('salesChart'), {
+  type: 'bar',
+  data: salesChartData,
+  options: salesChartOptions
+});
+new Chart(document.getElementById('profitChart'), {
+  type: 'bar',
+  data: profitChartData,
+  options: profitChartOptions
+});
+
+// Mobile charts initialization
+function createSalesChartMobile() {
+  new Chart(document.getElementById('salesChartMobile'), {
+    type: 'bar',
+    data: salesChartData,
+    options: salesChartOptions
+  });
+}
+function createProfitChartMobile() {
+  new Chart(document.getElementById('profitChartMobile'), {
+    type: 'bar',
+    data: profitChartData,
+    options: profitChartOptions
+  });
 }
 
-// Initial render
-renderCharts();
-
-// Re-render charts on dark mode toggle
-document.getElementById('themeToggle')?.addEventListener('change', () => {
-    renderCharts();
-});
+if (window.innerWidth < 992) {
+  createSalesChartMobile();
+  createProfitChartMobile();
+}
 
 function printSection(sectionId) {
     var content = document.getElementById(sectionId).innerHTML;
