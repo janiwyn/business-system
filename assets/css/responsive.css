@@ -187,3 +187,19 @@
     background-color: rgba(255,255,255,0.1) !important;
   }
 }
+
+    @media (max-width: 575.98px) {
+      .welcome-banner {
+        padding: 0.7rem 1rem !important;
+        min-height: 54px !important;
+      }
+      .welcome-text {
+        font-size: 1.15rem !important;
+        font-weight: 600 !important;
+        display: flex !important;
+        align-items: center !important;
+        gap: 0.4rem !important;
+        margin-bottom: 0 !important;
+        line-height: 1.2 !important;
+      }
+    }
