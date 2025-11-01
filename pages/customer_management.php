@@ -195,36 +195,75 @@ $customers = $customers_res ? $customers_res->fetch_all(MYSQLI_ASSOC) : [];
         <div class="card mb-4">
           <div class="card-header" color = #1abc9c><b>View Customer Files</b></div>
           <div class="card-body">
-            <?php if (count($customers)): ?>
-              <div class="transactions-table">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>#</th>
-                      <th>Name</th>
-                      <th>Contact</th>
-                      <th>Email</th>
-                      <th>Opening Date</th>
-                      <th class="text-center">Open File</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <?php foreach($customers as $c): ?>
-                      <tr>
-                        <td><?= $c['id'] ?></td>
-                        <td><?= htmlspecialchars($c['name']) ?></td>
-                        <td><?= htmlspecialchars($c['contact']) ?></td>
-                        <td><?= htmlspecialchars($c['email']) ?></td>
-                        <td><?= htmlspecialchars($c['opening_date'] ?? '') ?></td>
-                        <td class="text-center">
-                          <a href="view_customer_file.php?id=<?= $c['id'] ?>" class="btn btn-info btn-sm">Open File</a>
-                        </td>
-                      </tr>
-                    <?php endforeach; ?>
-                  </tbody>
-                </table>
+            <!-- Responsive Table Card for Small Devices -->
+            <div class="d-block d-md-none mb-4">
+              <div class="card transactions-card">
+                <div class="card-body">
+                  <div class="table-responsive-sm">
+                    <div class="transactions-table">
+                      <table>
+                        <thead>
+                          <tr>
+                            <th>#</th>
+                            <th>Name</th>
+                            <th>Contact</th>
+                            <th>Email</th>
+                            <th>Opening Date</th>
+                            <th class="text-center">Open File</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <?php foreach($customers as $c): ?>
+                            <tr>
+                              <td><?= $c['id'] ?></td>
+                              <td><?= htmlspecialchars($c['name']) ?></td>
+                              <td><?= htmlspecialchars($c['contact']) ?></td>
+                              <td><?= htmlspecialchars($c['email']) ?></td>
+                              <td><?= htmlspecialchars($c['opening_date'] ?? '') ?></td>
+                              <td class="text-center">
+                                <a href="view_customer_file.php?id=<?= $c['id'] ?>" class="btn btn-info btn-sm" title="Open File">
+                                  <i class="fa fa-folder-open"></i>
+                                </a>
+                              </td>
+                            </tr>
+                          <?php endforeach; ?>
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
               </div>
-            <?php else: ?>
+            </div>
+            <!-- Table for medium and large devices -->
+            <div class="transactions-table d-none d-md-block">
+              <table>
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Name</th>
+                    <th>Contact</th>
+                    <th>Email</th>
+                    <th>Opening Date</th>
+                    <th class="text-center">Open File</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <?php foreach($customers as $c): ?>
+                    <tr>
+                      <td><?= $c['id'] ?></td>
+                      <td><?= htmlspecialchars($c['name']) ?></td>
+                      <td><?= htmlspecialchars($c['contact']) ?></td>
+                      <td><?= htmlspecialchars($c['email']) ?></td>
+                      <td><?= htmlspecialchars($c['opening_date'] ?? '') ?></td>
+                      <td class="text-center">
+                        <a href="view_customer_file.php?id=<?= $c['id'] ?>" class="btn btn-info btn-sm">Open File</a>
+                      </td>
+                    </tr>
+                  <?php endforeach; ?>
+                </tbody>
+              </table>
+            </div>
+            <?php if (!count($customers)): ?>
               <p class="text-muted">No customer files yet.</p>
             <?php endif; ?>
           </div>
@@ -236,40 +275,83 @@ $customers = $customers_res ? $customers_res->fetch_all(MYSQLI_ASSOC) : [];
         <div class="card mb-4">
           <div class="card-header">Manage Customers</div>
           <div class="card-body">
-            <?php if (count($customers)): ?>
-              <div class="transactions-table">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Name</th>
-                      <th>Contact</th>
-                      <th class="text-end">Amount Credited</th>
-                      <th class="text-end">Account Balance</th>
-                      <th>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <?php foreach($customers as $c): ?>
-                      <tr>
-                        <td><?= htmlspecialchars($c['name']) ?></td>
-                        <td><?= htmlspecialchars($c['contact']) ?></td>
-                        <!-- safe formatting to avoid undefined key warnings -->
-                        <td class="text-end">
-                          <span class="fw-bold text-danger">UGX <?= number_format(floatval($c['amount_credited'] ?? 0), 2) ?></span>
-                        </td>
-                        <td class="text-end">
-                          <span class="fw-bold text-success">UGX <?= number_format(floatval($c['account_balance'] ?? 0), 2) ?></span>
-                        </td>
-                        <td>
-                          <button class="btn btn-primary btn-sm me-1 add-money-btn" data-id="<?= $c['id'] ?>" data-name="<?= htmlspecialchars($c['name']) ?>">Add Money</button>
-                          <button class="btn btn-danger btn-sm delete-customer-btn" data-id="<?= $c['id'] ?>">Delete File</button>
-                        </td>
-                      </tr>
-                    <?php endforeach; ?>
-                  </tbody>
-                </table>
+            <!-- Responsive Table Card for Small Devices -->
+            <div class="d-block d-md-none mb-4">
+              <div class="card transactions-card">
+                <div class="card-body">
+                  <div class="table-responsive-sm">
+                    <div class="transactions-table">
+                      <table>
+                        <thead>
+                          <tr>
+                            <th>Name</th>
+                            <th>Contact</th>
+                            <th class="text-end">Amount Credited</th>
+                            <th class="text-end">Account Balance</th>
+                            <th>Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <?php foreach($customers as $c): ?>
+                            <tr>
+                              <td><?= htmlspecialchars($c['name']) ?></td>
+                              <td><?= htmlspecialchars($c['contact']) ?></td>
+                              <td class="text-end">
+                                <span class="fw-bold text-danger">UGX <?= number_format(floatval($c['amount_credited'] ?? 0), 2) ?></span>
+                              </td>
+                              <td class="text-end">
+                                <span class="fw-bold text-success">UGX <?= number_format(floatval($c['account_balance'] ?? 0), 2) ?></span>
+                              </td>
+                              <td>
+                                <button class="btn btn-primary btn-sm me-1 add-money-btn" data-id="<?= $c['id'] ?>" data-name="<?= htmlspecialchars($c['name']) ?>" title="Add Money">
+                                  <i class="fa fa-plus"></i>
+                                </button>
+                                <button class="btn btn-danger btn-sm delete-customer-btn" data-id="<?= $c['id'] ?>" title="Delete File">
+                                  <i class="fa fa-trash"></i>
+                                </button>
+                              </td>
+                            </tr>
+                          <?php endforeach; ?>
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
               </div>
-            <?php else: ?>
+            </div>
+            <!-- Table for medium and large devices -->
+            <div class="transactions-table d-none d-md-block">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Contact</th>
+                    <th class="text-end">Amount Credited</th>
+                    <th class="text-end">Account Balance</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <?php foreach($customers as $c): ?>
+                    <tr>
+                      <td><?= htmlspecialchars($c['name']) ?></td>
+                      <td><?= htmlspecialchars($c['contact']) ?></td>
+                      <td class="text-end">
+                        <span class="fw-bold text-danger">UGX <?= number_format(floatval($c['amount_credited'] ?? 0), 2) ?></span>
+                      </td>
+                      <td class="text-end">
+                        <span class="fw-bold text-success">UGX <?= number_format(floatval($c['account_balance'] ?? 0), 2) ?></span>
+                      </td>
+                      <td>
+                        <button class="btn btn-primary btn-sm me-1 add-money-btn" data-id="<?= $c['id'] ?>" data-name="<?= htmlspecialchars($c['name']) ?>">Add Money</button>
+                        <button class="btn btn-danger btn-sm delete-customer-btn" data-id="<?= $c['id'] ?>">Delete File</button>
+                      </td>
+                    </tr>
+                  <?php endforeach; ?>
+                </tbody>
+              </table>
+            </div>
+            <?php if (!count($customers)): ?>
               <p class="text-muted">No customers to manage.</p>
             <?php endif; ?>
           </div>
@@ -281,24 +363,109 @@ $customers = $customers_res ? $customers_res->fetch_all(MYSQLI_ASSOC) : [];
         <div class="card mb-4">
           <div class="card-header">Customer Transactions</div>
           <div class="card-body">
-            <?php if (count($customers)): ?>
-              <div class="accordion" id="customersAccordion">
-                <?php foreach($customers as $c): ?>
-                  <div class="accordion-item mb-2">
-                    <h2 class="accordion-header" id="heading<?= $c['id'] ?>">
-                      <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse<?= $c['id'] ?>" aria-expanded="false" aria-controls="collapse<?= $c['id'] ?>">
-                        <?= htmlspecialchars($c['name']) ?> — Balance: UGX <?= number_format(floatval($c['account_balance'] ?? 0), 2) ?>
-                      </button>
-                    </h2>
-                    <div id="collapse<?= $c['id'] ?>" class="accordion-collapse collapse" aria-labelledby="heading<?= $c['id'] ?>" data-bs-parent="#customersAccordion">
-                      <div class="accordion-body">
-                        <div id="transContainer<?= $c['id'] ?>">Loading transactions...</div>
-                      </div>
+            <!-- Responsive Table Card for Small Devices -->
+            <div class="d-block d-md-none mb-4">
+              <div class="card transactions-card">
+                <div class="card-body">
+                  <div class="table-responsive-sm">
+                    <div class="transactions-table">
+                      <?php if (count($customers)): ?>
+                        <div class="accordion" id="customersAccordionMobile">
+                          <?php foreach($customers as $c): ?>
+                            <div class="accordion-item mb-2">
+                              <h2 class="accordion-header" id="heading<?= $c['id'] ?>m">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse<?= $c['id'] ?>m" aria-expanded="false" aria-controls="collapse<?= $c['id'] ?>m">
+                                  <?= htmlspecialchars($c['name']) ?> — Balance: UGX <?= number_format(floatval($c['account_balance'] ?? 0), 2) ?>
+                                </button>
+                              </h2>
+                              <div id="collapse<?= $c['id'] ?>m" class="accordion-collapse collapse" aria-labelledby="heading<?= $c['id'] ?>m" data-bs-parent="#customersAccordionMobile">
+                                <div class="accordion-body">
+                                  <div class="transactions-table" id="transContainer<?= $c['id'] ?>m">Loading transactions...</div>
+                                </div>
+                              </div>
+                            </div>
+                          <?php endforeach; ?>
+                        </div>
+                        <script>
+                        // Mobile Customer Transactions Accordion
+                        document.querySelectorAll('#customersAccordionMobile .accordion-button').forEach(btn=>{
+                          btn.addEventListener('click', async (e) => {
+                            const target = e.target.closest('.accordion-button');
+                            const collapseId = target.getAttribute('data-bs-target').substring(1);
+                            const customerId = collapseId.replace('collapse','').replace('m','');
+                            const container = document.getElementById('transContainer'+customerId+'m');
+                            if (container.dataset.loaded) return;
+                            container.innerHTML = '<div class="text-muted">Loading...</div>';
+                            const res = await fetch('customer_management.php?fetch_transactions=1&customer_id='+customerId);
+                            const data = await res.json();
+                            if (!data.success) { container.innerHTML = '<div class="text-muted">No transactions.</div>'; return; }
+                            if (!data.rows.length) { container.innerHTML = '<div class="text-muted">No transactions.</div>'; container.dataset.loaded = '1'; return; }
+
+                            let html = '<table><thead><tr><th>Date & Time</th><th>Products</th><th class="text-center">Quantity</th><th class="text-end">Amount Paid</th><th class="text-end">Amount Credited</th><th>Sold By</th></tr></thead><tbody>';
+                            data.rows.forEach(r=>{
+                              let prodDisplay = '';
+                              let totalQty = 0;
+                              try {
+                                const pb = JSON.parse(r.products_bought || '[]');
+                                if (Array.isArray(pb)) {
+                                  const parts = pb.map(p => {
+                                    const name = (p.name || p.product || '').toString();
+                                    const qty = parseInt(p.quantity || p.qty || 0) || 0;
+                                    totalQty += qty;
+                                    return `${escapeHtml(name)} x${qty}`;
+                                  });
+                                  prodDisplay = parts.join(', ');
+                                } else {
+                                  prodDisplay = escapeHtml(String(r.products_bought || ''));
+                                }
+                              } catch (err) {
+                                prodDisplay = escapeHtml(String(r.products_bought || ''));
+                              }
+
+                              const paid = parseFloat(r.amount_paid || 0).toFixed(2);
+                              const credited = parseFloat(r.amount_credited || 0).toFixed(2);
+                              const soldBy = escapeHtml(r.sold_by || '');
+                              html += `<tr>
+                                         <td>${escapeHtml(r.date_time)}</td>
+                                         <td>${prodDisplay || '-'}</td>
+                                         <td class="text-center">${totalQty}</td>
+                                         <td class="text-end">UGX ${paid}</td>
+                                         <td class="text-end">UGX ${credited}</td>
+                                         <td>${soldBy}</td>
+                                       </tr>`;
+                            });
+                            html += '</tbody></table>';
+                            container.innerHTML = html;
+                            container.dataset.loaded = '1';
+                          });
+                        });
+                        </script>
+                      <?php else: ?>
+                        <p class="text-muted">No customers.</p>
+                      <?php endif; ?>
                     </div>
                   </div>
-                <?php endforeach; ?>
+                </div>
               </div>
-            <?php else: ?>
+            </div>
+            <!-- Table for medium and large devices -->
+            <div class="accordion d-none d-md-block" id="customersAccordion">
+              <?php foreach($customers as $c): ?>
+                <div class="accordion-item mb-2">
+                  <h2 class="accordion-header" id="heading<?= $c['id'] ?>">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse<?= $c['id'] ?>" aria-expanded="false" aria-controls="collapse<?= $c['id'] ?>">
+                      <?= htmlspecialchars($c['name']) ?> — Balance: UGX <?= number_format(floatval($c['account_balance'] ?? 0), 2) ?>
+                    </button>
+                  </h2>
+                  <div id="collapse<?= $c['id'] ?>" class="accordion-collapse collapse" aria-labelledby="heading<?= $c['id'] ?>" data-bs-parent="#customersAccordion">
+                    <div class="accordion-body">
+                      <div id="transContainer<?= $c['id'] ?>">Loading transactions...</div>
+                    </div>
+                  </div>
+                </div>
+              <?php endforeach; ?>
+            </div>
+            <?php if (!count($customers)): ?>
               <p class="text-muted">No customers.</p>
             <?php endif; ?>
           </div>
