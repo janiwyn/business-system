@@ -9,11 +9,12 @@ include '../includes/header.php';
 // Handle add/remove petty cash balance
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['petty_action'])) {
     $amount = floatval($_POST['amount'] ?? 0);
+    $approved_by = mysqli_real_escape_string($conn, $_POST['approved_by'] ?? '');
     if ($_POST['petty_action'] === 'add' && $amount > 0) {
-        $conn->query("INSERT INTO petty_cash_balance (amount, type, created_at) VALUES ($amount, 'add', NOW())");
+        $conn->query("INSERT INTO petty_cash_balance (amount, type, created_at, approved_by) VALUES ($amount, 'add', NOW(), '$approved_by')");
     }
     if ($_POST['petty_action'] === 'remove' && $amount > 0) {
-        $conn->query("INSERT INTO petty_cash_balance (amount, type, created_at) VALUES ($amount, 'remove', NOW())");
+        $conn->query("INSERT INTO petty_cash_balance (amount, type, created_at, approved_by) VALUES ($amount, 'remove', NOW(), '$approved_by')");
     }
     header("Location: petty_cash.php");
     exit;
@@ -83,6 +84,9 @@ $transactions = $conn->query("
     $whereClause
     ORDER BY t.created_at DESC
 ");
+
+// Fetch petty cash balance actions for table
+$balance_actions = $conn->query("SELECT * FROM petty_cash_balance ORDER BY created_at DESC");
 ?>
 <link rel="stylesheet" href="assets/css/accounting.css">
 <style>
@@ -96,6 +100,20 @@ $transactions = $conn->query("
     margin-left: 1rem;
     font-weight: 600;
     border-radius: 8px;
+}
+/* New styles for balance actions table */
+.balance-actions-table {
+    width: 100%;
+    margin-top: 1.5rem;
+    border-collapse: collapse;
+}
+.balance-actions-table th, .balance-actions-table td {
+    border: 1px solid #ddd;
+    padding: 8px;
+}
+.balance-actions-table th {
+    background: #f8f9fa;
+    font-weight: 600;
 }
 </style>
 <div class="container mt-5 mb-5">
@@ -120,6 +138,44 @@ $transactions = $conn->query("
                         <button class="btn btn-success petty-action-btn" data-bs-toggle="modal" data-bs-target="#addPettyModal">Add More</button>
                         <button class="btn btn-danger petty-action-btn" data-bs-toggle="modal" data-bs-target="#removePettyModal">Remove Petty Cash</button>
                     </div>
+                </div>
+            </div>
+            <!-- New: Balance Actions Table -->
+            <div class="card">
+                <div class="card-header">Petty Cash Balance Actions</div>
+                <div class="card-body">
+                    <table class="balance-actions-table">
+                        <thead>
+                            <tr>
+                                <th>Date & Time</th>
+                                <th>Action</th>
+                                <th>Amount</th>
+                                <th>Approved By</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php if ($balance_actions && $balance_actions->num_rows > 0): ?>
+                                <?php while ($row = $balance_actions->fetch_assoc()): ?>
+                                    <tr>
+                                        <td><?= htmlspecialchars($row['created_at']) ?></td>
+                                        <td>
+                                            <?php if ($row['type'] === 'add'): ?>
+                                                <span class="badge bg-success">Add</span>
+                                            <?php else: ?>
+                                                <span class="badge bg-danger">Remove</span>
+                                            <?php endif; ?>
+                                        </td>
+                                        <td>UGX <?= number_format($row['amount'], 2) ?></td>
+                                        <td><?= htmlspecialchars($row['approved_by']) ?></td>
+                                    </tr>
+                                <?php endwhile; ?>
+                            <?php else: ?>
+                                <tr>
+                                    <td colspan="4" class="text-center text-muted">No balance actions found.</td>
+                                </tr>
+                            <?php endif; ?>
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
@@ -278,6 +334,10 @@ $transactions = $conn->query("
           <label class="form-label">Amount to Add</label>
           <input name="amount" class="form-control" type="number" min="0" step="0.01" required>
         </div>
+        <div class="mb-3">
+          <label class="form-label">Approved By</label>
+          <input name="approved_by" class="form-control" type="text" required>
+        </div>
       </div>
       <div class="modal-footer">
         <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
@@ -299,6 +359,10 @@ $transactions = $conn->query("
         <div class="mb-3">
           <label class="form-label">Amount to Remove</label>
           <input name="amount" class="form-control" type="number" min="0" step="0.01" required>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Approved By</label>
+          <input name="approved_by" class="form-control" type="text" required>
         </div>
       </div>
       <div class="modal-footer">

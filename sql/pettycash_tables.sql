@@ -2,7 +2,8 @@ CREATE TABLE petty_cash_balance (
     id INT AUTO_INCREMENT PRIMARY KEY,
     amount DECIMAL(15,2) NOT NULL,
     type ENUM('add','remove') NOT NULL,
-    created_at DATETIME NOT NULL
+    created_at DATETIME NOT NULL,
+    approved_by VARCHAR(255) DEFAULT NULL
 );
 
 CREATE TABLE petty_cash_transactions (
