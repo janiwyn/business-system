@@ -63,9 +63,6 @@ $role = $_SESSION['role'];
     background: #e74c3c !important;
     color: #fff !important;
 }
-@media (max-width: 768px) {
-    .sidebar { width: 100%; min-height: auto; position: relative; border-radius: 0; }
-}
 </style>
 <div class="sidebar">
     <div class="sidebar-title">Staff Dashboard</div>

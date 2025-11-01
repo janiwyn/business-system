@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet" />
   <link rel="stylesheet" href="../pages/assets/css/style.css" />
+  <link rel="stylesheet" href="../assets/css/responsive.css" />
   <style>
     .main-header {
       width: 100%;
@@ -25,6 +26,8 @@
       display: flex;
       align-items: center;
       gap: 1rem;
+      flex: 1 1 auto;
+      min-width: 0;
     }
     .main-header .logo-img {
       width: 44px;
@@ -40,16 +43,20 @@
       letter-spacing: 1px;
       color: #fff;
       text-shadow: 0 2px 8px rgba(44,62,80,0.08);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
     .main-header .header-actions {
       display: flex;
       align-items: center;
-      gap: 1.5rem;
+      gap: 1.5rem; /* Increased gap */
+      flex-shrink: 0;
     }
     .theme-switch {
       display: flex;
       align-items: center;
-      gap: 0.5rem;
+      gap: 0.7rem; /* Increased gap */
       cursor: pointer;
     }
     .theme-switch input[type="checkbox"] {
@@ -67,6 +74,9 @@
     .theme-switch label .fa-moon {
       color: #00c6ff;
     }
+    .notification-icon {
+      margin-right: 0.5rem;
+    }
     body.dark-mode .main-header {
       background: linear-gradient(90deg, #23243a 0%, #1e1e2f 100%);
       color: #f4f4f4;
@@ -79,9 +89,87 @@
     body.dark-mode .theme-switch label {
       color: #ffd200;
     }
-    @media (max-width: 768px) {
-      .main-header { padding: 0.5rem 1rem; flex-direction: column; align-items: flex-start; }
-      .main-header .logo-area { margin-bottom: 0.5rem; }
+    /* Responsive styles for header */
+    @media (max-width: 991.98px) {
+      .main-header {
+        padding: 0.7rem 1.2rem; /* Increased padding */
+        font-size: 1.05rem;     /* Slightly larger font */
+        min-height: 56px;       /* Increased height */
+      }
+      .main-header .logo-img {
+        width: 36px;
+        height: 36px;
+      }
+      .main-header .logo-text {
+        font-size: 1.2rem;
+        max-width: 140px;
+      }
+      .main-header .header-actions {
+        gap: 1.2rem; /* More space between icons */
+      }
+      .theme-switch label {
+        font-size: 1.2rem;
+      }
+      .notification-icon i {
+        font-size: 1.2rem;
+      }
+      .hamburger {
+        font-size: 1.7rem;
+        margin-left: 1rem;
+      }
+      .main-header {
+        flex-direction: row;
+        align-items: center;
+      }
+      .main-header .logo-area {
+        margin-bottom: 0;
+      }
+    }
+    /* Sidebar styles */
+    .sidebar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      height: 100%;
+      width: 250px;
+      background: rgba(255, 255, 255, 0.9);
+      backdrop-filter: blur(10px);
+      box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
+      transform: translateX(-100%);
+      transition: transform 0.3s ease;
+      z-index: 200;
+    }
+    .sidebar-open {
+      transform: translateX(0);
+    }
+    .sidebar-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(5px);
+      z-index: 100;
+    }
+    /* Responsive styles */
+    @media (min-width: 992px) {
+      .hamburger {
+        display: none;
+      }
+      .sidebar {
+        display: block;
+        position: static;
+        transform: none;
+        width: 250px;
+        height: auto;
+        background: transparent;
+        backdrop-filter: none;
+        box-shadow: none;
+      }
+      .sidebar-overlay {
+        display: none;
+      }
     }
   </style>
 </head>
@@ -106,6 +194,10 @@
         <i class="fa-solid fa-moon"></i>
       </label>
     </div>
+    <!-- Hamburger icon should be after theme toggle -->
+    <button id="sidebarToggle" class="hamburger d-lg-none ms-auto" aria-label="Open sidebar">
+      <i class="fa-solid fa-bars"></i>
+    </button>
   </div>
 </header>
 <script>
@@ -152,4 +244,38 @@
     }
   }
   fetchNotificationCount();
+
+  // Sidebar toggle for small/medium devices
+  const sidebarToggle = document.getElementById('sidebarToggle');
+  const sidebar = document.querySelector('.sidebar');
+  const mainContainer = document.querySelector('.main-container');
+
+  function openSidebar() {
+    if (sidebar) {
+      sidebar.classList.add('sidebar-open');
+      document.body.classList.add('sidebar-overlay');
+    }
+  }
+  function closeSidebar() {
+    if (sidebar) {
+      sidebar.classList.remove('sidebar-open');
+      document.body.classList.remove('sidebar-overlay');
+    }
+  }
+
+  if (sidebarToggle) {
+    sidebarToggle.addEventListener('click', openSidebar);
+  }
+  // Close sidebar when clicking outside (overlay)
+  document.addEventListener('click', function(e) {
+    if (document.body.classList.contains('sidebar-overlay')) {
+      if (sidebar && !sidebar.contains(e.target) && !sidebarToggle.contains(e.target)) {
+        closeSidebar();
+      }
+    }
+  });
+  // Optional: close sidebar on ESC key
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') closeSidebar();
+  });
 </script>

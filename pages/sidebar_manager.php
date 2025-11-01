@@ -114,14 +114,6 @@ body.dark-mode .sidebar::-webkit-scrollbar-thumb:horizontal {
 .sidebar-nav .collapse ul li a {
     padding-left: 2rem; /* indent submenu items */
 }
-@media (max-width: 768px) {
-    .sidebar {
-        width: 100%;
-        height: auto;
-        position: relative;
-        border-radius: 0;
-    }
-}
 </style>
 
 <div class="sidebar">

@@ -1,0 +1,76 @@
+/* Hamburger icon styles */
+.hamburger {
+  background: none;
+  border: none;
+  color: #fff;
+  font-size: 2rem;
+  cursor: pointer;
+  display: none;
+  margin-left: auto;
+}
+@media (max-width: 991.98px) {
+  .hamburger {
+    display: inline-block;
+  }
+}
+
+/* Sidebar glassy and slide-in for small/medium devices */
+@media (max-width: 991.98px) {
+  .sidebar {
+    position: fixed !important;
+    top: 0;
+    left: -100vw;
+    width: 80vw !important;
+    max-width: 340px;
+    height: 100vh !important;
+    background: rgba(44, 62, 80, 0.7);
+    backdrop-filter: blur(16px);
+    box-shadow: 2px 0 24px rgba(44,62,80,0.18);
+    border-radius: 0 16px 16px 0;
+    z-index: 2000;
+    transition: left 0.35s cubic-bezier(.4,0,.2,1);
+  }
+  .sidebar.sidebar-open {
+    left: 0;
+  }
+  body.sidebar-overlay::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: rgba(44,62,80,0.25);
+    z-index: 1999;
+    pointer-events: auto;
+  }
+  .main-container {
+    margin-left: 0 !important;
+    padding: 1rem !important;
+  }
+}
+
+/* Hide sidebar on small/medium devices unless open */
+@media (max-width: 991.98px) {
+  .sidebar:not(.sidebar-open) {
+    pointer-events: none;
+  }
+}
+
+/* Large devices: sidebar always visible, no overlay */
+@media (min-width: 992px) {
+  .sidebar {
+    left: 0 !important;
+    width: 250px !important;
+    position: fixed !important;
+    background: #2c3e50 !important;
+    backdrop-filter: none !important;
+    box-shadow: none !important;
+    border-radius: 12px 12px 12px 12px !important;
+    z-index: 10 !important;
+    transition: none !important;
+  }
+  .hamburger {
+    display: none !important;
+  }
+  body.sidebar-overlay::before {
+    display: none !important;
+  }
+}
