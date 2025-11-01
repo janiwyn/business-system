@@ -63,6 +63,7 @@ $role = $_SESSION['role'];
     background: #e74c3c !important;
     color: #fff !important;
 }
+/* Remove pointer-events: none or z-index changes here. Sidebar appearance handled globally. */
 </style>
 <div class="sidebar">
     <div class="sidebar-title">Staff Dashboard</div>
