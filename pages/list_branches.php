@@ -100,7 +100,61 @@ body.dark-mode .btn-info, body.dark-mode .btn-warning, body.dark-mode .btn-dange
         <div class="alert alert-success text-center">Branch deleted successfully.</div>
     <?php endif; ?>
 
-    <div class="transactions-table">
+    <!-- Responsive Table Card for Small Devices -->
+    <div class="d-block d-md-none mb-4">
+      <div class="card transactions-card">
+        <div class="card-body">
+          <div class="table-responsive-sm">
+            <div class="transactions-table">
+              <table>
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Branch Name</th>
+                    <th>Location</th>
+                    <th>Manager</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                <?php if (mysqli_num_rows($result) > 0): ?>
+                  <?php while ($row = mysqli_fetch_assoc($result)): ?>
+                    <tr>
+                      <td><?= $row['id']; ?></td>
+                      <td><?= htmlspecialchars($row['name']); ?></td>
+                      <td><?= htmlspecialchars($row['location']); ?></td>
+                      <td><?= $row['manager'] ?? '<span class="text-muted">No Manager</span>'; ?></td>
+                      <td>
+                        <a href="branch.php?id=<?= $row['id']; ?>" class="btn btn-sm btn-info" title="View">
+                          <i class="fa fa-eye"></i>
+                        </a>
+                        <a href="branch_edit.php?id=<?= $row['id']; ?>" class="btn btn-sm btn-warning" title="Edit">
+                          <i class="fa fa-edit"></i>
+                        </a>
+                        <a href="branch_delete.php?id=<?= $row['id']; ?>" 
+                           class="btn btn-sm btn-danger"
+                           title="Delete"
+                           onclick="return confirm('Are you sure you want to delete this branch?');">
+                           <i class="fa fa-trash"></i>
+                        </a>
+                      </td>
+                    </tr>
+                  <?php endwhile; ?>
+                <?php else: ?>
+                  <tr>
+                    <td colspan="5" class="text-center text-muted">No branches found</td>
+                  </tr>
+                <?php endif; ?>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Table for medium and large devices -->
+    <div class="transactions-table d-none d-md-block">
         <table>
             <thead>
                 <tr>
@@ -112,25 +166,28 @@ body.dark-mode .btn-info, body.dark-mode .btn-warning, body.dark-mode .btn-dange
                 </tr>
             </thead>
             <tbody>
-            <?php if (mysqli_num_rows($result) > 0): ?>
-                <?php while ($row = mysqli_fetch_assoc($result)): ?>
-                    <tr>
-                        <td><?= $row['id']; ?></td>
-                        <td><?= htmlspecialchars($row['name']); ?></td>
-                        <td><?= htmlspecialchars($row['location']); ?></td>
-                        <td><?= $row['manager'] ?? '<span class="text-muted">No Manager</span>'; ?></td>
-                        <td>
-                            <a href="branch.php?id=<?= $row['id']; ?>" class="btn btn-sm btn-info">View</a>
-                            <a href="branch_edit.php?id=<?= $row['id']; ?>" class="btn btn-sm btn-warning">Edit</a>
-                            <a href="branch_delete.php?id=<?= $row['id']; ?>" 
-                               class="btn btn-sm btn-danger"
-                               onclick="return confirm('Are you sure you want to delete this branch?');">
-                               Delete
-                            </a>
-                        </td>
-                    </tr>
-                <?php endwhile; ?>
-            <?php else: ?>
+            <?php
+            // Reset result pointer for large devices table
+            mysqli_data_seek($result, 0);
+            if (mysqli_num_rows($result) > 0):
+                while ($row = mysqli_fetch_assoc($result)):
+            ?>
+                <tr>
+                    <td><?= $row['id']; ?></td>
+                    <td><?= htmlspecialchars($row['name']); ?></td>
+                    <td><?= htmlspecialchars($row['location']); ?></td>
+                    <td><?= $row['manager'] ?? '<span class="text-muted">No Manager</span>'; ?></td>
+                    <td>
+                        <a href="branch.php?id=<?= $row['id']; ?>" class="btn btn-sm btn-info">View</a>
+                        <a href="branch_edit.php?id=<?= $row['id']; ?>" class="btn btn-sm btn-warning">Edit</a>
+                        <a href="branch_delete.php?id=<?= $row['id']; ?>" 
+                           class="btn btn-sm btn-danger"
+                           onclick="return confirm('Are you sure you want to delete this branch?');">
+                           Delete
+                        </a>
+                    </td>
+                </tr>
+            <?php endwhile; else: ?>
                 <tr>
                     <td colspan="5" class="text-center text-muted">No branches found</td>
                 </tr>

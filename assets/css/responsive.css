@@ -188,6 +188,63 @@
   }
 }
 
+/* Ensure carousel cards and chart cards have consistent sizing on small devices */
+@media (max-width: 991.98px) {
+  .stats-carousel .card,
+  .charts-carousel .card {
+    min-width: 0;
+    width: 90vw;
+    max-width: 340px;
+    min-height: 140px;
+    max-height: 200px;
+    margin: 0 auto;
+    border-radius: 16px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+  .stats-carousel .card-body,
+  .charts-carousel .card-body {
+    padding: 1rem 1rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+  .stats-carousel .stat-card,
+  .charts-carousel .stat-card {
+    min-height: 140px;
+    max-height: 200px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .charts-carousel .card-header,
+  .stats-carousel .card-header {
+    font-size: 1rem;
+    padding: 0.5rem 1rem;
+    border-radius: 16px 16px 0 0;
+    background: var(--primary-color, #1abc9c);
+    color: #fff;
+    margin-bottom: 0;
+  }
+  .charts-carousel canvas,
+  .stats-carousel canvas {
+    max-height: 110px;
+    width: 100% !important;
+    margin: 0 auto;
+    display: block;
+  }
+  .donut-wrapper {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+  .donut-legend {
+    margin-top: 0.5rem;
+  }
+}
+
     @media (max-width: 575.98px) {
       .welcome-banner {
         padding: 0.7rem 1rem !important;

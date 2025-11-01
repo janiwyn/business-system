@@ -183,72 +183,157 @@ $branch = $branch_stmt->get_result()->fetch_assoc();
         </div>
     </div>
 
-    <!-- Summary Cards -->
-    <div class="row g-4 mb-4">
-        <div class="col-md-4">
+    <!-- Responsive Summary Cards Carousel for Small Devices -->
+    <div class="d-block d-md-none mb-4">
+      <div id="branchSummaryCarousel" class="carousel slide stats-carousel" data-bs-ride="false" data-bs-touch="true">
+        <div class="carousel-inner">
+          <div class="carousel-item active">
             <div class="card stat-card gradient-primary h-100">
-                <div class="card-body d-flex align-items-center">
-                    <i class="fa-solid fa-box stat-icon me-3"></i>
-                    <div>
-                        <h6>Inventory</h6>
-                        <h3><?= $inventory['total_products'] ?></h3>
-                        <div>Stock: <?= $inventory['stock'] ?></div>
-                    </div>
+              <div class="card-body d-flex align-items-center">
+                <i class="fa-solid fa-box stat-icon me-3"></i>
+                <div>
+                  <h6>Inventory</h6>
+                  <h3><?= $inventory['total_products'] ?></h3>
+                  <div>Stock: <?= $inventory['stock'] ?></div>
                 </div>
+              </div>
             </div>
-        </div>
-        <div class="col-md-4">
+          </div>
+          <div class="carousel-item">
             <div class="card stat-card gradient-success h-100">
-                <div class="card-body d-flex align-items-center">
-                    <i class="fa-solid fa-coins stat-icon me-3"></i>
-                    <div>
-                        <h6>Sales</h6>
-                        <h3><?= $sales['total_sales'] ?></h3>
-                        <div>Revenue: UGX <?= number_format($sales['revenue'] ?? 0,2) ?></div>
-                    </div>
+              <div class="card-body d-flex align-items-center">
+                <i class="fa-solid fa-coins stat-icon me-3"></i>
+                <div>
+                  <h6>Sales</h6>
+                  <h3><?= $sales['total_sales'] ?></h3>
+                  <div>Revenue: UGX <?= number_format($sales['revenue'] ?? 0,2) ?></div>
                 </div>
+              </div>
             </div>
-        </div>
-        <div class="col-md-4">
+          </div>
+          <div class="carousel-item">
             <div class="card stat-card gradient-danger h-100">
-                <div class="card-body d-flex align-items-center">
-                    <i class="fa-solid fa-chart-line stat-icon me-3"></i>
-                    <div>
-                        <h6>Profit</h6>
-                        <div>Expenses: UGX <?= number_format($expenses['total_expense'] ?? 0,2) ?></div>
-                        <h3>Net: UGX <?= number_format($profit,2) ?></h3>
-                    </div>
+              <div class="card-body d-flex align-items-center">
+                <i class="fa-solid fa-chart-line stat-icon me-3"></i>
+                <div>
+                  <h6>Profit</h6>
+                  <div>Expenses: UGX <?= number_format($expenses['total_expense'] ?? 0,2) ?></div>
+                  <h3>Net: UGX <?= number_format($profit,2) ?></h3>
                 </div>
+              </div>
             </div>
+          </div>
         </div>
+        <div class="d-flex justify-content-center mt-3">
+          <div class="carousel-indicators position-static mb-0">
+            <button type="button" data-bs-target="#branchSummaryCarousel" data-bs-slide-to="0" class="active" aria-current="true" aria-label="Inventory"></button>
+            <button type="button" data-bs-target="#branchSummaryCarousel" data-bs-slide-to="1" aria-label="Sales"></button>
+            <button type="button" data-bs-target="#branchSummaryCarousel" data-bs-slide-to="2" aria-label="Profit"></button>
+          </div>
+        </div>
+      </div>
     </div>
 
-    <!-- Charts -->
-    <div class="row mb-4">
-        <!-- Bar Chart -->
-        <div class="col-md-6">
-            <div class="card h-100">
-                <div class="card-header">Top Products (Bar)</div>
-                <div class="card-body p-4">
-                    <canvas id="barChart"></canvas>
-                </div>
+    <!-- Summary Cards for medium and large devices -->
+    <div class="row g-4 mb-4 d-none d-md-flex">
+      <div class="col-md-4">
+        <div class="card stat-card gradient-primary h-100">
+          <div class="card-body d-flex align-items-center">
+            <i class="fa-solid fa-box stat-icon me-3"></i>
+            <div>
+              <h6>Inventory</h6>
+              <h3><?= $inventory['total_products'] ?></h3>
+              <div>Stock: <?= $inventory['stock'] ?></div>
             </div>
+          </div>
         </div>
+      </div>
+      <div class="col-md-4">
+        <div class="card stat-card gradient-success h-100">
+          <div class="card-body d-flex align-items-center">
+            <i class="fa-solid fa-coins stat-icon me-3"></i>
+            <div>
+              <h6>Sales</h6>
+              <h3><?= $sales['total_sales'] ?></h3>
+              <div>Revenue: UGX <?= number_format($sales['revenue'] ?? 0,2) ?></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="card stat-card gradient-danger h-100">
+          <div class="card-body d-flex align-items-center">
+            <i class="fa-solid fa-chart-line stat-icon me-3"></i>
+            <div>
+              <h6>Profit</h6>
+              <div>Expenses: UGX <?= number_format($expenses['total_expense'] ?? 0,2) ?></div>
+              <h3>Net: UGX <?= number_format($profit,2) ?></h3>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
 
-        <!-- Donut Chart -->
-        <div class="col-md-6">
+    <!-- Responsive Charts Carousel for Small Devices -->
+    <div class="d-block d-md-none mb-4">
+      <div id="branchChartsCarousel" class="carousel slide charts-carousel" data-bs-ride="false" data-bs-touch="true">
+        <div class="carousel-inner">
+          <div class="carousel-item active">
             <div class="card h-100">
-                <div class="card-header">Top Products (Donut)</div>
-                <div class="card-body p-4">
-                    <div class="donut-wrapper">
-                        <canvas id="donutChart"></canvas>
-                        <div class="donut-legend">
-                            <ul id="donutLegendList"></ul>
-                        </div>
-                    </div>
-                </div>
+              <div class="card-header">Top Products (Bar)</div>
+              <div class="card-body p-3">
+                <canvas id="barChartMobile"></canvas>
+              </div>
             </div>
+          </div>
+          <div class="carousel-item">
+            <div class="card h-100">
+              <div class="card-header">Top Products (Donut)</div>
+              <div class="card-body p-3">
+                <div class="donut-wrapper">
+                  <canvas id="donutChartMobile"></canvas>
+                  <div class="donut-legend">
+                    <ul id="donutLegendListMobile"></ul>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
+        <div class="d-flex justify-content-center mt-3">
+          <div class="carousel-indicators position-static mb-0">
+            <button type="button" data-bs-target="#branchChartsCarousel" data-bs-slide-to="0" class="active" aria-current="true" aria-label="Bar Chart"></button>
+            <button type="button" data-bs-target="#branchChartsCarousel" data-bs-slide-to="1" aria-label="Donut Chart"></button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Charts for medium and large devices -->
+    <div class="row mb-4 d-none d-md-flex">
+      <!-- Bar Chart -->
+      <div class="col-md-6">
+        <div class="card h-100">
+          <div class="card-header">Top Products (Bar)</div>
+          <div class="card-body p-4">
+            <canvas id="barChart"></canvas>
+          </div>
+        </div>
+      </div>
+      <!-- Donut Chart -->
+      <div class="col-md-6">
+        <div class="card h-100">
+          <div class="card-header">Top Products (Donut)</div>
+          <div class="card-body p-4">
+            <div class="donut-wrapper">
+              <canvas id="donutChart"></canvas>
+              <div class="donut-legend">
+                <ul id="donutLegendList"></ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Top Products Table -->
@@ -309,7 +394,47 @@ function chartTextColor() {
     return isDarkMode() ? "#fff" : "#333";
 }
 
-// Bar Chart
+// Mobile charts initialization
+function createBarChartMobile() {
+    const el = document.getElementById('barChartMobile');
+    if (el) {
+        new Chart(el, {
+            type: 'bar',
+            data: { labels, datasets: [{ label: 'Sold', data, backgroundColor: colors }] },
+            options: { 
+                responsive:true, 
+                plugins:{legend:{display:false}},
+                scales: {
+                    x: { ticks: { color: chartTextColor() } },
+                    y: { ticks: { color: chartTextColor() } }
+                }
+            }
+        });
+    }
+}
+function createDonutChartMobile() {
+    const el = document.getElementById('donutChartMobile');
+    if (el) {
+        new Chart(el, {
+            type: 'doughnut',
+            data: { labels, datasets: [{ data, backgroundColor: colors }] },
+            options: { 
+                responsive:true,
+                plugins: { legend: { display: false } }
+            }
+        });
+        // Custom legend for donut (mobile)
+        const legendContainer = document.getElementById("donutLegendListMobile");
+        legendContainer.innerHTML = '';
+        labels.forEach((label, i) => {
+            const li = document.createElement("li");
+            li.innerHTML = `<span class="color-box" style="background:${colors[i]}"></span> <span style="color:${chartTextColor()}">${label} (${data[i]})</span>`;
+            legendContainer.appendChild(li);
+        });
+    }
+}
+
+// Initialize charts
 new Chart(document.getElementById('barChart'), {
     type: 'bar',
     data: { labels, datasets: [{ label: 'Sold', data, backgroundColor: colors }] },
@@ -322,8 +447,6 @@ new Chart(document.getElementById('barChart'), {
         }
     }
 });
-
-// Donut Chart
 new Chart(document.getElementById('donutChart'), {
     type: 'doughnut',
     data: { labels, datasets: [{ data, backgroundColor: colors }] },
@@ -334,14 +457,19 @@ new Chart(document.getElementById('donutChart'), {
         } 
     }
 });
-
-// Custom legend for donut
+// Custom legend for donut (desktop)
 const legendContainer = document.getElementById("donutLegendList");
 labels.forEach((label, i) => {
     const li = document.createElement("li");
     li.innerHTML = `<span class="color-box" style="background:${colors[i]}"></span> <span style="color:${chartTextColor()}">${label} (${data[i]})</span>`;
     legendContainer.appendChild(li);
 });
+
+// Mobile charts
+if (window.innerWidth < 992) {
+    createBarChartMobile();
+    createDonutChartMobile();
+}
 </script>
 
 <?php include '../includes/footer.php'; ?>
