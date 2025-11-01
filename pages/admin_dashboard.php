@@ -125,49 +125,123 @@ $username = $_SESSION['username'];
     <div class="welcome-balls"></div>
     <h3 class="welcome-text" style="position:relative;z-index:2;">Welcome, <?= htmlspecialchars($username); ?> 👋</h3>
   </div>
-  <!-- Summary Cards -->
-  <div class="row text-white mb-4">
-    <div class="col-md-3 mb-3">
-      <div class="card stat-card gradient-primary">
-        <div class="card-body d-flex justify-content-between align-items-center">
-          <div>
-            <h6>Total Employees</h6>
-            <h3><?= $employee ?></h3>
+
+  <!-- Dashboard Overview Card: Only show on medium and larger devices -->
+  <div class="card mb-4 d-none d-md-block">
+    <div class="card-body">
+      <h5 class="title-card">Dashboard Overview</h5>
+      <div class="row">
+        <div class="col-md-3 mb-3">
+          <div class="card stat-card gradient-primary">
+            <div class="card-body d-flex justify-content-between align-items-center">
+              <div>
+                <h6>Total Employees</h6>
+                <h3><?= $employee ?></h3>
+              </div>
+              <i class="fa-solid fa-users stat-icon"></i>
+            </div>
           </div>
-          <i class="fa-solid fa-users stat-icon"></i>
+        </div>
+        <div class="col-md-3 mb-3">
+          <div class="card stat-card gradient-success">
+            <div class="card-body d-flex justify-content-between align-items-center">
+              <div>
+                <h6>Total Branches</h6>
+                <h3><?= $totalbranches ?></h3>
+              </div>
+              <i class="fa-solid fa-building stat-icon"></i>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-3 mb-3">
+          <div class="card stat-card gradient-warning">
+            <div class="card-body d-flex justify-content-between align-items-center">
+              <div>
+                <h6>Total Stock</h6>
+                <h3><?= $totalStock ?></h3>
+              </div>
+              <i class="fa-solid fa-cubes stat-icon"></i>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-3 mb-3">
+          <div class="card stat-card gradient-danger">
+            <div class="card-body d-flex justify-content-between align-items-center">
+              <div>
+                <h6>Total Profit</h6>
+                <h3>UGX<?= number_format($totalProfits, 2) ?></h3>
+              </div>
+              <i class="fa-solid fa-sack-dollar stat-icon"></i>
+            </div>
+          </div>
         </div>
       </div>
     </div>
-    <div class="col-md-3 mb-3">
-      <div class="card stat-card gradient-success">
-        <div class="card-body d-flex justify-content-between align-items-center">
-          <div>
-            <h6>Total Branches</h6>
-            <h3><?= $totalbranches ?></h3>
+  </div>
+
+  <!-- Responsive Summary Tabs for Small Devices -->
+  <div class="d-block d-md-none mb-4">
+    <ul class="nav nav-tabs" id="summaryTab" role="tablist">
+      <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="employees-tab" data-bs-toggle="tab" data-bs-target="#employees" type="button" role="tab">Employees</button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="branches-tab" data-bs-toggle="tab" data-bs-target="#branches" type="button" role="tab">Branches</button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="stock-tab" data-bs-toggle="tab" data-bs-target="#stock" type="button" role="tab">Stock</button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="profit-tab" data-bs-toggle="tab" data-bs-target="#profit" type="button" role="tab">Profit</button>
+      </li>
+    </ul>
+    <div class="tab-content pt-3" id="summaryTabContent">
+      <div class="tab-pane fade show active" id="employees" role="tabpanel">
+        <!-- Total Employees Card -->
+        <div class="card stat-card gradient-primary">
+          <div class="card-body d-flex justify-content-between align-items-center">
+            <div>
+              <h6>Total Employees</h6>
+              <h3><?= $employee ?></h3>
+            </div>
+            <i class="fa-solid fa-users stat-icon"></i>
           </div>
-          <i class="fa-solid fa-building stat-icon"></i>
         </div>
       </div>
-    </div>
-    <div class="col-md-3 mb-3">
-      <div class="card stat-card gradient-warning">
-        <div class="card-body d-flex justify-content-between align-items-center">
-          <div>
-            <h6>Total Stock</h6>
-            <h3><?= $totalStock ?></h3>
+      <div class="tab-pane fade" id="branches" role="tabpanel">
+        <!-- Total Branches Card -->
+        <div class="card stat-card gradient-success">
+          <div class="card-body d-flex justify-content-between align-items-center">
+            <div>
+              <h6>Total Branches</h6>
+              <h3><?= $totalbranches ?></h3>
+            </div>
+            <i class="fa-solid fa-building stat-icon"></i>
           </div>
-          <i class="fa-solid fa-cubes stat-icon"></i>
         </div>
       </div>
-    </div>
-    <div class="col-md-3 mb-3">
-      <div class="card stat-card gradient-danger">
-        <div class="card-body d-flex justify-content-between align-items-center">
-          <div>
-            <h6>Total Profit</h6>
-            <h3>UGX<?= number_format($totalProfits, 2) ?></h3>
+      <div class="tab-pane fade" id="stock" role="tabpanel">
+        <!-- Total Stock Card -->
+        <div class="card stat-card gradient-warning">
+          <div class="card-body d-flex justify-content-between align-items-center">
+            <div>
+              <h6>Total Stock</h6>
+              <h3><?= $totalStock ?></h3>
+            </div>
+            <i class="fa-solid fa-cubes stat-icon"></i>
           </div>
-          <i class="fa-solid fa-sack-dollar stat-icon"></i>
+        </div>
+      </div>
+      <div class="tab-pane fade" id="profit" role="tabpanel">
+        <!-- Total Profit Card -->
+        <div class="card stat-card gradient-danger">
+          <div class="card-body d-flex justify-content-between align-items-center">
+            <div>
+              <h6>Total Profit</h6>
+              <h3>UGX<?= number_format($totalProfits, 2) ?></h3>
+            </div>
+            <i class="fa-solid fa-sack-dollar stat-icon"></i>
+          </div>
         </div>
       </div>
     </div>
