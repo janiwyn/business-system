@@ -27,12 +27,7 @@ if ($role === 'admin') {
 include __DIR__ . '/sidebar_admin.php';
 return;
 ?>
-
-<div class="d-flex">
-  <div class="sidebar bg-dark text-white p-3 shadow-lg" style="width: 250px; min-height: 100vh; border-top-right-radius: 9px; border-bottom-right-radius: 12px;">
-    <h4 class="text-left mb-4 fw-bold text-primary">Dashboard</h4>
-    <ul class="nav flex-column">
-      <?php if ($role == 'admin' || $role == 'manager') : ?>
+<?php if ($role == 'admin' || $role == 'manager') : ?>
  <li class="nav-item mb-2">
         <a class="nav-link text-white d-flex align-items-center hover-effect" href="../pages/branch.php">
           <i class="fa-solid fa-building me-2"></i> Branches
