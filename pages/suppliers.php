@@ -479,46 +479,97 @@ if (isset($_GET['created']) && $_GET['created'] == '1') {
         </div>
         <!-- MANAGE SUPPLIERS TAB -->
         <div class="tab-pane fade" id="tab-manage">
-            <div class="card mb-4">
-                <div class="card-header">Manage Suppliers</div>
+            <!-- Manage Suppliers Table for Small Devices -->
+            <div class="d-block d-md-none mb-4">
+              <div class="card transactions-card">
                 <div class="card-body">
+                  <div class="table-responsive-sm">
                     <div class="transactions-table">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Name</th>
-                                    <th>Location</th>
-                                    <th>Contact</th>
-                                    <th>Email</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php if (count($suppliers_arr) > 0): ?>
-                                    <?php foreach ($suppliers_arr as $s): ?>
-                                        <tr data-id="<?= $s['id'] ?>">
-                                            <td><?= htmlspecialchars($s['name']) ?></td>
-                                            <td><?= htmlspecialchars($s['location']) ?></td>
-                                            <td><?= htmlspecialchars($s['contact']) ?></td>
-                                            <td><?= htmlspecialchars($s['email']) ?></td>
-                                            <td>
-                                                <button class="btn btn-warning btn-sm edit-supplier-btn" 
-                                                    data-id="<?= $s['id'] ?>"
-                                                    data-name="<?= htmlspecialchars($s['name']) ?>"
-                                                    data-location="<?= htmlspecialchars($s['location']) ?>"
-                                                    data-contact="<?= htmlspecialchars($s['contact']) ?>"
-                                                    data-email="<?= htmlspecialchars($s['email']) ?>">Edit</button>
-                                                <button class="btn btn-danger btn-sm delete-supplier-btn" data-id="<?= $s['id'] ?>">Delete</button>
-                                            </td>
-                                        </tr>
-                                    <?php endforeach; ?>
-                                <?php else: ?>
-                                    <tr><td colspan="5" class="text-center text-muted">No suppliers found.</td></tr>
-                                <?php endif; ?>
-                            </tbody>
-                        </table>
+                      <table>
+                        <thead>
+                          <tr>
+                            <th>#</th>
+                            <th>Supplier Name</th>
+                            <th>Contact</th>
+                            <th>Email</th>
+                            <th>Address</th>
+                            <th>Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <?php
+                          $i = 1;
+                          foreach ($suppliers_arr as $row) {
+                            echo "<tr>
+                              <td>{$i}</td>
+                              <td>" . htmlspecialchars($row['name']) . "</td>
+                              <td>" . htmlspecialchars($row['contact']) . "</td>
+                              <td>" . htmlspecialchars($row['email']) . "</td>
+                              <td>" . htmlspecialchars($row['location']) . "</td>
+                              <td>
+                                <button class='btn btn-warning btn-sm edit-supplier-btn' 
+                                    data-id='{$row['id']}'
+                                    data-name='" . htmlspecialchars($row['name']) . "'
+                                    data-location='" . htmlspecialchars($row['location']) . "'
+                                    data-contact='" . htmlspecialchars($row['contact']) . "'
+                                    data-email='" . htmlspecialchars($row['email']) . "'>Edit</button>
+                                <button class='btn btn-danger btn-sm delete-supplier-btn' data-id='{$row['id']}'>Delete</button>
+                              </td>
+                            </tr>";
+                            $i++;
+                          }
+                          ?>
+                        </tbody>
+                      </table>
                     </div>
+                  </div>
                 </div>
+              </div>
+            </div>
+
+            <!-- Manage Suppliers Table for Medium and Large Devices -->
+            <div class="card mb-4 d-none d-md-block">
+              <div class="card-header">Manage Suppliers</div>
+              <div class="card-body">
+                <div class="transactions-table">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>#</th>
+                        <th>Supplier Name</th>
+                        <th>Contact</th>
+                        <th>Email</th>
+                        <th>Address</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <?php if (count($suppliers_arr) > 0): ?>
+                          <?php foreach ($suppliers_arr as $s): ?>
+                              <tr data-id="<?= $s['id'] ?>">
+                                  <td><?= $s['id'] ?></td>
+                                  <td><?= htmlspecialchars($s['name']) ?></td>
+                                  <td><?= htmlspecialchars($s['contact']) ?></td>
+                                  <td><?= htmlspecialchars($s['email']) ?></td>
+                                  <td><?= htmlspecialchars($s['location']) ?></td>
+                                  <td>
+                                      <button class="btn btn-warning btn-sm edit-supplier-btn" 
+                                          data-id="<?= $s['id'] ?>"
+                                          data-name="<?= htmlspecialchars($s['name']) ?>"
+                                          data-location="<?= htmlspecialchars($s['location']) ?>"
+                                          data-contact="<?= htmlspecialchars($s['contact']) ?>"
+                                          data-email="<?= htmlspecialchars($s['email']) ?>">Edit</button>
+                                      <button class="btn btn-danger btn-sm delete-supplier-btn" data-id="<?= $s['id'] ?>">Delete</button>
+                                  </td>
+                              </tr>
+                          <?php endforeach; ?>
+                      <?php else: ?>
+                          <tr><td colspan="6" class="text-center text-muted">No suppliers found.</td></tr>
+                      <?php endif; ?>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             </div>
             <!-- Edit Supplier Modal -->
             <div class="modal fade" id="editSupplierModal" tabindex="-1" aria-labelledby="editSupplierModalLabel" aria-hidden="true">
