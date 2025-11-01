@@ -156,6 +156,21 @@
       pointer-events: auto;
     }
     /* Responsive styles */
+    @media (max-width: 991.98px) {
+      .sidebar-nav li a {
+        color: #222 !important; /* Black text for small/medium devices */
+        background: transparent !important;
+        transition: background 0.2s, color 0.2s;
+      }
+      .sidebar-nav li a:hover,
+      .sidebar-nav li a.active {
+        background: var(--primary-color, #1abc9c) !important;
+        color: #fff !important;
+      }
+      .sidebar-title {
+        color: #1abc9c !important;
+      }
+    }
     @media (min-width: 992px) {
       .hamburger {
         display: none;
