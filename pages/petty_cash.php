@@ -176,35 +176,82 @@ body.dark-mode .petty-filters-header input[type="date"]:focus {
     background-color: #fff !important;
 }
 
-/* Responsive petty cash transactions table for small devices */
+/* Responsive petty cash balance card for small/medium devices */
 @media (max-width: 991.98px) {
-    .petty-transactions-card .table-responsive-sm {
-        overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
+    .petty-balance-card {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        justify-content: space-between;
+        padding: 1rem 1.25rem;
+        border-radius: 12px;
+        background: #fff;
+        box-shadow: 0 2px 12px rgba(44,62,80,0.08);
+        margin-bottom: 1.2rem;
     }
-    .petty-transactions-card .transactions-table table {
-        min-width: 600px;
+    body.dark-mode .petty-balance-card {
+        background: #23243a;
+        color: #fff;
+        box-shadow: 0 2px 12px rgba(44,62,80,0.18);
     }
-    .petty-action-icon-btn {
+    .petty-balance-card .petty-balance {
+        font-size: 1.2rem;
+        font-weight: bold;
+        color: #1abc9c !important;
+        letter-spacing: 1px;
+        text-shadow: 0 1px 2px rgba(0,0,0,0.04);
+    }
+    .petty-balance-actions {
+        display: flex;
+        gap: 0.7rem;
+        align-items: center;
+    }
+    .petty-balance-actions .petty-action-icon-btn {
         background: none;
         border: none;
-        color: #1abc9c;
-        font-size: 1.25em;
-        padding: 4px 8px;
-        cursor: pointer;
-        transition: color 0.2s;
+        color: #fff;
+        font-size: 1.6em;
+        padding: 6px 10px;
+        border-radius: 8px;
+        transition: background 0.18s, color 0.18s;
+        box-shadow: 0 2px 8px rgba(44,62,80,0.08);
+        display: flex;
+        align-items: center;
+        justify-content: center;
     }
-    .petty-action-icon-btn:active,
-    .petty-action-icon-btn:focus {
-        color: #159c8c;
-        outline: none;
+    .petty-balance-actions .petty-action-icon-btn.add {
+        background: #1abc9c;
+        color: #fff;
     }
-    .petty-action-icon-btn.pay {
-        color: #27ae60;
+    .petty-balance-actions .petty-action-icon-btn.add:hover,
+    .petty-balance-actions .petty-action-icon-btn.add:focus {
+        background: #159c8c;
+        color: #fff;
     }
-    .petty-action-icon-btn.pay:active,
-    .petty-action-icon-btn.pay:focus {
-        color: #159c8c;
+    .petty-balance-actions .petty-action-icon-btn.remove {
+        background: #e74c3c;
+        color: #fff;
+    }
+    .petty-balance-actions .petty-action-icon-btn.remove:hover,
+    .petty-balance-actions .petty-action-icon-btn.remove:focus {
+        background: #c0392b;
+        color: #fff;
+    }
+}
+/* Hide text buttons on small/medium devices */
+@media (max-width: 991.98px) {
+    .petty-action-btn {
+        display: none !important;
+    }
+}
+/* Show icon buttons only on small/medium devices */
+@media (min-width: 992px) {
+    .petty-balance-card,
+    .petty-balance-actions .petty-action-icon-btn {
+        display: none !important;
+    }
+    .petty-action-btn {
+        display: inline-block !important;
     }
 }
 </style>
@@ -224,7 +271,20 @@ body.dark-mode .petty-filters-header input[type="date"]:focus {
         <!-- Petty Cash Tab (hide for staff) -->
         <?php if ($user_role !== 'staff'): ?>
         <div class="tab-pane fade <?= (!isset($_GET['tab']) || $_GET['tab'] !== 'transactions') ? 'show active' : '' ?>" id="tab-petty">
-            <div class="card mb-4">
+            <!-- Responsive petty balance card for small/medium devices -->
+            <div class="petty-balance-card d-flex d-md-none mb-4">
+                <span class="petty-balance">Account Balance: UGX <?= number_format($petty_balance, 2) ?></span>
+                <div class="petty-balance-actions">
+                    <button class="petty-action-icon-btn add" title="Add Petty Cash" data-bs-toggle="modal" data-bs-target="#addPettyModal">
+                        <i class="fa-solid fa-circle-plus"></i>
+                    </button>
+                    <button class="petty-action-icon-btn remove" title="Remove Petty Cash" data-bs-toggle="modal" data-bs-target="#removePettyModal">
+                        <i class="fa-solid fa-circle-minus"></i>
+                    </button>
+                </div>
+            </div>
+            <!-- Original card for desktop -->
+            <div class="card mb-4 d-none d-md-flex">
                 <div class="card-body d-flex align-items-center justify-content-between">
                     <div>
                         <span class="petty-balance">Account Balance: UGX <?= number_format($petty_balance, 2) ?></span>
