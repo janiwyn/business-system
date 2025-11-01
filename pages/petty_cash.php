@@ -62,6 +62,10 @@ $total_add = $res_add ? floatval($res_add->fetch_assoc()['total_add']) : 0;
 $total_remove = $res_remove ? floatval($res_remove->fetch_assoc()['total_remove']) : 0;
 $petty_balance = $total_add - $total_remove;
 
+// Get user role and branch for staff restrictions
+$user_role = $_SESSION['role'] ?? '';
+$user_branch_id = $_SESSION['branch_id'] ?? null;
+
 // Fetch branches
 $branches_res = $conn->query("SELECT id, name FROM branch ORDER BY name ASC");
 $branches = $branches_res ? $branches_res->fetch_all(MYSQLI_ASSOC) : [];
@@ -122,70 +126,71 @@ body.dark-mode .petty-balance-header {
     color: #fff !important;
 }
 
-/* New: Dark mode styles for labels - increase specificity */
-body.dark-mode label.form-label,
-body.dark-mode label.fw-semibold,
-body.dark-mode .form-label,
-body.dark-mode .fw-semibold {
-    color: #fff !important;
-}
-
-/* Match Add Expense form styling */
-.add-transaction-card {
-    border-radius: 12px;
-    box-shadow: 0px 4px 12px rgba(0,0,0,0.08);
-    transition: transform 0.2s ease-in-out;
-}
-.add-transaction-card:hover {
-    transform: translateY(-2px);
-}
-.add-transaction-card .card-header,
-.add-transaction-card .title-card {
-    color: #fff !important;
-    background: var(--primary-color);
-    font-weight: 600;
-    border-radius: 12px 12px 0 0 !important;
+/* Petty Cash Transactions Filters styling (match expenses) */
+.petty-filters-header {
+    background-color: #f8f9fa !important;
+    color: #222 !important;
+    border-radius: 12px 12px 0 0;
+    font-weight: 700;
     font-size: 1.1rem;
     letter-spacing: 1px;
+    display: flex;
+    align-items: center;
+    padding: 1rem 1.25rem;
+    border-bottom: none;
 }
-body.dark-mode .add-transaction-card .card-header,
-body.dark-mode .add-transaction-card .title-card {
-    color: #fff !important;
+body.dark-mode .petty-filters-header {
     background-color: #2c3e50 !important;
-}
-.form-control, .form-select {
-    border-radius: 8px;
-}
-body.dark-mode .form-label,
-body.dark-mode .fw-semibold,
-body.dark-mode label,
-body.dark-mode .card-body {
     color: #fff !important;
 }
-body.dark-mode .form-control,
-body.dark-mode .form-select {
+body.dark-mode .petty-filters-header label,
+body.dark-mode .petty-filters-header select,
+body.dark-mode .petty-filters-header span {
+    color: #fff !important;
+}
+body.dark-mode .petty-filters-header .form-select,
+body.dark-mode .petty-filters-header input[type="date"] {
+    color: #fff !important;
     background-color: #23243a !important;
-    color: #fff !important;
     border: 1px solid #444 !important;
 }
-body.dark-mode .form-control:focus,
-body.dark-mode .form-select:focus {
-    background-color: #23243a !important;
+body.dark-mode .petty-filters-header .form-select:focus,
+body.dark-mode .petty-filters-header input[type="date"]:focus {
     color: #fff !important;
+    background-color: #23243a !important;
+}
+.petty-filters-header label,
+.petty-filters-header select,
+.petty-filters-header span {
+    color: #222 !important;
+}
+.petty-filters-header .form-select,
+.petty-filters-header input[type="date"] {
+    color: #222 !important;
+    background-color: #fff !important;
+    border: 1px solid #dee2e6 !important;
+}
+.petty-filters-header .form-select:focus,
+.petty-filters-header input[type="date"]:focus {
+    color: #222 !important;
+    background-color: #fff !important;
 }
 </style>
 <div class="container mt-5 mb-5">
     <h2 class="page-title mb-4 text-center">Petty Cash Management</h2>
     <ul class="nav nav-tabs" id="pettyTabs" role="tablist">
+        <?php if ($user_role !== 'staff'): ?>
         <li class="nav-item">
             <button class="nav-link <?= (!isset($_GET['tab']) || $_GET['tab'] !== 'transactions') ? 'active' : '' ?>" data-bs-toggle="tab" data-bs-target="#tab-petty" type="button">Petty Cash</button>
         </li>
+        <?php endif; ?>
         <li class="nav-item">
-            <button class="nav-link <?= (isset($_GET['tab']) && $_GET['tab'] === 'transactions') ? 'active' : '' ?>" data-bs-toggle="tab" data-bs-target="#tab-transactions" type="button">Petty Cash Transactions</button>
+            <button class="nav-link <?= (isset($_GET['tab']) && $_GET['tab'] === 'transactions') || $user_role === 'staff' ? 'active' : '' ?>" data-bs-toggle="tab" data-bs-target="#tab-transactions" type="button">Petty Cash Transactions</button>
         </li>
     </ul>
     <div class="tab-content mt-3">
-        <!-- Petty Cash Tab -->
+        <!-- Petty Cash Tab (hide for staff) -->
+        <?php if ($user_role !== 'staff'): ?>
         <div class="tab-pane fade <?= (!isset($_GET['tab']) || $_GET['tab'] !== 'transactions') ? 'show active' : '' ?>" id="tab-petty">
             <div class="card mb-4">
                 <div class="card-body d-flex align-items-center justify-content-between">
@@ -241,8 +246,9 @@ body.dark-mode .form-select:focus {
                 </div>
             </div>
         </div>
+        <?php endif; ?>
         <!-- Petty Cash Transactions Tab -->
-        <div class="tab-pane fade <?= (isset($_GET['tab']) && $_GET['tab'] === 'transactions') ? 'show active' : '' ?>" id="tab-transactions">
+        <div class="tab-pane fade <?= (isset($_GET['tab']) && $_GET['tab'] === 'transactions') || $user_role === 'staff' ? 'show active' : '' ?>" id="tab-transactions">
             <div class="card mb-4 add-transaction-card">
                 <div class="card-header title-card">➕ Add Petty Cash Transaction</div>
                 <div class="card-body">
@@ -255,10 +261,22 @@ body.dark-mode .form-select:focus {
                         <div class="col-md-4">
                             <label class="form-label fw-semibold">Branch</label>
                             <select name="branch_id" class="form-select" required>
-                                <option value="">Select branch</option>
-                                <?php foreach($branches as $b): ?>
-                                    <option value="<?= $b['id'] ?>"><?= htmlspecialchars($b['name']) ?></option>
-                                <?php endforeach; ?>
+                                <?php if ($user_role === 'staff' && $user_branch_id): ?>
+                                    <?php
+                                    // Only show staff's branch
+                                    foreach ($branches as $b) {
+                                        if ($b['id'] == $user_branch_id) {
+                                            echo "<option value=\"{$b['id']}\" selected>" . htmlspecialchars($b['name']) . "</option>";
+                                            break;
+                                        }
+                                    }
+                                    ?>
+                                <?php else: ?>
+                                    <option value="">Select branch</option>
+                                    <?php foreach($branches as $b): ?>
+                                        <option value="<?= $b['id'] ?>"><?= htmlspecialchars($b['name']) ?></option>
+                                    <?php endforeach; ?>
+                                <?php endif; ?>
                             </select>
                         </div>
                         <div class="col-md-4">
@@ -299,26 +317,30 @@ body.dark-mode .form-select:focus {
                     </form>
                 </div>
             </div>
-            <!-- Filters -->
-            <form method="GET" class="d-flex align-items-center flex-wrap gap-2 mb-3" style="gap:1rem;">
-                <input type="hidden" name="tab" value="transactions">
-                <label class="fw-bold me-2">From:</label>
-                <input type="date" name="date_from" class="form-select me-2" value="<?= htmlspecialchars($date_from) ?>" style="width:150px;">
-                <label class="fw-bold me-2">To:</label>
-                <input type="date" name="date_to" class="form-select me-2" value="<?= htmlspecialchars($date_to) ?>" style="width:150px;">
-                <label class="fw-bold me-2">Branch:</label>
-                <select name="branch" class="form-select me-2" onchange="this.form.submit()" style="width:180px;">
-                    <option value="">-- All Branches --</option>
-                    <?php
-                    $branches2 = $conn->query("SELECT id, name FROM branch");
-                    while ($b = $branches2->fetch_assoc()):
-                        $selected = ($branch_filter == $b['id']) ? 'selected' : '';
-                        echo "<option value='{$b['id']}' $selected>{$b['name']}</option>";
-                    endwhile;
-                    ?>
-                </select>
-                <button type="submit" class="btn btn-primary ms-2">Filter</button>
-            </form>
+            <!-- Filters (hide for staff) -->
+            <?php if ($user_role !== 'staff'): ?>
+            <div class="card-header bg-light petty-filters-header d-flex flex-wrap align-items-center gap-2 mb-0" style="gap:1rem;">
+                <form method="GET" class="d-flex align-items-center flex-wrap gap-2 mb-0" style="gap:1rem; width:100%;">
+                    <input type="hidden" name="tab" value="transactions">
+                    <label class="fw-bold me-2">From:</label>
+                    <input type="date" name="date_from" class="form-select me-2" value="<?= htmlspecialchars($date_from) ?>" style="width:150px;">
+                    <label class="fw-bold me-2">To:</label>
+                    <input type="date" name="date_to" class="form-select me-2" value="<?= htmlspecialchars($date_to) ?>" style="width:150px;">
+                    <label class="fw-bold me-2">Branch:</label>
+                    <select name="branch" class="form-select me-2" onchange="this.form.submit()" style="width:180px;">
+                        <option value="">-- All Branches --</option>
+                        <?php
+                        $branches2 = $conn->query("SELECT id, name FROM branch");
+                        while ($b = $branches2->fetch_assoc()):
+                            $selected = ($branch_filter == $b['id']) ? 'selected' : '';
+                            echo "<option value='{$b['id']}' $selected>{$b['name']}</option>";
+                        endwhile;
+                        ?>
+                    </select>
+                    <button type="submit" class="btn btn-primary ms-2">Filter</button>
+                </form>
+            </div>
+            <?php endif; ?>
             <!-- Transactions Table -->
             <div class="transactions-table">
                 <table>

@@ -78,6 +78,11 @@ $role = $_SESSION['role'];
                 <i class="fa-solid fa-users"></i> Customer Management
             </a>
         </li>
+        <li class="nav-item">
+            <a class="nav-link" href="petty_cash.php?tab=transactions">
+                <i class="fa-solid fa-coins"></i> Petty Cash
+            </a>
+        </li>
         <!-- <li><a href="../pages/debtor.php"><i class="fa-solid fa-users"></i> Debtors</a></li> -->
         <li style="margin-top:2rem;">
             <a href="../auth/logout.php" class="text-danger fw-bold"><i class="fa-solid fa-right-from-bracket"></i> Logout</a>
