@@ -309,9 +309,18 @@ document.addEventListener('DOMContentLoaded', function() {
         let currentStream = null;
         let currentFacing = 'environment'; // or 'user'
         let scanActive = false;
+        let audioCtx = null;
 
         // Open modal
         scanBtn?.addEventListener('click', () => {
+            // Unlock AudioContext on first user gesture
+            if (!audioCtx) {
+                try {
+                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                    // Immediately suspend so it can be resumed later
+                    audioCtx.suspend();
+                } catch (e) { audioCtx = null; }
+            }
             scanModal.style.display = 'flex';
             scanStatus.textContent = '';
             startCameraScan();
@@ -445,7 +454,10 @@ document.addEventListener('DOMContentLoaded', function() {
     // Add beep sound function
     function playBeep() {
         try {
-            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            // Use unlocked AudioContext if available
+            let ctx = audioCtx;
+            if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
+            if (ctx.state === 'suspended') ctx.resume();
             const oscillator = ctx.createOscillator();
             oscillator.type = 'sine';
             oscillator.frequency.setValueAtTime(880, ctx.currentTime);
@@ -453,7 +465,8 @@ document.addEventListener('DOMContentLoaded', function() {
             oscillator.start();
             setTimeout(() => {
                 oscillator.stop();
-                ctx.close();
+                oscillator.disconnect();
+                // Don't close ctx if it's the shared one
             }, 120);
         } catch (e) {
             // Ignore errors if audio not supported
