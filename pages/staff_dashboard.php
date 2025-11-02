@@ -278,12 +278,13 @@ $cust_stmt->close();
                         <option value="">-- Select Product --</option>
                         <?php
                         // Re-query products for JS cart
-                        $product_query2 = $conn->prepare("SELECT id, name, stock, `selling-price` FROM products WHERE `branch-id` = ?");
+                        $product_query2 = $conn->prepare("SELECT id, name, stock, `selling-price`, barcode FROM products WHERE `branch-id` = ?");
                         $product_query2->bind_param("i", $branch_id);
                         $product_query2->execute();
                         $products_for_js = $product_query2->get_result();
                         $product_list = [];
                         while ($row = $products_for_js->fetch_assoc()) {
+                            $row['barcode'] = trim($row['barcode'] ?? ''); // Ensure barcode is trimmed
                             $product_list[$row['id']] = $row;
                             echo '<option value="' . $row['id'] . '" ' . ($row['stock'] < 10 ? 'class="low-stock"' : '') . '>' . htmlspecialchars($row['name']) . ' (Stock: ' . $row['stock'] . ($row['stock'] < 10 ? ' 🔴 Low' : '') . ')</option>';
                         }

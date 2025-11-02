@@ -419,10 +419,11 @@ document.addEventListener('DOMContentLoaded', function() {
     // Handle barcode: auto-select product in dropdown
     function handleBarcode(barcode) {
         scanStatus.textContent = 'Barcode detected: ' + barcode;
-        // Find product by barcode (assume productData[pid].barcode exists)
         let foundId = null;
+        const scanned = String(barcode).trim();
         for (const pid in productData) {
-            if (productData[pid].barcode && String(productData[pid].barcode) === String(barcode)) {
+            const prodBarcode = String(productData[pid].barcode || '').trim();
+            if (prodBarcode && prodBarcode === scanned) {
                 foundId = pid;
                 break;
             }
@@ -430,11 +431,32 @@ document.addEventListener('DOMContentLoaded', function() {
         if (foundId) {
             document.getElementById('product_id').value = foundId;
             scanStatus.textContent = 'Product selected: ' + productData[foundId].name;
-            scanModal.style.display = 'none';
-            stopCameraScan();
-            document.getElementById('quantity').focus();
+            playBeep();
+            setTimeout(() => {
+                scanModal.style.display = 'none';
+                stopCameraScan();
+                document.getElementById('quantity').focus();
+            }, 350);
         } else {
             scanStatus.textContent = 'No matching product found for barcode: ' + barcode;
+        }
+    }
+
+    // Add beep sound function
+    function playBeep() {
+        try {
+            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            const oscillator = ctx.createOscillator();
+            oscillator.type = 'sine';
+            oscillator.frequency.setValueAtTime(880, ctx.currentTime);
+            oscillator.connect(ctx.destination);
+            oscillator.start();
+            setTimeout(() => {
+                oscillator.stop();
+                ctx.close();
+            }, 120);
+        } catch (e) {
+            // Ignore errors if audio not supported
         }
     }
 

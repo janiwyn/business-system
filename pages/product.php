@@ -28,9 +28,10 @@ if (isset($_POST['add_product'])) {
     $cost = trim($_POST['cost'] ?? "");
     $stock = trim($_POST['stock'] ?? "");
     $branch_id = $_POST['branch_id'];
+    $barcode = $_POST['barcode'] ?? ""; // Get barcode from form
 
-    $stmt = $conn->prepare("INSERT INTO products (name, `selling-price`, `buying-price`, stock, `branch-id`) VALUES (?, ?, ?, ?, ?)");
-    $stmt->bind_param("sddii", $name, $price, $cost, $stock, $branch_id);
+    $stmt = $conn->prepare("INSERT INTO products (name, `selling-price`, `buying-price`, stock, `branch-id`, barcode) VALUES (?, ?, ?, ?, ?, ?)");
+    $stmt->bind_param("sddiis", $name, $price, $cost, $stock, $branch_id, $barcode);
 
     if ($stmt->execute()) {
         $message = "<div class='alert alert-success shadow-sm'> Product added successfully!</div>";
@@ -206,16 +207,109 @@ $result = $conn->query("
         margin-bottom: 0;
         text-align: left;
     }
+
+    /* Barcode scan modal styles */
+    .barcode-scan-modal {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.8);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1050;
+    }
+    .barcode-scan-card {
+        background: #fff;
+        border-radius: 12px;
+        padding: 1.5rem;
+        width: 90%;
+        max-width: 600px;
+        position: relative;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    }
+    .barcode-scan-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+    }
+    .barcode-scan-header span {
+        font-weight: 600;
+        color: var(--primary-color);
+    }
+    .barcode-scan-body {
+        text-align: center;
+    }
+    .barcode-scan-view-area {
+        position: relative;
+        width: 100%;
+        height: 200px;
+        margin-bottom: 1rem;
+        border-radius: 8px;
+        overflow: hidden;
+        background: #f4f6f9;
+    }
+    #productBarcodeScanVideo {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        border-radius: 8px;
+    }
+    #productBarcodeScanCanvas {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+    }
+    .barcode-scan-text {
+        margin: 0.5rem 0;
+        color: #333;
+    }
+    .barcode-scan-mode {
+        margin-bottom: 1rem;
+    }
+    .barcode-scan-status {
+        font-weight: 500;
+        color: #666;
+    }
+    .btn-close {
+        background: none;
+        border: none;
+        font-size: 1.5rem;
+        color: #333;
+        cursor: pointer;
+    }
+    .btn-secondary.barcode-rotate-btn {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        z-index: 10;
+    }
 </style>
 
 <div class="container mt-5">
 
     <div class="card mb-4">
-        <div class="card-header title-card">➕ Add New Product</div>
+        <div class="card-header title-card d-flex justify-content-between align-items-center">
+            <span>➕ Add New Product</span>
+            <!-- Scan icon button -->
+            <button type="button" id="scanProductBarcodeBtn" class="btn btn-outline-primary btn-scan-barcode" title="Scan Barcode">
+                <i class="fa-solid fa-barcode"></i>
+            </button>
+        </div>
         <div class="card-body">
             <?= isset($message) ? $message : "" ?>
             <form method="POST" action="">
                 <div class="row g-3">
+                    <div class="col-md-3">
+                        <label for="barcode" class="form-label fw-semibold">Barcode</label>
+                        <input type="text" name="barcode" id="barcode" class="form-control" placeholder="Scan or enter barcode" required>
+                    </div>
                     <div class="col-md-3">
                         <label for="name" class="form-label fw-semibold">Product Name</label>
                         <input type="text" name="name" id="name" class="form-control" placeholder="e.g. Coca-Cola 500ml" required>
@@ -244,11 +338,45 @@ $result = $conn->query("
                             ?>
                         </select>
                     </div>
+                    <div class="col-md-3">
+                        <label for="expiry_date" class="form-label fw-semibold">Expiry Date</label>
+                        <input type="date" name="expiry_date" id="expiry_date" class="form-control" required>
+                    </div>
                 </div>
                 <div class="mt-3">
                     <button type="submit" name="add_product" class="btn btn-primary">➕ Add Product</button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- Barcode Scan Modal/Card -->
+    <div id="productBarcodeScanModal" class="barcode-scan-modal" style="display:none;">
+        <div class="barcode-scan-card">
+            <div class="barcode-scan-header d-flex justify-content-between align-items-center">
+                <span><i class="fa-solid fa-barcode"></i> Scan Product Barcode</span>
+                <button type="button" id="closeProductBarcodeScan" class="btn btn-close"></button>
+            </div>
+            <div class="barcode-scan-body">
+                <div class="barcode-scan-view-area">
+                    <video id="productBarcodeScanVideo" autoplay muted playsinline></video>
+                    <canvas id="productBarcodeScanCanvas" style="display:none;"></canvas>
+                    <button type="button" id="rotateProductBarcodeCameraBtn" class="btn btn-secondary barcode-rotate-btn" title="Switch Camera">
+                        <i class="fa-solid fa-camera-rotate"></i>
+                    </button>
+                </div>
+                <div class="barcode-scan-text mt-3 mb-2 text-center">
+                    <span>Scan product barcode to auto-fill.</span>
+                </div>
+                <div class="barcode-scan-mode mb-3 text-center">
+                    <label class="me-2">Scan Mode:</label>
+                    <select id="productBarcodeScanMode" class="form-select d-inline-block" style="width:auto;">
+                        <option value="camera">Camera</option>
+                        <option value="hardware">Barcode Hardware</option>
+                    </select>
+                </div>
+                <div id="productBarcodeScanStatus" class="barcode-scan-status text-center"></div>
+            </div>
         </div>
     </div>
 
@@ -265,6 +393,7 @@ $result = $conn->query("
                     <th>#</th>
                     <?php if (empty($selected_branch) && $user_role !== 'staff') echo "<th>Branch</th>"; ?>
                     <th>Name</th>
+                    <th>Barcode</th>
                     <th>Selling Price</th>
                     <th>Buying Price</th>
                     <th>Stock</th>
@@ -307,6 +436,7 @@ if (abs($daysLeft) <= 7 && !$row['sms_sent']) {
             echo "<td>" . htmlspecialchars($row['branch_name']) . "</td>";
         }
         echo "<td>" . htmlspecialchars($row['name']) . "</td>
+            <td>" . htmlspecialchars($row['barcode']) . "</td>
             <td>UGX " . number_format($row['selling-price'], 2) . "</td>
             <td>UGX " . number_format($row['buying-price'], 2) . "</td>
             <td>{$row['stock']}</td>
@@ -323,7 +453,7 @@ if (abs($daysLeft) <= 7 && !$row['sms_sent']) {
         $i++;
     }
 } else {
-    $colspan = (empty($selected_branch) && $user_role !== 'staff') ? 8 : 7;
+    $colspan = (empty($selected_branch) && $user_role !== 'staff') ? 9 : 8;
     echo "<tr><td colspan='$colspan' class='text-center text-muted'>No products found.</td></tr>";
 }
 ?>
@@ -360,23 +490,23 @@ if (abs($daysLeft) <= 7 && !$row['sms_sent']) {
                 <table>
                     <thead>
                         <tr>
-                           
-    <th>#</th>
-    <?php if (empty($selected_branch) && $user_role !== 'staff') echo "<th>Branch</th>"; ?>
-    <th>Name</th>
-    <th>Selling Price</th>
-    <th>Buying Price</th>
-    <th>Stock</th>
-    <th>Expiry Date</th> <!-- new column -->
-    <th>Actions</th>
-</tr>
-</thead>
-<tbody>
-<?php
-if ($result->num_rows > 0) {
-    $i = $offset + 1;
-    while ($row = $result->fetch_assoc()) {
-        // Check expiry
+                            <th>#</th>
+                            <?php if (empty($selected_branch) && $user_role !== 'staff') echo "<th>Branch</th>"; ?>
+                            <th>Name</th>
+                            <th>Barcode</th>
+                            <th>Selling Price</th>
+                            <th>Buying Price</th>
+                            <th>Stock</th>
+                            <th>Expiry Date</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php
+                        if ($result->num_rows > 0) {
+                            $i = $offset + 1;
+                            while ($row = $result->fetch_assoc()) {
+                                // Check expiry
 $today = date('Y-m-d');
 $expiry = $row['expiry_date'];
 
@@ -391,38 +521,39 @@ if (abs($daysLeft) <= 7 && !$row['sms_sent']) {
 }
 
 
-        // Highlight expiring products
-        $highlight = "";
-        foreach($expiring_products as $exp){
-            if($row['id'] == $exp['id']){
-                $highlight = "style='background-color: #ffcccc;'"; // light red
-                break;
-            }
-        }
+                                // Highlight expiring products
+                                $highlight = "";
+                                foreach($expiring_products as $exp){
+                                    if($row['id'] == $exp['id']){
+                                        $highlight = "style='background-color: #ffcccc;'"; // light red
+                                        break;
+                                    }
+                                }
 
-        echo "<tr $highlight>
-            <td>{$i}</td>";
-        if (empty($selected_branch) && $user_role !== 'staff') {
-            echo "<td>" . htmlspecialchars($row['branch_name']) . "</td>";
-        }
-        echo "<td>" . htmlspecialchars($row['name']) . "</td>
-            <td>UGX " . number_format($row['selling-price'], 2) . "</td>
-            <td>UGX " . number_format($row['buying-price'], 2) . "</td>
-            <td>{$row['stock']}</td>
-            <td>{$row['expiry_date']}</td> <!-- show expiry -->
-            <td>
-                <a href='edit_product.php?id={$row['id']}' class='btn btn-sm btn-warning me-1'>✏️ Edit</a>
-                <a href='delete_product.php?id={$row['id']}' class='btn btn-sm btn-danger' onclick='return confirm(\"Are you sure you want to delete this product?\")'>🗑️ Delete</a>
-            </td>
-        </tr>";
-        $i++;
-    }
-} else {
-    $colspan = (empty($selected_branch) && $user_role !== 'staff') ? 8 : 7; // adjust for new column
-    echo "<tr><td colspan='$colspan' class='text-center text-muted'>No products found.</td></tr>";
-}
-?>
-</tbody>
+                                echo "<tr $highlight>
+                                    <td>{$i}</td>";
+                                if (empty($selected_branch) && $user_role !== 'staff') {
+                                    echo "<td>" . htmlspecialchars($row['branch_name']) . "</td>";
+                                }
+                                echo "<td>" . htmlspecialchars($row['name']) . "</td>
+                                    <td>" . htmlspecialchars($row['barcode']) . "</td>
+                                    <td>UGX " . number_format($row['selling-price'], 2) . "</td>
+                                    <td>UGX " . number_format($row['buying-price'], 2) . "</td>
+                                    <td>{$row['stock']}</td>
+                                    <td>{$row['expiry_date']}</td>
+                                    <td>
+                                        <a href='edit_product.php?id={$row['id']}' class='btn btn-sm btn-warning me-1'>✏️ Edit</a>
+                                        <a href='delete_product.php?id={$row['id']}' class='btn btn-sm btn-danger' onclick='return confirm(\"Are you sure you want to delete this product?\")'>🗑️ Delete</a>
+                                    </td>
+                                </tr>";
+                                $i++;
+                            }
+                        } else {
+                            $colspan = (empty($selected_branch) && $user_role !== 'staff') ? 9 : 8;
+                            echo "<tr><td colspan='$colspan' class='text-center text-muted'>No products found.</td></tr>";
+                        }
+                        ?>
+                    </tbody>
                 </table>
             </div>
             <!-- Pagination -->
@@ -440,5 +571,135 @@ if (abs($daysLeft) <= 7 && !$row['sms_sent']) {
         </div>
     </div>
 </div>
+
+<script>
+// Barcode scanning logic for Add Product
+(function() {
+    const scanBtn = document.getElementById('scanProductBarcodeBtn');
+    const scanModal = document.getElementById('productBarcodeScanModal');
+    const closeScanBtn = document.getElementById('closeProductBarcodeScan');
+    const scanVideo = document.getElementById('productBarcodeScanVideo');
+    const scanCanvas = document.getElementById('productBarcodeScanCanvas');
+    const rotateBtn = document.getElementById('rotateProductBarcodeCameraBtn');
+    const scanModeSel = document.getElementById('productBarcodeScanMode');
+    const scanStatus = document.getElementById('productBarcodeScanStatus');
+    let currentStream = null;
+    let currentFacing = 'environment';
+    let scanActive = false;
+
+    scanBtn?.addEventListener('click', () => {
+        scanModal.style.display = 'flex';
+        scanStatus.textContent = '';
+        startCameraScan();
+    });
+
+    closeScanBtn?.addEventListener('click', () => {
+        scanModal.style.display = 'none';
+        stopCameraScan();
+    });
+
+    rotateBtn?.addEventListener('click', () => {
+        currentFacing = (currentFacing === 'environment') ? 'user' : 'environment';
+        startCameraScan();
+    });
+
+    scanModeSel?.addEventListener('change', () => {
+        if (scanModeSel.value === 'hardware') {
+            stopCameraScan();
+            scanVideo.style.display = 'none';
+            scanCanvas.style.display = 'none';
+            scanStatus.textContent = 'Focus barcode input field and scan using hardware scanner.';
+            ensureHardwareInput();
+        } else {
+            scanVideo.style.display = '';
+            scanStatus.textContent = '';
+            startCameraScan();
+        }
+    });
+
+    function startCameraScan() {
+        stopCameraScan();
+        scanActive = true;
+        scanVideo.style.display = '';
+        scanCanvas.style.display = 'none';
+        scanStatus.textContent = 'Initializing camera...';
+        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+            navigator.mediaDevices.getUserMedia({
+                video: { facingMode: currentFacing }
+            }).then(stream => {
+                currentStream = stream;
+                scanVideo.srcObject = stream;
+                scanVideo.play();
+                scanStatus.textContent = 'Point camera at barcode.';
+                if ('BarcodeDetector' in window) {
+                    const detector = new window.BarcodeDetector({ formats: ['ean_13', 'ean_8', 'code_128', 'upc_a', 'upc_e'] });
+                    const scanFrame = () => {
+                        if (!scanActive) return;
+                        detector.detect(scanVideo).then(barcodes => {
+                            if (barcodes.length > 0) {
+                                handleBarcode(barcodes[0].rawValue);
+                            } else {
+                                requestAnimationFrame(scanFrame);
+                            }
+                        }).catch(() => requestAnimationFrame(scanFrame));
+                    };
+                    scanFrame();
+                } else {
+                    scanStatus.textContent = 'BarcodeDetector not supported. Please use Chrome/Edge or hardware scanner.';
+                }
+            }).catch(err => {
+                scanStatus.textContent = 'Camera error: ' + err.message;
+            });
+        } else {
+            scanStatus.textContent = 'Camera not supported.';
+        }
+    }
+
+    function stopCameraScan() {
+        scanActive = false;
+        if (currentStream) {
+            currentStream.getTracks().forEach(track => track.stop());
+            currentStream = null;
+        }
+        scanVideo.srcObject = null;
+    }
+
+    function ensureHardwareInput() {
+        let hwInput = document.getElementById('hardwareProductBarcodeInput');
+        if (!hwInput) {
+            hwInput = document.createElement('input');
+            hwInput.type = 'text';
+            hwInput.id = 'hardwareProductBarcodeInput';
+            hwInput.style.position = 'absolute';
+            hwInput.style.opacity = 0;
+            hwInput.style.pointerEvents = 'none';
+            scanModal.appendChild(hwInput);
+        }
+        hwInput.value = '';
+        hwInput.focus();
+        hwInput.oninput = function() {
+            if (hwInput.value.length >= 6) {
+                handleBarcode(hwInput.value.trim());
+                hwInput.value = '';
+            }
+        };
+    }
+
+    function handleBarcode(barcode) {
+        scanStatus.textContent = 'Barcode detected: ' + barcode;
+        document.getElementById('barcode').value = barcode;
+        scanModal.style.display = 'none';
+        stopCameraScan();
+        document.getElementById('name').focus();
+    }
+
+    scanModal?.addEventListener('click', function(e) {
+        if (e.target === scanModal) {
+            scanModal.style.display = 'none';
+            stopCameraScan();
+        }
+    });
+})();
+</script>
 
 <?php include '../includes/footer.php'; ?>
