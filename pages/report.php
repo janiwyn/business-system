@@ -54,23 +54,39 @@ while ($row = $exp_q->fetch_assoc()) {
 $branches = $conn->query("SELECT id, name FROM branch");
 
 // ==========================
-// Handle Preview Form Submission
+// Handle Preview Form Submission (date range + branch)
 // ==========================
 $preview_sales = [];
 $preview_total = 0;
+$preview_branch_label = 'All Branches';
+$report_from = '';
+$report_to = '';
+
 if (isset($_POST['preview_report'])) {
-    $date = $_POST['report_date'] ?? '';
+    // POST fields from modal
+    $report_from = $_POST['report_from'] ?? '';
+    $report_to = $_POST['report_to'] ?? '';
     $branch_id = $_POST['branch'] ?? '';
 
     $where = [];
     if ($branch_id && $branch_id !== 'all') {
-        $where[] = "sales.`branch-id` = ".intval($branch_id);
-    }
-    if ($date) {
-        $where[] = "DATE(sales.date) = '".date('Y-m-d', strtotime($date))."'";
+        $where[] = "sales.`branch-id` = " . intval($branch_id);
+        // get branch label for preview header
+        $bq = $conn->query("SELECT name FROM branch WHERE id = " . intval($branch_id));
+        if ($br = $bq->fetch_assoc()) $preview_branch_label = $br['name'];
+    } else {
+        $preview_branch_label = 'All Branches';
     }
 
-    $where_sql = count($where) ? "WHERE ".implode(' AND ', $where) : "";
+    if ($report_from && $report_to) {
+        $where[] = "DATE(sales.date) BETWEEN '" . date('Y-m-d', strtotime($report_from)) . "' AND '" . date('Y-m-d', strtotime($report_to)) . "'";
+    } elseif ($report_from) {
+        $where[] = "DATE(sales.date) >= '" . date('Y-m-d', strtotime($report_from)) . "'";
+    } elseif ($report_to) {
+        $where[] = "DATE(sales.date) <= '" . date('Y-m-d', strtotime($report_to)) . "'";
+    }
+
+    $where_sql = count($where) ? "WHERE " . implode(' AND ', $where) : "";
     $preview_query = "
         SELECT sales.id, products.name AS product_name, sales.quantity, sales.amount, sales.`sold-by`, branch.name AS branch_name, sales.date
         FROM sales
@@ -184,7 +200,7 @@ $sales_main = $conn->query("
     <div class="row mb-4 d-none d-md-flex">
       <div class="col-md-6">
         <div class="card">
-          <div class="card-header">Sales Report</div>
+          <div class="card-header" style="color: #1abc9c;"><b>Sales Report</b></div>
           <div class="card-body">
             <canvas id="salesChart"></canvas>
           </div>
@@ -192,7 +208,7 @@ $sales_main = $conn->query("
       </div>
       <div class="col-md-6">
         <div class="card">
-          <div class="card-header">Profit Report</div>
+          <div class="card-header" style="color: #1abc9c;"><b>Profit Report</b></div>
           <div class="card-body">
             <canvas id="profitChart"></canvas>
           </div>
@@ -216,14 +232,23 @@ $sales_main = $conn->query("
                 </div>
                 <div class="modal-body">
                     <div class="mb-3">
-                        <label>Select Date</label>
-                        <input type="date" name="report_date" class="form-control" required>
+                        <label>Date From</label>
+                        <input type="date" name="report_from" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label>Date To</label>
+                        <input type="date" name="report_to" class="form-control" required>
                     </div>
                     <div class="mb-3">
                         <label>Select Branch</label>
                         <select name="branch" class="form-select">
                             <option value="all">All Branches</option>
-                            <?php while($b = $branches->fetch_assoc()): ?>
+                            <?php
+                            // rewind or re-query if needed; we used $branches above but it may be consumed later.
+                            // To be safe, fetch branches here fresh:
+                            $branches_list = $conn->query("SELECT id, name FROM branch");
+                            while($b = $branches_list->fetch_assoc()):
+                            ?>
                                 <option value="<?= $b['id'] ?>"><?= htmlspecialchars($b['name']) ?></option>
                             <?php endwhile; ?>
                         </select>
@@ -236,50 +261,75 @@ $sales_main = $conn->query("
         </div>
     </div>
 
-    <!-- Preview Report -->
-    <?php if(!empty($preview_sales)): ?>
-        <div id="printableReport" class="card mb-4 chart-card">
-            <div class="card-header preview-report-header text-white">
-                <img src="../uploads/logo.png" alt="Company Logo" style="height:50px; float:left; margin-right:10px;">
-                <h5>Sales Report - <?= htmlspecialchars($_POST['report_date']) ?> (<?= $_POST['branch']=='all' ? 'All Branches' : 'Selected Branch' ?>)</h5>
-                <div style="clear:both;"></div>
-            </div>
-            <div class="card-body table-responsive">
-                <div class="transactions-table">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Date</th>
-                                <th>Product</th>
-                                <th>Qty</th>
-                                <th>Price</th>
-                                <th>Total</th>
-                                <th>Sold By</th>
-                                <th>Branch</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php foreach($preview_sales as $s): ?>
-                                <tr>
-                                    <td><?= $s['date'] ?></td>
-                                    <td><?= htmlspecialchars($s['product_name']) ?></td>
-                                    <td><?= $s['quantity'] ?></td>
-                                    <td>UGX <?= number_format($s['amount']) ?></td>
-                                    <td>UGX <?= number_format($s['quantity']*$s['amount']) ?></td>
-                                    <td><?= htmlspecialchars($s['sold-by']) ?></td>
-                                    <td><?= htmlspecialchars($s['branch_name']) ?></td>
-                                </tr>
-                            <?php endforeach; ?>
-                        </tbody>
-                    </table>
-                </div>
-                <h5 class="text-end">Total Sales: UGX <?= number_format($preview_total) ?></h5>
-                <div class="text-end mt-3">
-                    <button class="btn btn-success" onclick="printSection('printableReport')">Print</button>
-                </div>
+        <!-- Preview Report -->
+<?php if(!empty($preview_sales)): ?>
+<div id="printableReport" class="card mb-4 chart-card" style="background:#fff; border-radius:10px; box-shadow:0 2px 8px rgba(0,0,0,0.1); color:#222;">
+    <div style="text-align:center; padding:25px 0 15px 0; border-bottom:3px solid #2c3e50;">
+        <img src="../uploads/logo.png" alt="Company Logo" style="height:80px; border-radius:10px; margin-bottom:8px;"><br>
+        <h3 style="margin:0; font-weight:700; color:#2c3e50;">Your Business Name</h3>
+        <p style="margin:4px 0; color:#555;">123 Business Street, Kampala | Tel: +256 700 000000 | Email: info@business.com</p>
+        <p style="font-size:0.9rem; color:#666;">Report Generated: <?= date('M d, Y H:i') ?></p>
+    </div>
+
+    <div class="card-body table-responsive" style="padding:25px;">
+        <div style="margin-bottom:20px; text-align:center;">
+            <h4 style="color:#2c3e50; font-weight:700; margin-bottom:8px;">Sales Report</h4>
+            <div style="display:inline-block; background:#2c3e50; color:#fff; padding:10px 16px; border-radius:8px; font-size:0.95rem;">
+                <strong>Period:</strong>
+                <?= $report_from ? htmlspecialchars(date('M d, Y', strtotime($report_from))) : '—' ?>
+                to
+                <?= $report_to ? htmlspecialchars(date('M d, Y', strtotime($report_to))) : '—' ?>
+                &nbsp;&nbsp;|&nbsp;&nbsp;
+                <strong>Branch:</strong> <?= htmlspecialchars($preview_branch_label) ?>
             </div>
         </div>
-    <?php endif; ?>
+
+        <table style="width:100%; border-collapse:collapse; font-size:0.95rem; border-radius:8px; overflow:hidden;">
+            <thead style="background-color:#2c3e50; color:#fff;">
+                <tr>
+                    <th style="padding:10px; text-align:left;">Date</th>
+                    <th style="padding:10px; text-align:left;">Product</th>
+                    <th style="padding:10px;">Qty</th>
+                    <th style="padding:10px;">Price</th>
+                    <th style="padding:10px;">Total</th>
+                    <th style="padding:10px;">Sold By</th>
+                    <th style="padding:10px;">Branch</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php $i=0; foreach($preview_sales as $s): ?>
+                <tr style="border-bottom:1px solid #ddd; background:<?= ($i++ % 2 == 0) ? '#f8f9fa' : '#ffffff' ?>;">
+                    <td style="padding:8px; color:#222;"><?= htmlspecialchars($s['date']) ?></td>
+                    <td style="padding:8px; color:#222;"><?= htmlspecialchars($s['product_name']) ?></td>
+                    <td style="padding:8px; text-align:center; color:#222;"><?= htmlspecialchars($s['quantity']) ?></td>
+                    <td style="padding:8px; text-align:right; color:#222;">UGX <?= number_format($s['amount']) ?></td>
+                    <td style="padding:8px; text-align:right; color:#222;">UGX <?= number_format($s['quantity']*$s['amount']) ?></td>
+                    <td style="padding:8px; color:#222;"><?= htmlspecialchars($s['sold-by']) ?></td>
+                    <td style="padding:8px; color:#222;"><?= htmlspecialchars($s['branch_name']) ?></td>
+                </tr>
+                <?php endforeach; ?>
+            </tbody>
+        </table>
+
+        <h4 style="text-align:right; margin-top:20px; color:#2c3e50;">
+            Total Sales: <strong>UGX <?= number_format($preview_total) ?></strong>
+        </h4>
+
+        <!-- <div style="text-align:right; margin-top:30px;">
+            <button class="btn btn-success" onclick="printSection('printableReport')">Print Report</button>
+        </div> -->
+    </div>
+
+    <div style="text-align:center; font-size:0.8rem; color:#999; padding:10px; border-top:1px solid #eee;">
+        Generated by Business System &copy; <?= date('Y') ?>
+    </div>
+</div>
+        <div style="text-align:right; margin-top:30px;">
+            <button class="btn btn-success" onclick="printSection('printableReport')">Print Report</button>
+        </div>
+<?php endif; ?>
+
+
 
     <!-- Main Sales Table -->
     <div class="card mb-4 chart-card">
@@ -290,6 +340,7 @@ $sales_main = $conn->query("
                 <select name="branch" class="form-select me-2" onchange="this.form.submit()">
                     <option value="all">All Branches</option>
                     <?php
+                    // fresh query for branch list for main filter
                     $branches_main = $conn->query("SELECT id,name FROM branch");
                     while($b = $branches_main->fetch_assoc()) {
                         $selected = ($branch_filter==$b['id'])?"selected":""; 
@@ -316,9 +367,9 @@ $sales_main = $conn->query("
                     <tbody>
                         <?php while($s = $sales_main->fetch_assoc()): ?>
                             <tr>
-                                <td><?= $s['date'] ?></td>
+                                <td><?= htmlspecialchars($s['date']) ?></td>
                                 <td><?= htmlspecialchars($s['product_name']) ?></td>
-                                <td><?= $s['quantity'] ?></td>
+                                <td><?= htmlspecialchars($s['quantity']) ?></td>
                                 <td>UGX <?= number_format($s['amount']) ?></td>
                                 <td>UGX <?= number_format($s['quantity']*$s['amount']) ?></td>
                                 <td><?= htmlspecialchars($s['sold-by']) ?></td>
@@ -333,7 +384,7 @@ $sales_main = $conn->query("
                 <ul class="pagination justify-content-center">
                     <?php for($i=1;$i<=$total_pages;$i++): ?>
                         <li class="page-item <?= ($i==$page)?'active':'' ?>">
-                            <a class="page-link" href="?page=<?= $i ?>&branch=<?= $branch_filter ?>"><?= $i ?></a>
+                            <a class="page-link" href="?page=<?= $i ?>&branch=<?= htmlspecialchars($branch_filter) ?>"><?= $i ?></a>
                         </li>
                     <?php endfor; ?>
                 </ul>
@@ -411,32 +462,40 @@ const profitChartOptions = {
     }
 };
 
-// Desktop charts initialization
-new Chart(document.getElementById('salesChart'), {
-  type: 'bar',
-  data: salesChartData,
-  options: salesChartOptions
-});
-new Chart(document.getElementById('profitChart'), {
-  type: 'bar',
-  data: profitChartData,
-  options: profitChartOptions
-});
-
-// Mobile charts initialization
-function createSalesChartMobile() {
-  new Chart(document.getElementById('salesChartMobile'), {
+// Desktop charts initialization (guarded so canvas exists)
+if (document.getElementById('salesChart')) {
+  new Chart(document.getElementById('salesChart'), {
     type: 'bar',
     data: salesChartData,
     options: salesChartOptions
   });
 }
-function createProfitChartMobile() {
-  new Chart(document.getElementById('profitChartMobile'), {
+if (document.getElementById('profitChart')) {
+  new Chart(document.getElementById('profitChart'), {
     type: 'bar',
     data: profitChartData,
     options: profitChartOptions
   });
+}
+
+// Mobile charts initialization
+function createSalesChartMobile() {
+  if (document.getElementById('salesChartMobile')) {
+    new Chart(document.getElementById('salesChartMobile'), {
+      type: 'bar',
+      data: salesChartData,
+      options: salesChartOptions
+    });
+  }
+}
+function createProfitChartMobile() {
+  if (document.getElementById('profitChartMobile')) {
+    new Chart(document.getElementById('profitChartMobile'), {
+      type: 'bar',
+      data: profitChartData,
+      options: profitChartOptions
+    });
+  }
 }
 
 if (window.innerWidth < 992) {
@@ -446,14 +505,60 @@ if (window.innerWidth < 992) {
 
 function printSection(sectionId) {
     var content = document.getElementById(sectionId).innerHTML;
-    var printWindow = window.open('', '', 'height=800,width=1000');
-    printWindow.document.write('<html><head><title>Print Report</title>');
-    printWindow.document.write('<style>table{width:100%;border-collapse:collapse;} table,th,td{border:1px solid black;padding:8px;} h5{text-align:center;}</style>');
-    printWindow.document.write('</head><body >');
-    printWindow.document.write(content);
-    printWindow.document.write('</body></html>');
+
+    // Build a full print document with styles to ensure it prints nicely
+    var printWindow = window.open('', '', 'height=900,width=1200');
+    var styles = `
+        <style>
+            @page { margin: 10mm; }
+            body { font-family: Arial, sans-serif; color: #333; margin: 10mm; }
+            .report-header { display:flex; align-items:center; gap:12px; margin-bottom:12px; }
+            .report-header img { height:70px; border-radius:6px; }
+            .report-header .info { flex:1; text-align:left; }
+            .report-header .meta { text-align:right; }
+            h4, h5 { margin:0; padding:0; }
+            table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+            table, th, td { border: 1px solid #000; }
+            th, td { padding: 8px; text-align: left; font-size: 12px; }
+            th { background: #2c3e50; color: #fff; }
+            tr:nth-child(even){ background: #f9f9f9; }
+            .totals { margin-top: 12px; text-align: right; font-weight: 700; }
+            .small { font-size: 11px; color: #555; }
+            @media print {
+                .no-print { display: none !important; }
+            }
+        </style>
+    `;
+
+    // Header values (recreate the header dynamic values)
+    var businessHeader = document.querySelector('#' + sectionId + ' .card-header') ? document.querySelector('#' + sectionId + ' .card-header').innerHTML : '';
+    var periodText = '';
+    // Try to extract period/branch from the preview area if available
+    var periodNode = document.querySelector('#' + sectionId + ' .card-body');
+    if (periodNode) {
+        // We'll include the whole body content - simpler and safer
+    }
+
+    var html = `
+        <html>
+        <head>
+            <title>Print Report</title>
+            ${styles}
+        </head>
+        <body>
+            ${content}
+        </body>
+        </html>
+    `;
+
+    printWindow.document.open();
+    printWindow.document.write(html);
     printWindow.document.close();
-    printWindow.print();
+    // Wait for resources to load then print
+    printWindow.onload = function() {
+        printWindow.focus();
+        printWindow.print();
+    };
 }
 </script>
 
