@@ -263,7 +263,13 @@ $cust_stmt->close();
 
     <!-- Sale Entry Form -->
     <div class="card add-sale-card mb-4">
-        <div class="card-header">Add Sale</div>
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <span>Add Sale</span>
+            <!-- Scan icon button -->
+            <button type="button" id="scanBarcodeBtn" class="btn btn-outline-primary btn-scan-barcode" title="Scan Barcode">
+                <i class="fa-solid fa-barcode"></i>
+            </button>
+        </div>
         <div class="card-body">
             <form id="addSaleForm" class="row g-3" onsubmit="return false;">
                 <div class="col-md-6">
@@ -351,6 +357,36 @@ $cust_stmt->close();
                     </div>
                 </div>
                 <div id="cartMessage" class="mt-2"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Barcode Scan Modal/Card -->
+    <div id="barcodeScanModal" class="barcode-scan-modal" style="display:none;">
+        <div class="barcode-scan-card">
+            <div class="barcode-scan-header d-flex justify-content-between align-items-center">
+                <span><i class="fa-solid fa-barcode"></i> Scan Item</span>
+                <button type="button" id="closeBarcodeScan" class="btn btn-close"></button>
+            </div>
+            <div class="barcode-scan-body">
+                <div class="barcode-scan-view-area">
+                    <video id="barcodeScanVideo" autoplay muted playsinline></video>
+                    <canvas id="barcodeScanCanvas" style="display:none;"></canvas>
+                    <button type="button" id="rotateCameraBtn" class="btn btn-secondary barcode-rotate-btn" title="Switch Camera">
+                        <i class="fa-solid fa-camera-rotate"></i>
+                    </button>
+                </div>
+                <div class="barcode-scan-text mt-3 mb-2 text-center">
+                    <span>Scan item to add to cart.</span>
+                </div>
+                <div class="barcode-scan-mode mb-3 text-center">
+                    <label class="me-2">Scan Mode:</label>
+                    <select id="barcodeScanMode" class="form-select d-inline-block" style="width:auto;">
+                        <option value="camera">Camera</option>
+                        <option value="hardware">Barcode Hardware</option>
+                    </select>
+                </div>
+                <div id="barcodeScanStatus" class="barcode-scan-status text-center"></div>
             </div>
         </div>
     </div>

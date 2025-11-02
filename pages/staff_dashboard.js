@@ -294,4 +294,156 @@ document.addEventListener('DOMContentLoaded', function() {
         });
       });
     })();
+
+    // Barcode scanning logic
+    (function() {
+        // Elements
+        const scanBtn = document.getElementById('scanBarcodeBtn');
+        const scanModal = document.getElementById('barcodeScanModal');
+        const closeScanBtn = document.getElementById('closeBarcodeScan');
+        const scanVideo = document.getElementById('barcodeScanVideo');
+        const scanCanvas = document.getElementById('barcodeScanCanvas');
+        const rotateBtn = document.getElementById('rotateCameraBtn');
+        const scanModeSel = document.getElementById('barcodeScanMode');
+        const scanStatus = document.getElementById('barcodeScanStatus');
+        let currentStream = null;
+        let currentFacing = 'environment'; // or 'user'
+        let scanActive = false;
+
+        // Open modal
+        scanBtn?.addEventListener('click', () => {
+            scanModal.style.display = 'flex';
+            scanStatus.textContent = '';
+            startCameraScan();
+        });
+
+        // Close modal
+        closeScanBtn?.addEventListener('click', () => {
+            scanModal.style.display = 'none';
+            stopCameraScan();
+        });
+
+        // Rotate camera
+        rotateBtn?.addEventListener('click', () => {
+            currentFacing = (currentFacing === 'environment') ? 'user' : 'environment';
+            startCameraScan();
+        });
+
+        // Scan mode change
+        scanModeSel?.addEventListener('change', () => {
+            if (scanModeSel.value === 'hardware') {
+                stopCameraScan();
+                scanVideo.style.display = 'none';
+                scanCanvas.style.display = 'none';
+                scanStatus.textContent = 'Focus barcode input field and scan using hardware scanner.';
+                // Listen for hardware barcode input (simulate with a hidden input)
+                ensureHardwareInput();
+            } else {
+                scanVideo.style.display = '';
+                scanStatus.textContent = '';
+                startCameraScan();
+            }
+        });
+
+        // Camera scan logic (simple, using BarcodeDetector API if available, fallback to QuaggaJS if needed)
+        function startCameraScan() {
+            stopCameraScan();
+            scanActive = true;
+            scanVideo.style.display = '';
+            scanCanvas.style.display = 'none';
+            scanStatus.textContent = 'Initializing camera...';
+            if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: currentFacing }
+                }).then(stream => {
+                    currentStream = stream;
+                    scanVideo.srcObject = stream;
+                    scanVideo.play();
+                    scanStatus.textContent = 'Point camera at barcode.';
+                    if ('BarcodeDetector' in window) {
+                        const detector = new window.BarcodeDetector({ formats: ['ean_13', 'ean_8', 'code_128', 'upc_a', 'upc_e'] });
+                        const scanFrame = () => {
+                            if (!scanActive) return;
+                            detector.detect(scanVideo).then(barcodes => {
+                                if (barcodes.length > 0) {
+                                    handleBarcode(barcodes[0].rawValue);
+                            } else {
+                                requestAnimationFrame(scanFrame);
+                            }
+                        }).catch(() => requestAnimationFrame(scanFrame));
+                    };
+                    scanFrame();
+                } else {
+                    // Fallback: try QuaggaJS (must be loaded externally if needed)
+                    scanStatus.textContent = 'BarcodeDetector not supported. Please use Chrome/Edge or hardware scanner.';
+                }
+            }).catch(err => {
+                scanStatus.textContent = 'Camera error: ' + err.message;
+            });
+        } else {
+            scanStatus.textContent = 'Camera not supported.';
+        }
+    }
+
+    function stopCameraScan() {
+        scanActive = false;
+        if (currentStream) {
+            currentStream.getTracks().forEach(track => track.stop());
+            currentStream = null;
+        }
+        scanVideo.srcObject = null;
+    }
+
+    // Hardware barcode input (simulate with hidden input)
+    function ensureHardwareInput() {
+        let hwInput = document.getElementById('hardwareBarcodeInput');
+        if (!hwInput) {
+            hwInput = document.createElement('input');
+            hwInput.type = 'text';
+            hwInput.id = 'hardwareBarcodeInput';
+            hwInput.style.position = 'absolute';
+            hwInput.style.opacity = 0;
+            hwInput.style.pointerEvents = 'none';
+            scanModal.appendChild(hwInput);
+        }
+        hwInput.value = '';
+        hwInput.focus();
+        hwInput.oninput = function() {
+            if (hwInput.value.length >= 6) { // basic length check
+                handleBarcode(hwInput.value.trim());
+                hwInput.value = '';
+            }
+        };
+    }
+
+    // Handle barcode: auto-select product in dropdown
+    function handleBarcode(barcode) {
+        scanStatus.textContent = 'Barcode detected: ' + barcode;
+        // Find product by barcode (assume productData[pid].barcode exists)
+        let foundId = null;
+        for (const pid in productData) {
+            if (productData[pid].barcode && String(productData[pid].barcode) === String(barcode)) {
+                foundId = pid;
+                break;
+            }
+        }
+        if (foundId) {
+            document.getElementById('product_id').value = foundId;
+            scanStatus.textContent = 'Product selected: ' + productData[foundId].name;
+            scanModal.style.display = 'none';
+            stopCameraScan();
+            document.getElementById('quantity').focus();
+        } else {
+            scanStatus.textContent = 'No matching product found for barcode: ' + barcode;
+        }
+    }
+
+    // If modal is closed by clicking outside
+    scanModal?.addEventListener('click', function(e) {
+        if (e.target === scanModal) {
+            scanModal.style.display = 'none';
+            stopCameraScan();
+        }
+    });
+    })();
 });
