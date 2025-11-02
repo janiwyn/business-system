@@ -459,15 +459,18 @@ document.addEventListener('DOMContentLoaded', function() {
             if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
             if (ctx.state === 'suspended') ctx.resume();
             const oscillator = ctx.createOscillator();
-            oscillator.type = 'sine';
-            oscillator.frequency.setValueAtTime(880, ctx.currentTime);
-            oscillator.connect(ctx.destination);
+            const gain = ctx.createGain();
+            oscillator.type = 'triangle'; // lighter sound
+            oscillator.frequency.setValueAtTime(1600, ctx.currentTime); // higher pitch
+            gain.gain.value = 0.08; // softer volume
+            oscillator.connect(gain).connect(ctx.destination);
             oscillator.start();
             setTimeout(() => {
                 oscillator.stop();
                 oscillator.disconnect();
+                gain.disconnect();
                 // Don't close ctx if it's the shared one
-            }, 120);
+            }, 80); // shorter duration
         } catch (e) {
             // Ignore errors if audio not supported
         }
