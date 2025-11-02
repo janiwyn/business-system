@@ -50,7 +50,11 @@ $offset = ($page - 1) * $limit;
 
 // Branch filter
 $where = "";
-if (!empty($_GET['branch'])) {
+if ($user_role === 'staff' && $user_branch) {
+    // Staff: always restrict to their branch
+    $selected_branch = $user_branch;
+    $where = "WHERE products.`branch-id` = $user_branch";
+} elseif (!empty($_GET['branch'])) {
     $selected_branch = (int)$_GET['branch'];
     $where = "WHERE products.`branch-id` = $selected_branch";
 } else {
@@ -71,6 +75,14 @@ $result = $conn->query("
     ORDER BY products.id DESC 
     LIMIT $offset,$limit
 ");
+
+// Fetch all products into an array for reuse in both tables
+$products = [];
+if ($result && $result->num_rows > 0) {
+    while ($row = $result->fetch_assoc()) {
+        $products[] = $row;
+    }
+}
 ?>
 
 <!-- Custom Styling -->
@@ -331,9 +343,22 @@ $result = $conn->query("
                         <select name="branch_id" id="branch" class="form-select" required>
                             <option value="">-- Select Branch --</option>
                             <?php
-                            $branches = $conn->query("SELECT id, name FROM branch");
-                            while ($b = $branches->fetch_assoc()) {
-                                echo "<option value='{$b['id']}'>" . htmlspecialchars($b['name']) . "</option>";
+                            if ($user_role === 'staff' && $user_branch) {
+                                // Staff: only show their branch
+                                $branch = $conn->prepare("SELECT id, name FROM branch WHERE id = ?");
+                                $branch->bind_param("i", $user_branch);
+                                $branch->execute();
+                                $branch_res = $branch->get_result();
+                                if ($b = $branch_res->fetch_assoc()) {
+                                    echo "<option value='{$b['id']}' selected>" . htmlspecialchars($b['name']) . "</option>";
+                                }
+                                $branch->close();
+                            } else {
+                                // Other roles: show all branches
+                                $branches = $conn->query("SELECT id, name FROM branch");
+                                while ($b = $branches->fetch_assoc()) {
+                                    echo "<option value='{$b['id']}'>" . htmlspecialchars($b['name']) . "</option>";
+                                }
                             }
                             ?>
                         </select>
@@ -403,9 +428,9 @@ $result = $conn->query("
                 </thead>
                 <tbody>
                   <?php
-                  if ($result->num_rows > 0) {
+                  if (count($products) > 0) {
                       $i = $offset + 1;
-                      while ($row = $result->fetch_assoc()) {
+                      foreach ($products as $row) {
                           // Check expiry
 $today = date('Y-m-d');
 $expiry = $row['expiry_date'];
@@ -503,9 +528,9 @@ if (abs($daysLeft) <= 7 && !$row['sms_sent']) {
                     </thead>
                     <tbody>
                         <?php
-                        if ($result->num_rows > 0) {
+                        if (count($products) > 0) {
                             $i = $offset + 1;
-                            while ($row = $result->fetch_assoc()) {
+                            foreach ($products as $row) {
                                 // Check expiry
 $today = date('Y-m-d');
 $expiry = $row['expiry_date'];
