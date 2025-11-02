@@ -309,7 +309,7 @@ body.dark-mode .transactions-table tbody tr:hover {
                           <td>{$row['status']}</td>
                           <td>
                               <a href='payroll.php?mark_paid={$row['id']}' class='btn btn-success btn-sm'>Mark Paid</a>
-                              <a href='payslip.php?id={$row['id']}' class='btn btn-secondary btn-sm'>Payslip</a>
+                              <a href='payrollPayslip.php?id={$row['id']}' class='btn btn-secondary btn-sm'>Payslip</a>
                           </td>
                         </tr>";
               }
