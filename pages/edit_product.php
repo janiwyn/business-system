@@ -1,7 +1,7 @@
 <?php
 include '../includes/db.php';
 include '../includes/auth.php';
-require_role(['manager','admin']);
+require_role(['manager','admin','staff']);
 include '../pages/sidebar.php';
 include '../includes/header.php';
 
@@ -22,6 +22,14 @@ if (isset($_GET['id'])) {
 
     if ($result && $result->num_rows > 0) {
         $product = $result->fetch_assoc();
+        // Restrict staff to only edit products from their branch
+        if ($_SESSION['role'] === 'staff' && isset($_SESSION['branch_id'])) {
+            if ($product['branch-id'] != $_SESSION['branch_id']) {
+                // Not allowed, redirect to product page
+                header("Location: product.php");
+                exit;
+            }
+        }
     }
 }
 

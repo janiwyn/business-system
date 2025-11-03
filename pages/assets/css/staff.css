@@ -695,4 +695,11 @@ body.dark-mode .barcode-scan-status {
     color: #ffd200 !important;
 }
 
+/* Fix search input placeholder color in dark mode */
+body.dark-mode input[type="text"]::placeholder,
+body.dark-mode input.form-control::placeholder {
+    color: #ffd200 !important;
+    opacity: 1 !important;
+}
+
 

@@ -409,10 +409,15 @@ if ($result && $result->num_rows > 0) {
     <!-- Card wrapper for small devices -->
     <div class="d-block d-md-none mb-4">
       <div class="card transactions-card">
+        <!-- Add title and search bar for small devices -->
+        <div class="card-header d-flex justify-content-between align-items-center title-card">
+            <span>📋 Product List</span>
+            <input type="text" id="productSearchInputMobile" class="form-control" placeholder="Search by product name..." style="width: 170px;">
+        </div>
         <div class="card-body">
           <div class="table-responsive-sm">
             <div class="transactions-table">
-              <table>
+              <table id="productTableMobile">
                 <thead>
                   <tr>
                     <th>#</th>
@@ -494,25 +499,29 @@ if (abs($daysLeft) <= 7 && !$row['sms_sent']) {
     <div class="card mb-5 d-none d-md-block">
         <div class="card-header d-flex justify-content-between align-items-center title-card">
             <span>📋 Product List</span>
-            <?php if ($user_role !== 'staff'): ?>
-            <form method="GET" class="d-flex align-items-center">
-                <label class="me-2 fw-bold">Filter by Branch:</label>
-                <select name="branch" class="form-select" onchange="this.form.submit()">
-                    <option value="">-- All Branches --</option>
-                    <?php
-                    $branches = $conn->query("SELECT id, name FROM branch");
-                    while ($b = $branches->fetch_assoc()) {
-                        $selected = ($selected_branch == $b['id']) ? "selected" : "";
-                        echo "<option value='{$b['id']}' $selected>" . htmlspecialchars($b['name']) . "</option>";
-                    }
-                    ?>
-                </select>
-            </form>
-            <?php endif; ?>
+            <div class="d-flex align-items-center gap-2">
+                <!-- Search box -->
+                <input type="text" id="productSearchInput" class="form-control" placeholder="Search by product name..." style="width:220px;">
+                <?php if ($user_role !== 'staff'): ?>
+                <form method="GET" class="d-flex align-items-center ms-2">
+                    <label class="me-2 fw-bold">Filter by Branch:</label>
+                    <select name="branch" class="form-select" onchange="this.form.submit()">
+                        <option value="">-- All Branches --</option>
+                        <?php
+                        $branches = $conn->query("SELECT id, name FROM branch");
+                        while ($b = $branches->fetch_assoc()) {
+                            $selected = ($selected_branch == $b['id']) ? "selected" : "";
+                            echo "<option value='{$b['id']}' $selected>" . htmlspecialchars($b['name']) . "</option>";
+                        }
+                        ?>
+                    </select>
+                </form>
+                <?php endif; ?>
+            </div>
         </div>
         <div class="card-body">
             <div class="transactions-table">
-                <table>
+                <table id="productTable">
                     <thead>
                         <tr>
                             <th>#</th>
@@ -725,6 +734,46 @@ if (abs($daysLeft) <= 7 && !$row['sms_sent']) {
         }
     });
 })();
+
+// Product search filter for large device table
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('productSearchInput');
+    const table = document.getElementById('productTable');
+    if (searchInput && table) {
+        searchInput.addEventListener('input', function() {
+            const filter = this.value.trim().toLowerCase();
+            const rows = table.querySelectorAll('tbody tr');
+            rows.forEach(row => {
+                // Find the product name cell (skip branch column if present)
+                let nameCell = row.querySelectorAll('td')[ (<?php echo (empty($selected_branch) && $user_role !== 'staff') ? '2' : '1'; ?>) ];
+                if (nameCell) {
+                    const name = nameCell.textContent.trim().toLowerCase();
+                    row.style.display = (name.includes(filter) || filter === '') ? '' : 'none';
+                }
+            });
+        });
+    }
+});
+
+// Product search filter for small device table
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('productSearchInputMobile');
+    const table = document.getElementById('productTableMobile');
+    if (searchInput && table) {
+        searchInput.addEventListener('input', function() {
+            const filter = this.value.trim().toLowerCase();
+            const rows = table.querySelectorAll('tbody tr');
+            rows.forEach(row => {
+                // Find the product name cell (skip branch column if present)
+                let nameCell = row.querySelectorAll('td')[ (<?php echo (empty($selected_branch) && $user_role !== 'staff') ? '2' : '1'; ?>) ];
+                if (nameCell) {
+                    const name = nameCell.textContent.trim().toLowerCase();
+                    row.style.display = (name.includes(filter) || filter === '') ? '' : 'none';
+                }
+            });
+        });
+    }
+});
 </script>
 
 <?php include '../includes/footer.php'; ?>

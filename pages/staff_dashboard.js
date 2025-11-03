@@ -448,32 +448,50 @@ document.addEventListener('DOMContentLoaded', function() {
             }, 350);
         } else {
             scanStatus.textContent = 'No matching product found for barcode: ' + barcode;
+            playFailBeep();
         }
     }
 
-    // Add beep sound function
+    // Add beep sound function (success)
     function playBeep() {
         try {
-            // Use unlocked AudioContext if available
             let ctx = audioCtx;
             if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
             if (ctx.state === 'suspended') ctx.resume();
             const oscillator = ctx.createOscillator();
             const gain = ctx.createGain();
-            oscillator.type = 'triangle'; // lighter sound
-            oscillator.frequency.setValueAtTime(1600, ctx.currentTime); // higher pitch
-            gain.gain.value = 0.08; // softer volume
+            oscillator.type = 'triangle';
+            oscillator.frequency.setValueAtTime(1600, ctx.currentTime);
+            gain.gain.value = 0.08;
             oscillator.connect(gain).connect(ctx.destination);
             oscillator.start();
             setTimeout(() => {
                 oscillator.stop();
                 oscillator.disconnect();
                 gain.disconnect();
-                // Don't close ctx if it's the shared one
-            }, 80); // shorter duration
-        } catch (e) {
-            // Ignore errors if audio not supported
-        }
+            }, 80);
+        } catch (e) {}
+    }
+
+    // Add fail beep sound function (failure)
+    function playFailBeep() {
+        try {
+            let ctx = audioCtx;
+            if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
+            if (ctx.state === 'suspended') ctx.resume();
+            const oscillator = ctx.createOscillator();
+            const gain = ctx.createGain();
+            oscillator.type = 'sawtooth'; // harsher sound
+            oscillator.frequency.setValueAtTime(400, ctx.currentTime); // lower pitch
+            gain.gain.value = 0.12; // slightly louder
+            oscillator.connect(gain).connect(ctx.destination);
+            oscillator.start();
+            setTimeout(() => {
+                oscillator.stop();
+                oscillator.disconnect();
+                gain.disconnect();
+            }, 180); // longer duration for fail
+        } catch (e) {}
     }
 
     // If modal is closed by clicking outside
