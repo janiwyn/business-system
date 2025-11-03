@@ -302,6 +302,19 @@ if ($result && $result->num_rows > 0) {
         right: 10px;
         z-index: 10;
     }
+
+    /* Add this for search input placeholder color in dark mode */
+    body.dark-mode input#productSearchInput,
+    body.dark-mode input#productSearchInputMobile {
+        color: #fff !important;
+        background-color: #23243a !important;
+        border: 1px solid #444 !important;
+    }
+    body.dark-mode input#productSearchInput::placeholder,
+    body.dark-mode input#productSearchInputMobile::placeholder {
+        color: #fff !important;
+        opacity: 1 !important;
+    }
 </style>
 
 <div class="container mt-5">
