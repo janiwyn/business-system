@@ -348,10 +348,20 @@ body.dark-mode .transactions-table tbody tr:hover {
         <div class="card-body">
             <?php
             $month = date('Y-m');
-            $summary = mysqli_fetch_assoc(mysqli_query($conn, "SELECT SUM(gross_salary) as total_gross, SUM(net_salary) as total_net FROM payroll WHERE month='$month'"));
+            // Get all payroll records for this month
+            $summary_q = mysqli_query($conn, "SELECT gross_salary, nssf, tax, loan, other_deductions FROM payroll WHERE month='$month'");
+            $total_gross = 0;
+            $total_deductions = 0;
+            while ($row = mysqli_fetch_assoc($summary_q)) {
+                $total_gross += floatval($row['gross_salary']);
+                $deductions = floatval($row['nssf']) + floatval($row['tax']) + floatval($row['loan']) + floatval($row['other_deductions']);
+                $total_deductions += $deductions;
+            }
+            $total_net = $total_gross - $total_deductions;
             ?>
-            <p><b>Total Gross:</b> <?php echo $summary['total_gross'] ?? 0; ?></p>
-            <p><b>Total Net:</b> <?php echo $summary['total_net'] ?? 0; ?></p>
+            <p><b>Total Gross:</b> UGX <?= number_format($total_gross, 0) ?></p>
+            <p><b>Total Deductions:</b> UGX <?= number_format($total_deductions, 0) ?></p>
+            <p><b>Total Net Income:</b> UGX <?= number_format($total_net, 0) ?></p>
         </div>
     </div>
 </div>
