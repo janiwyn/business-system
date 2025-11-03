@@ -231,7 +231,11 @@ body.dark-mode .transactions-table tbody tr:hover {
                     <th>#</th>
                     <th>Employee</th>
                     <th>Month</th>
-                    <th>Amount</th>
+                    <th>Base Salary</th>
+                    <th>Total Allowances</th>
+                    <th>Gross Salary</th>
+                    <th>Total Deductions</th>
+                    <th>Net Income</th>
                     <th>Status</th>
                     <th>Actions</th>
                   </tr>
@@ -240,7 +244,7 @@ body.dark-mode .transactions-table tbody tr:hover {
                   <?php
                   // Fetch payroll records for small devices
                   $payroll_records = mysqli_query($conn, "
-                    SELECT p.id, u.username as employee_name, p.month, p.net_salary as amount, p.status
+                    SELECT p.id, u.username as employee_name, p.month, p.base_salary, p.transport, p.housing, p.medical, p.overtime, p.nssf, p.tax, p.loan, p.other_deductions, p.gross_salary, p.net_salary, p.status
                     FROM payroll p
                     JOIN employees e ON p.`user-id` = e.id
                     JOIN users u ON e.`user-id` = u.id
@@ -248,11 +252,19 @@ body.dark-mode .transactions-table tbody tr:hover {
                   ");
                   $i = 1;
                   while ($row = mysqli_fetch_assoc($payroll_records)) {
+                    $allowances = $row['transport'] + $row['housing'] + $row['medical'] + $row['overtime'];
+                    $gross = $row['base_salary'] + $allowances;
+                    $deductions = $row['nssf'] + $row['tax'] + $row['loan'] + $row['other_deductions'];
+                    $net = $gross - $deductions;
                     echo "<tr>
                             <td>{$i}</td>
                             <td>" . htmlspecialchars($row['employee_name']) . "</td>
                             <td>" . htmlspecialchars($row['month']) . "</td>
-                            <td>UGX " . number_format($row['amount'], 2) . "</td>
+                            <td>UGX " . number_format($row['base_salary'], 0) . "</td>
+                            <td>UGX " . number_format($allowances, 0) . "</td>
+                            <td>UGX " . number_format($gross, 0) . "</td>
+                            <td>UGX " . number_format($deductions, 0) . "</td>
+                            <td>UGX " . number_format($net, 0) . "</td>
                             <td>" . htmlspecialchars($row['status']) . "</td>
                             <td>
                               <a href='payroll.php?mark_paid={$row['id']}' class='btn btn-sm btn-success me-1' title='Mark as Paid'>
@@ -285,14 +297,17 @@ body.dark-mode .transactions-table tbody tr:hover {
                 <th>#</th>
                 <th>Employee</th>
                 <th>Month</th>
-                <th>Amount</th>
+                <th>Base Salary</th>
+                <th>Total Allowances</th>
+                <th>Gross Salary</th>
+                <th>Total Deductions</th>
+                <th>Net Income</th>
                 <th>Status</th>
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody>
               <?php
-              // Existing code for payroll records with text buttons
               $sql = "SELECT p.*, u.username 
                   FROM payroll p
                   JOIN employees e ON p.`user-id` = e.id
@@ -300,12 +315,19 @@ body.dark-mode .transactions-table tbody tr:hover {
                   ORDER BY p.id DESC";
               $records = mysqli_query($conn, $sql);
               while ($row = mysqli_fetch_assoc($records)) {
+                  $allowances = $row['transport'] + $row['housing'] + $row['medical'] + $row['overtime'];
+                  $gross = $row['base_salary'] + $allowances;
                   $deductions = $row['nssf'] + $row['tax'] + $row['loan'] + $row['other_deductions'];
+                  $net = $gross - $deductions;
                   echo "<tr>
                           <td>{$row['id']}</td>
                           <td>{$row['username']}</td>
                           <td>{$row['month']}</td>
-                          <td>{$row['net_salary']}</td>
+                          <td>UGX " . number_format($row['base_salary'], 0) . "</td>
+                          <td>UGX " . number_format($allowances, 0) . "</td>
+                          <td>UGX " . number_format($gross, 0) . "</td>
+                          <td>UGX " . number_format($deductions, 0) . "</td>
+                          <td>UGX " . number_format($net, 0) . "</td>
                           <td>{$row['status']}</td>
                           <td>
                               <a href='payroll.php?mark_paid={$row['id']}' class='btn btn-success btn-sm'>Mark Paid</a>

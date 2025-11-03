@@ -284,7 +284,9 @@ body.dark-mode .transactions-table tbody tr:hover {
                           <td>{$row['hire_date']}</td>
                           <td>{$row['status']}</td>
                           <td>
-                              <a href='employees.php?delete={$row['id']}' class='btn btn-danger btn-sm' onclick='return confirm(\"Delete this employee?\")'>Delete</a>
+                              <a href='employees.php?delete={$row['id']}' class='btn btn-danger btn-sm' title='Delete' onclick='return confirm(\"Delete this employee?\")'>
+                                <i class='fa fa-trash'></i>
+                              </a>
                           </td>
                       </tr>";
                   }
