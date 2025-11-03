@@ -474,7 +474,6 @@ $cust_stmt->close();
                                     <th>Payment Method</th>
                                     <th>Sold At</th>
                                     <th>Sold By</th>
-                                    <th>Actions</th> <!-- Added Actions column -->
                                 </tr>
                             </thead>
                             <tbody>
@@ -490,24 +489,10 @@ $cust_stmt->close();
                                         <td><?= htmlspecialchars($row['payment_method']) ?></td>
                                         <td><small class="text-muted"><?= date("M d, Y H:i", strtotime($row['date'])) ?></small></td>
                                         <td><?= htmlspecialchars($row['sold-by']) ?></td>
-                                        <td>
-                                            <button class="btn btn-sm btn-info view-receipt-btn" 
-                                                data-sale-id="<?= $row['id'] ?>"
-                                                data-product="<?= htmlspecialchars($row['product-name']) ?>"
-                                                data-quantity="<?= $row['quantity'] ?>"
-                                                data-amount="<?= number_format($row['amount'], 2) ?>"
-                                                data-payment="<?= htmlspecialchars($row['payment_method']) ?>"
-                                                data-date="<?= date("M d, Y H:i", strtotime($row['date'])) ?>"
-                                                data-soldby="<?= htmlspecialchars($row['sold-by']) ?>"
-                                            >View Receipt</button>
-                                            <button class="btn btn-sm btn-secondary print-receipt-btn" 
-                                                data-sale-id="<?= $row['id'] ?>"
-                                            >Print Receipt</button>
-                                        </td>
                                     </tr>
                                 <?php endwhile; ?>
                                 <?php if ($i === 1): ?>
-                                    <tr><td colspan="8" class="text-center text-muted">No recent sales found.</td></tr>
+                                    <tr><td colspan="7" class="text-center text-muted">No recent sales found.</td></tr>
                                 <?php endif; ?>
                             </tbody>
                         </table>
@@ -606,254 +591,12 @@ $cust_stmt->close();
   </div>
 </div>
 
-<!-- Receipt Modal -->
-<div class="modal fade" id="receiptModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content" id="receiptModalContent">
-      <div class="modal-header">
-        <h5 class="modal-title">Receipt</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <div class="modal-body" id="receiptContent">
-        <!-- Receipt content will be injected here -->
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-        <button type="button" class="btn btn-primary" id="printReceiptBtn">Print</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- Receipt Print Styles -->
-<style>
-/* Only applies when printing */
-@media print {
-  body * { visibility: hidden !important; }
-  .receipt-print-area, .receipt-print-area * {
-    visibility: visible !important;
-  }
-  .receipt-print-area {
-    position: absolute;
-    left: 0; top: 0;
-    width: 58mm; /* typical receipt width */
-    min-width: 0;
-    max-width: 100vw;
-    font-family: 'Courier New', Courier, monospace;
-    font-size: 13px;
-    background: #fff !important;
-    color: #000 !important;
-    margin: 0 !important;
-    padding: 0 !important;
-  }
-  .receipt-print-area hr {
-    border: none;
-    border-top: 1px dashed #000;
-    margin: 4px 0;
-  }
-  .receipt-print-area .center { text-align: center; }
-  .receipt-print-area .bold { font-weight: bold; }
-  .receipt-print-area .big { font-size: 16px; }
-  .receipt-print-area .small { font-size: 11px; }
-  .receipt-print-area .row {
-    display: flex;
-    justify-content: space-between;
-    font-size: 13px;
-    margin: 0 0 2px 0;
-  }
-  .receipt-print-area .footer {
-    margin-top: 10px;
-    text-align: center;
-    font-size: 12px;
-  }
-}
-</style>
-
 <link rel="stylesheet" href="assets/css/staff.css">
 <script>
     window.productData = <?php echo json_encode($product_list); ?>;
     window.customers = <?php echo json_encode($customers_list); ?>;
-
-    // Receipt modal logic
-    document.addEventListener('DOMContentLoaded', function() {
-        // Bootstrap modal instance
-        let receiptModal;
-        function ensureReceiptModal() {
-            if (!window.bootstrap) return null;
-            if (!receiptModal) {
-                const el = document.getElementById('receiptModal');
-                receiptModal = new bootstrap.Modal(el);
-            }
-            return receiptModal;
-        }
-
-        // Handler for View Receipt
-        document.querySelectorAll('.view-receipt-btn').forEach(btn => {
-            btn.addEventListener('click', function() {
-                const product = this.getAttribute('data-product');
-                const quantity = this.getAttribute('data-quantity');
-                const amount = this.getAttribute('data-amount');
-                const payment = this.getAttribute('data-payment');
-                const date = this.getAttribute('data-date');
-                const soldby = this.getAttribute('data-soldby');
-                // Realistic receipt layout
-                document.getElementById('receiptContent').innerHTML = `
-<div class="receipt-print-area" id="receiptToPrint">
-  <div class="center big bold">GOLDEN GROCERY</div>
-  <div class="center small">H.NO, 12-B, CROSS ROAD, PENSACOLA</div>
-  <div class="center small">Tel: 0700 000000</div>
-  <hr>
-  <div class="row"><span>Date:</span><span>${date}</span></div>
-  <div class="row"><span>Cashier:</span><span>${soldby}</span></div>
-  <hr>
-  <div class="row bold"><span>Item</span><span>Qty  Total</span></div>
-  <div class="row"><span>${product}</span><span>${quantity}  UGX ${amount}</span></div>
-  <hr>
-  <div class="row bold"><span>Payment:</span><span>${payment}</span></div>
-  <div class="row bold"><span>Total:</span><span>UGX ${amount}</span></div>
-  <hr>
-  <div class="footer">Thank you for shopping!</div>
-  <div class="footer small">Powered by Business System</div>
-</div>
-                `;
-                ensureReceiptModal()?.show();
-            });
-        });
-
-        // Handler for Print Receipt
-        document.querySelectorAll('.print-receipt-btn').forEach(btn => {
-            btn.addEventListener('click', function() {
-                const row = this.closest('tr');
-                const product = row.querySelector('[data-product]').getAttribute('data-product');
-                const quantity = row.querySelector('[data-quantity]').getAttribute('data-quantity');
-                const amount = row.querySelector('[data-amount]').getAttribute('data-amount');
-                const payment = row.querySelector('[data-payment]').getAttribute('data-payment');
-                const date = row.querySelector('[data-date]').getAttribute('data-date');
-                const soldby = row.querySelector('[data-soldby]').getAttribute('data-soldby');
-                const receiptHtml = `
-<div class="receipt-print-area" id="receiptToPrint">
-  <div class="center big bold">GOLDEN GROCERY</div>
-  <div class="center small">H.NO, 12-B, CROSS ROAD, PENSACOLA</div>
-  <div class="center small">Tel: 0700 000000</div>
-  <hr>
-  <div class="row"><span>Date:</span><span>${date}</span></div>
-  <div class="row"><span>Cashier:</span><span>${soldby}</span></div>
-  <hr>
-  <div class="row bold"><span>Item</span><span>Qty  Total</span></div>
-  <div class="row"><span>${product}</span><span>${quantity}  UGX ${amount}</span></div>
-  <hr>
-  <div class="row bold"><span>Payment:</span><span>${payment}</span></div>
-  <div class="row bold"><span>Total:</span><span>UGX ${amount}</span></div>
-  <hr>
-  <div class="footer">Thank you for shopping!</div>
-  <div class="footer small">Powered by Business System</div>
-</div>
-                `;
-                const win = window.open('', '', 'width=400,height=600');
-                win.document.write(`<html><head><title>Receipt</title>
-<style>
-@media print {
-  body * { visibility: hidden !important; }
-  .receipt-print-area, .receipt-print-area * {
-    visibility: visible !important;
-  }
-  .receipt-print-area {
-    position: absolute;
-    left: 0; top: 0;
-    width: 58mm;
-    min-width: 0;
-    max-width: 100vw;
-    font-family: 'Courier New', Courier, monospace;
-    font-size: 13px;
-    background: #fff !important;
-    color: #000 !important;
-    margin: 0 !important;
-    padding: 0 !important;
-  }
-  .receipt-print-area hr {
-    border: none;
-    border-top: 1px dashed #000;
-    margin: 4px 0;
-  }
-  .receipt-print-area .center { text-align: center; }
-  .receipt-print-area .bold { font-weight: bold; }
-  .receipt-print-area .big { font-size: 16px; }
-  .receipt-print-area .small { font-size: 11px; }
-  .receipt-print-area .row {
-    display: flex;
-    justify-content: space-between;
-    font-size: 13px;
-    margin: 0 0 2px 0;
-  }
-  .receipt-print-area .footer {
-    margin-top: 10px;
-    text-align: center;
-    font-size: 12px;
-  }
-}
-</style>
-</head><body>${receiptHtml}</body></html>`);
-                win.document.close();
-                win.focus();
-                win.print();
-                setTimeout(() => win.close(), 500);
-            });
-        });
-
-        // Print button in modal
-        document.getElementById('printReceiptBtn')?.addEventListener('click', function() {
-            const content = document.getElementById('receiptContent').innerHTML;
-            const win = window.open('', '', 'width=400,height=600');
-            win.document.write(`<html><head><title>Receipt</title>
-<style>
-@media print {
-  body * { visibility: hidden !important; }
-  .receipt-print-area, .receipt-print-area * {
-    visibility: visible !important;
-  }
-  .receipt-print-area {
-    position: absolute;
-    left: 0; top: 0;
-    width: 58mm;
-    min-width: 0;
-    max-width: 100vw;
-    font-family: 'Courier New', Courier, monospace;
-    font-size: 13px;
-    background: #fff !important;
-    color: #000 !important;
-    margin: 0 !important;
-    padding: 0 !important;
-  }
-  .receipt-print-area hr {
-    border: none;
-    border-top: 1px dashed #000;
-    margin: 4px 0;
-  }
-  .receipt-print-area .center { text-align: center; }
-  .receipt-print-area .bold { font-weight: bold; }
-  .receipt-print-area .big { font-size: 16px; }
-  .receipt-print-area .small { font-size: 11px; }
-  .receipt-print-area .row {
-    display: flex;
-    justify-content: space-between;
-    font-size: 13px;
-    margin: 0 0 2px 0;
-  }
-  .receipt-print-area .footer {
-    margin-top: 10px;
-    text-align: center;
-    font-size: 12px;
-  }
-}
-</style>
-</head><body>${content}</body></html>`);
-            win.document.close();
-            win.focus();
-            win.print();
-            setTimeout(() => win.close(), 500);
-        });
-    });
 </script>
+<script src="staff_dashboard.js"></script>
 <?php include '../includes/footer.php'; ?>
 
 

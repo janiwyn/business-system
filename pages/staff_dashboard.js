@@ -39,7 +39,159 @@ document.addEventListener('DOMContentLoaded', function() {
     // Ensure initial state
     document.getElementById('payment_method').dispatchEvent(new Event('change'));
 
-    // Sell button logic (adjusted to include customer file flow)
+    // --- Receipt Confirmation Modal ---
+    const receiptConfirmModal = document.createElement('div');
+    receiptConfirmModal.id = 'receiptConfirmModal';
+    receiptConfirmModal.style.display = 'none';
+    receiptConfirmModal.innerHTML = `
+      <div style="position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.25);z-index:9999;display:flex;align-items:center;justify-content:center;">
+        <div style="background:#fff;padding:2rem 2.5rem;border-radius:10px;box-shadow:0 2px 16px #0002;max-width:95vw;">
+          <div style="font-size:1.2rem;margin-bottom:1rem;">Print receipt for this sale?</div>
+          <div class="d-flex gap-2 justify-content-end">
+            <button id="receiptConfirmCancel" class="btn btn-secondary">Cancel</button>
+            <button id="receiptConfirmOk" class="btn btn-primary">OK</button>
+          </div>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(receiptConfirmModal);
+
+    function showReceiptConfirmModal(cb) {
+        receiptConfirmModal.style.display = '';
+        document.getElementById('receiptConfirmOk').onclick = function() {
+            receiptConfirmModal.style.display = 'none';
+            cb(true);
+        };
+        document.getElementById('receiptConfirmCancel').onclick = function() {
+            receiptConfirmModal.style.display = 'none';
+            cb(false);
+        };
+    }
+
+    // --- Cart Receipt Print Function (Supermarket Style) ---
+    function printCartReceipt(cart, total, paymentMethod, amountPaid) {
+        // --- Supermarket style receipt ---
+        // You can adjust the logo, company, and barcode as needed.
+        const now = new Date();
+        const dateStr = now.toLocaleString();
+        // Company info
+        const company = "CYINIBEL SUPERMARKET LIMITED";
+        const till = "2";
+        const tillSales = "050520250601106";
+        const tin = "1017004561";
+        // Items
+        let itemsHtml = '';
+        cart.forEach((item, idx) => {
+            itemsHtml += `
+            <tr>
+                <td style="text-align:left;">${item.quantity}</td>
+                <td style="text-align:left;">${item.name}</td>
+                <td style="text-align:right;">UGX ${Number(item.price * item.quantity).toLocaleString()}</td>
+            </tr>`;
+        });
+        // Barcode (dummy, you can generate real barcode if needed)
+        const barcode = tillSales;
+        // Receipt HTML
+        const receiptHtml = `
+<div id="receiptToPrint" style="width:320px;max-width:100vw;padding:0 0 0 0;font-family:'Courier New',monospace;">
+    <div style="text-align:center;margin-top:10px;">
+        <img src="https://i.ibb.co/6w1yQnQ/cyinibel-logo.png" alt="Logo" style="width:80px;height:80px;object-fit:contain;margin-bottom:8px;">
+    </div>
+    <div style="text-align:center;font-weight:bold;font-size:15px;margin-bottom:2px;">${company}</div>
+    <div style="text-align:center;font-size:12px;margin-bottom:2px;">----------------------------------------------------</div>
+    <div style="text-align:center;font-size:13px;margin-bottom:2px;">${dateStr}</div>
+    <div style="font-size:12px;margin-bottom:2px;">TILL: ${till} &nbsp; Till Sales: ${tillSales}</div>
+    <div style="font-size:12px;margin-bottom:2px;">TIN: ${tin}</div>
+    <div style="font-size:12px;margin-bottom:2px;">----------------------------------------------------</div>
+    <table style="width:100%;font-size:13px;margin-bottom:2px;border-collapse:collapse;">
+        <tbody>
+            ${itemsHtml}
+        </tbody>
+    </table>
+    <div style="font-size:12px;margin-bottom:2px;">----------------------------------------------------</div>
+    <table style="width:100%;font-size:13px;">
+        <tr>
+            <td style="text-align:left;">Subtotal</td>
+            <td style="text-align:right;">UGX ${Number(total).toLocaleString()}</td>
+        </tr>
+        <tr>
+            <td style="text-align:left;">Total</td>
+            <td style="text-align:right;">UGX ${Number(total).toLocaleString()}</td>
+        </tr>
+    </table>
+    <div style="font-size:12px;margin-bottom:2px;">----------------------------------------------------</div>
+    <table style="width:100%;font-size:13px;">
+        <tr>
+            <td style="text-align:left;">Cash</td>
+            <td style="text-align:right;">UGX ${Number(amountPaid).toLocaleString()}</td>
+        </tr>
+        <tr>
+            <td style="text-align:left;">Change</td>
+            <td style="text-align:right;">UGX ${(Number(amountPaid)-Number(total)).toLocaleString()}</td>
+        </tr>
+    </table>
+    <div style="font-size:12px;margin-bottom:2px;">----------------------------------------------------</div>
+    <div style="text-align:center;font-size:13px;margin:10px 0 2px 0;">THANK YOU</div>
+    <div style="text-align:center;font-size:13px;margin-bottom:8px;">HAVE A NICE DAY</div>
+    <div style="text-align:center;margin-top:8px;">
+        <svg id="barcodeSvg" style="width:180px;height:40px;"></svg>
+    </div>
+</div>
+        `;
+        // Print window
+        const win = window.open('', '', 'width=400,height=600');
+        win.document.write(`<html><head><title>Receipt</title>
+<style>
+@media print {
+  body * { visibility: hidden !important; }
+  #receiptToPrint, #receiptToPrint * {
+    visibility: visible !important;
+  }
+  #receiptToPrint {
+    position: absolute;
+    left: 0; top: 0;
+    width: 58mm;
+    min-width: 0;
+    max-width: 100vw;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 13px;
+    background: #fff !important;
+    color: #000 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  #receiptToPrint table { width:100%; }
+  #receiptToPrint tr, #receiptToPrint td { font-size:13px; }
+}
+</style>
+</head><body>${receiptHtml}
+<script>
+(function() {
+    // Simple barcode SVG generator (Code128, dummy bars for visual)
+    var svg = document.getElementById('barcodeSvg');
+    if (svg) {
+        var code = "${barcode}";
+        var bars = '';
+        var x = 0;
+        for (var i = 0; i < code.length; i++) {
+            var val = code.charCodeAt(i) % 7 + 1;
+            for (var j = 0; j < val; j++) {
+                bars += '<rect x="'+x+'" y="0" width="2" height="40" fill="#000"/>';
+                x += 3;
+            }
+            x += 2;
+        }
+        svg.innerHTML = bars;
+    }
+    setTimeout(function() { window.print(); setTimeout(function(){window.close();}, 400); }, 200);
+})();
+<\/script>
+</body></html>`);
+        win.document.close();
+        win.focus();
+    }
+
+    // --- Modified Sell Button Logic ---
     document.getElementById('sellBtn').onclick = function() {
         const paymentMethod = document.getElementById('payment_method').value;
         const amountPaid = parseFloat(document.getElementById('amount_paid').value || 0);
@@ -50,36 +202,60 @@ document.addEventListener('DOMContentLoaded', function() {
             total += item.price * item.quantity;
         });
 
-        if (paymentMethod === 'Customer File') {
-            const custId = document.getElementById('customer_select').value;
-            if (!custId) { alert('Please select a customer for Customer File payment.'); return; }
-            // submit with customer_id; amount_paid left as 0
-            document.getElementById('cart_data').value = JSON.stringify(cart);
-            document.getElementById('cart_amount_paid').value = 0;
-            document.getElementById('hidden_payment_method').value = paymentMethod;
-            document.getElementById('hidden_customer_id').value = custId;
-            hiddenSaleForm.submit();
+        // If cart is empty, do nothing
+        if (cart.length === 0) {
+            alert('Cart is empty.');
             return;
         }
 
-        // existing flow for other payment methods
-        if (amountPaid >= total) {
-            const balance = amountPaid - total;
-            if (balance > 0) {
-                alert(`Balance is UGX ${balance.toLocaleString()}`);
+        // Helper to submit sale and print receipt
+        function submitAndMaybePrint() {
+            if (paymentMethod === 'Customer File') {
+                const custId = document.getElementById('customer_select').value;
+                if (!custId) { alert('Please select a customer for Customer File payment.'); return; }
+                document.getElementById('cart_data').value = JSON.stringify(cart);
+                document.getElementById('cart_amount_paid').value = 0;
+                document.getElementById('hidden_payment_method').value = paymentMethod;
+                document.getElementById('hidden_customer_id').value = custId;
+                hiddenSaleForm.submit();
+                printCartReceipt(cart, total, paymentMethod, 0);
+                return;
             }
-            document.getElementById('cart_data').value = JSON.stringify(cart);
-            document.getElementById('cart_amount_paid').value = amountPaid;
-            document.getElementById('hidden_payment_method').value = paymentMethod;
-            document.getElementById('hidden_customer_id').value = '';
-            hiddenSaleForm.submit();
+
+            if (amountPaid >= total) {
+                const balance = amountPaid - total;
+                if (balance > 0) {
+                    alert(`Balance is UGX ${balance.toLocaleString()}`);
+                }
+                document.getElementById('cart_data').value = JSON.stringify(cart);
+                document.getElementById('cart_amount_paid').value = amountPaid;
+                document.getElementById('hidden_payment_method').value = paymentMethod;
+                document.getElementById('hidden_customer_id').value = '';
+                hiddenSaleForm.submit();
+                printCartReceipt(cart, total, paymentMethod, amountPaid);
+            } else {
+                // Underpayment: Show debtor form
+                const debtorForm = document.getElementById('debtorsFormCard');
+                document.getElementById('debtor_cart_data').value = JSON.stringify(cart);
+                document.getElementById('debtor_amount_paid').value = amountPaid;
+                debtorForm.style.display = 'block';
+                window.scrollTo({ top: debtorForm.offsetTop, behavior: 'smooth' });
+            }
+        }
+
+        // Only show receipt modal for non-debtor sales
+        if (
+            (paymentMethod === 'Customer File') ||
+            (amountPaid >= total)
+        ) {
+            showReceiptConfirmModal(function(ok) {
+                if (ok) {
+                    submitAndMaybePrint();
+                }
+            });
         } else {
-            // Underpayment: Show debtor form
-            const debtorForm = document.getElementById('debtorsFormCard');
-            document.getElementById('debtor_cart_data').value = JSON.stringify(cart);
-            document.getElementById('debtor_amount_paid').value = amountPaid;
-            debtorForm.style.display = 'block';
-            window.scrollTo({ top: debtorForm.offsetTop, behavior: 'smooth' });
+            // For debtors, proceed as before (no receipt)
+            submitAndMaybePrint();
         }
     };
 
