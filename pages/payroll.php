@@ -266,25 +266,27 @@ body.dark-mode .transactions-table tbody tr:hover {
                             <td>UGX " . number_format($deductions, 0) . "</td>
                             <td>UGX " . number_format($net, 0) . "</td>
                             <td>" . htmlspecialchars($row['status']) . "</td>
-                            <td>
-                              <a href='payroll.php?mark_paid={$row['id']}' class='btn btn-sm btn-success me-1' title='Mark as Paid'>
-                                <i class='fa fa-check'></i>
-                              </a>
-                              <a href='payslip.php?id={$row['id']}' class='btn btn-sm btn-info' title='Payslip'>
-                                <i class='fa fa-file-signature'></i>
-                              </a>
-                            </td>
-                          </tr>";
-                    $i++;
-                  }
-                  ?>
-                </tbody>
-              </table>
-            </div>
-          </div>
+                            <td>";
+                if (strtolower($row['status']) !== 'paid') {
+                    echo "<a href='payroll.php?mark_paid={$row['id']}' class='btn btn-sm btn-success me-1' title='Mark as Paid'>
+                            <i class='fa fa-check'></i>
+                          </a>";
+                }
+                echo "<a href='payslip.php?id={$row['id']}' class='btn btn-sm btn-info' title='Payslip'>
+                        <i class='fa fa-file-signature'></i>
+                      </a>
+                    </td>
+                  </tr>";
+                $i++;
+              }
+              ?>
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
+  </div>
+</div>
 
     <!-- Payroll Records Table for Medium and Large Devices -->
     <div class="card mb-4 d-none d-md-block">
@@ -329,18 +331,20 @@ body.dark-mode .transactions-table tbody tr:hover {
                           <td>UGX " . number_format($deductions, 0) . "</td>
                           <td>UGX " . number_format($net, 0) . "</td>
                           <td>{$row['status']}</td>
-                          <td>
-                              <a href='payroll.php?mark_paid={$row['id']}' class='btn btn-success btn-sm'>Mark Paid</a>
-                              <a href='payrollPayslip.php?id={$row['id']}' class='btn btn-secondary btn-sm'>Payslip</a>
-                          </td>
-                        </tr>";
+                          <td>";
+              if (strtolower($row['status']) !== 'paid') {
+                  echo "<a href='payroll.php?mark_paid={$row['id']}' class='btn btn-success btn-sm'>Mark Paid</a> ";
               }
-              ?>
-            </tbody>
-          </table>
-        </div>
-      </div>
+              echo "<a href='payrollPayslip.php?id={$row['id']}' class='btn btn-secondary btn-sm'>Payslip</a>
+                    </td>
+                    </tr>";
+          }
+          ?>
+        </tbody>
+      </table>
     </div>
+  </div>
+</div>
 
     <!-- Payroll Summary -->
     <div class="card">
