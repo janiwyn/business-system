@@ -8,7 +8,7 @@ include '../includes/header.php';     // Use modern header
 // ==========================
 // Summary Cards Data
 // ==========================
-$sales_total_q = $conn->query("SELECT SUM(quantity*amount) AS total_sales FROM sales");
+$sales_total_q = $conn->query("SELECT SUM(amount) AS total_sales FROM sales");
 $sales_total = ($row = $sales_total_q->fetch_assoc()) ? $row['total_sales'] ?? 0 : 0;
 
 $expenses_total_q = $conn->query("SELECT SUM(amount) AS total_expenses FROM expenses");
@@ -22,7 +22,7 @@ $profit_total = $sales_total - $expenses_total;
 $months = [];
 $salesData = [];
 $sales_q = $conn->query("
-    SELECT DATE_FORMAT(date, '%b') AS month, SUM(amount*quantity) AS total
+    SELECT DATE_FORMAT(date, '%b %Y') AS month, SUM(amount) AS total
     FROM sales
     GROUP BY DATE_FORMAT(date, '%Y-%m')
     ORDER BY MIN(date)
@@ -38,7 +38,7 @@ while ($row = $sales_q->fetch_assoc()) {
 $expenseMonths = [];
 $expenseData = [];
 $exp_q = $conn->query("
-    SELECT DATE_FORMAT(date, '%b') AS month, SUM(amount) AS total
+    SELECT DATE_FORMAT(date, '%b %Y') AS month, SUM(amount) AS total
     FROM expenses
     GROUP BY DATE_FORMAT(date, '%Y-%m')
     ORDER BY MIN(date)
@@ -217,119 +217,12 @@ $sales_main = $conn->query("
       <!-- Add more chart columns if needed -->
     </div>
 
-    <!-- Print Button -->
+    <!-- Generate Report Button -->
     <div class="mb-3 text-end">
-        <button class="btn print-report-btn" data-bs-toggle="modal" data-bs-target="#printModal">Print Report</button>
+        <button type="button" class="btn btn-success" onclick="openReportGen('sales')">
+            <i class="fa fa-file-pdf"></i> Generate Report
+        </button>
     </div>
-
-    <!-- Print Modal -->
-    <div class="modal fade" id="printModal" tabindex="-1">
-        <div class="modal-dialog modal-dialog-centered">
-            <form method="POST" class="modal-content">
-                <div class="modal-header bg-primary text-white">
-                    <h5 class="modal-title">Print Report</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label>Date From</label>
-                        <input type="date" name="report_from" class="form-control" required>
-                    </div>
-                    <div class="mb-3">
-                        <label>Date To</label>
-                        <input type="date" name="report_to" class="form-control" required>
-                    </div>
-                    <div class="mb-3">
-                        <label>Select Branch</label>
-                        <select name="branch" class="form-select">
-                            <option value="all">All Branches</option>
-                            <?php
-                            // rewind or re-query if needed; we used $branches above but it may be consumed later.
-                            // To be safe, fetch branches here fresh:
-                            $branches_list = $conn->query("SELECT id, name FROM branch");
-                            while($b = $branches_list->fetch_assoc()):
-                            ?>
-                                <option value="<?= $b['id'] ?>"><?= htmlspecialchars($b['name']) ?></option>
-                            <?php endwhile; ?>
-                        </select>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="submit" name="preview_report" class="btn btn-primary">Preview Report</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-        <!-- Preview Report -->
-<?php if(!empty($preview_sales)): ?>
-<div id="printableReport" class="card mb-4 chart-card" style="background:#fff; border-radius:10px; box-shadow:0 2px 8px rgba(0,0,0,0.1); color:#222;">
-    <div style="text-align:center; padding:25px 0 15px 0; border-bottom:3px solid #2c3e50;">
-        <img src="../uploads/logo.png" alt="Company Logo" style="height:80px; border-radius:10px; margin-bottom:8px;"><br>
-        <h3 style="margin:0; font-weight:700; color:#2c3e50;">Your Business Name</h3>
-        <p style="margin:4px 0; color:#555;">123 Business Street, Kampala | Tel: +256 700 000000 | Email: info@business.com</p>
-        <p style="font-size:0.9rem; color:#666;">Report Generated: <?= date('M d, Y H:i') ?></p>
-    </div>
-
-    <div class="card-body table-responsive" style="padding:25px;">
-        <div style="margin-bottom:20px; text-align:center;">
-            <h4 style="color:#2c3e50; font-weight:700; margin-bottom:8px;">Sales Report</h4>
-            <div style="display:inline-block; background:#2c3e50; color:#fff; padding:10px 16px; border-radius:8px; font-size:0.95rem;">
-                <strong>Period:</strong>
-                <?= $report_from ? htmlspecialchars(date('M d, Y', strtotime($report_from))) : '—' ?>
-                to
-                <?= $report_to ? htmlspecialchars(date('M d, Y', strtotime($report_to))) : '—' ?>
-                &nbsp;&nbsp;|&nbsp;&nbsp;
-                <strong>Branch:</strong> <?= htmlspecialchars($preview_branch_label) ?>
-            </div>
-        </div>
-
-        <table style="width:100%; border-collapse:collapse; font-size:0.95rem; border-radius:8px; overflow:hidden;">
-            <thead style="background-color:#2c3e50; color:#fff;">
-                <tr>
-                    <th style="padding:10px; text-align:left;">Date</th>
-                    <th style="padding:10px; text-align:left;">Product</th>
-                    <th style="padding:10px;">Qty</th>
-                    <th style="padding:10px;">Price</th>
-                    <th style="padding:10px;">Total</th>
-                    <th style="padding:10px;">Sold By</th>
-                    <th style="padding:10px;">Branch</th>
-                </tr>
-            </thead>
-            <tbody>
-                <?php $i=0; foreach($preview_sales as $s): ?>
-                <tr style="border-bottom:1px solid #ddd; background:<?= ($i++ % 2 == 0) ? '#f8f9fa' : '#ffffff' ?>;">
-                    <td style="padding:8px; color:#222;"><?= htmlspecialchars($s['date']) ?></td>
-                    <td style="padding:8px; color:#222;"><?= htmlspecialchars($s['product_name']) ?></td>
-                    <td style="padding:8px; text-align:center; color:#222;"><?= htmlspecialchars($s['quantity']) ?></td>
-                    <td style="padding:8px; text-align:right; color:#222;">UGX <?= number_format($s['amount']) ?></td>
-                    <td style="padding:8px; text-align:right; color:#222;">UGX <?= number_format($s['quantity']*$s['amount']) ?></td>
-                    <td style="padding:8px; color:#222;"><?= htmlspecialchars($s['sold-by']) ?></td>
-                    <td style="padding:8px; color:#222;"><?= htmlspecialchars($s['branch_name']) ?></td>
-                </tr>
-                <?php endforeach; ?>
-            </tbody>
-        </table>
-
-        <h4 style="text-align:right; margin-top:20px; color:#2c3e50;">
-            Total Sales: <strong>UGX <?= number_format($preview_total) ?></strong>
-        </h4>
-
-        <!-- <div style="text-align:right; margin-top:30px;">
-            <button class="btn btn-success" onclick="printSection('printableReport')">Print Report</button>
-        </div> -->
-    </div>
-
-    <div style="text-align:center; font-size:0.8rem; color:#999; padding:10px; border-top:1px solid #eee;">
-        Generated by Business System &copy; <?= date('Y') ?>
-    </div>
-</div>
-        <div style="text-align:right; margin-top:30px;">
-            <button class="btn btn-success" onclick="printSection('printableReport')">Print Report</button>
-        </div>
-<?php endif; ?>
-
-
 
     <!-- Main Sales Table -->
     <div class="card mb-4 chart-card">
@@ -393,173 +286,137 @@ $sales_main = $conn->query("
     </div>
 </div>
 
+<!-- Modal for report generation -->
+<div class="modal fade" id="reportGenModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <form class="modal-content" id="reportGenForm">
+      <div class="modal-header">
+        <h5 class="modal-title" id="reportGenModalTitle">Generate Sales Report</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body row g-3">
+        <div class="col-md-6">
+          <label class="form-label">From</label>
+          <input type="date" name="date_from" id="report_date_from" class="form-control" required>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">To</label>
+          <input type="date" name="date_to" id="report_date_to" class="form-control" required>
+        </div>
+        <div class="col-md-12">
+          <label class="form-label">Branch</label>
+          <select name="branch" id="report_branch" class="form-select">
+            <option value="">All Branches</option>
+            <?php
+            $branches = $conn->query("SELECT id, name FROM branch");
+            while ($b = $branches->fetch_assoc()):
+                echo "<option value='{$b['id']}'>" . htmlspecialchars($b['name']) . "</option>";
+            endwhile;
+            ?>
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="submit" class="btn btn-primary">Generate & Print</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+function openReportGen(type) {
+    document.getElementById('reportGenModalTitle').textContent = 'Generate Sales Report';
+    document.getElementById('reportGenForm').dataset.reportType = type;
+    new bootstrap.Modal(document.getElementById('reportGenModal')).show();
+}
+
+document.getElementById('reportGenForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const type = this.dataset.reportType || 'sales';
+    const date_from = document.getElementById('report_date_from').value;
+    const date_to = document.getElementById('report_date_to').value;
+    const branch = document.getElementById('report_branch').value;
+    const url = `reports_generator.php?type=${encodeURIComponent(type)}&date_from=${encodeURIComponent(date_from)}&date_to=${encodeURIComponent(date_to)}&branch=${encodeURIComponent(branch)}`;
+    window.open(url, '_blank');
+    bootstrap.Modal.getInstance(document.getElementById('reportGenModal')).hide();
+});
+</script>
+
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-function isDarkMode() {
-    return document.body.classList.contains('dark-mode');
-}
-function getChartFontColor() {
-    return isDarkMode() ? '#fff' : '#2c3e50';
-}
-function getChartGridColor() {
-    return isDarkMode() ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)';
-}
-
-// Chart data and options for both desktop and mobile
-const salesChartData = {
-    labels: <?= json_encode($months) ?>,
-    datasets: [{
-        label: 'Sales',
-        data: <?= json_encode($salesData) ?>,
-        backgroundColor: 'rgba(40,167,69,0.7)',
-        borderRadius: 10
-    }]
-};
-const salesChartOptions = {
-    responsive: true,
-    plugins: {
-        legend: { display: false },
-        title: { display: false }
-    },
-    scales: {
-        x: {
-            ticks: { color: getChartFontColor() },
-            grid: { color: getChartGridColor() }
+document.addEventListener('DOMContentLoaded', function() {
+    // Sales Chart
+    var ctxSales = document.getElementById('salesChart').getContext('2d');
+    new Chart(ctxSales, {
+        type: 'bar',
+        data: {
+            labels: <?= json_encode($months) ?>,
+            datasets: [{
+                label: 'Sales',
+                data: <?= json_encode($salesData) ?>,
+                backgroundColor: '#1abc9c'
+            }]
         },
-        y: {
-            beginAtZero: true,
-            ticks: { color: getChartFontColor() },
-            grid: { color: getChartGridColor() }
+        options: {
+            responsive: true,
+            plugins: { legend: { display: false } }
         }
-    }
-};
+    });
 
-const profitChartData = {
-    labels: <?= json_encode($expenseMonths) ?>,
-    datasets: [{
-        label: 'Expenses',
-        data: <?= json_encode($expenseData) ?>,
-        backgroundColor: 'rgba(220,53,69,0.7)',
-        borderRadius: 10
-    }]
-};
-const profitChartOptions = {
-    responsive: true,
-    plugins: {
-        legend: { display: false },
-        title: { display: false }
-    },
-    scales: {
-        x: {
-            ticks: { color: getChartFontColor() },
-            grid: { color: getChartGridColor() }
+    // Profit Chart
+    var ctxProfit = document.getElementById('profitChart').getContext('2d');
+    new Chart(ctxProfit, {
+        type: 'bar',
+        data: {
+            labels: <?= json_encode($expenseMonths) ?>,
+            datasets: [{
+                label: 'Expenses',
+                data: <?= json_encode($expenseData) ?>,
+                backgroundColor: '#e74c3c'
+            }]
         },
-        y: {
-            beginAtZero: true,
-            ticks: { color: getChartFontColor() },
-            grid: { color: getChartGridColor() }
+        options: {
+            responsive: true,
+            plugins: { legend: { display: false } }
         }
-    }
-};
-
-// Desktop charts initialization (guarded so canvas exists)
-if (document.getElementById('salesChart')) {
-  new Chart(document.getElementById('salesChart'), {
-    type: 'bar',
-    data: salesChartData,
-    options: salesChartOptions
-  });
-}
-if (document.getElementById('profitChart')) {
-  new Chart(document.getElementById('profitChart'), {
-    type: 'bar',
-    data: profitChartData,
-    options: profitChartOptions
-  });
-}
-
-// Mobile charts initialization
-function createSalesChartMobile() {
-  if (document.getElementById('salesChartMobile')) {
-    new Chart(document.getElementById('salesChartMobile'), {
-      type: 'bar',
-      data: salesChartData,
-      options: salesChartOptions
     });
-  }
-}
-function createProfitChartMobile() {
-  if (document.getElementById('profitChartMobile')) {
-    new Chart(document.getElementById('profitChartMobile'), {
-      type: 'bar',
-      data: profitChartData,
-      options: profitChartOptions
+
+    // Mobile charts
+    var ctxSalesMobile = document.getElementById('salesChartMobile').getContext('2d');
+    new Chart(ctxSalesMobile, {
+        type: 'bar',
+        data: {
+            labels: <?= json_encode($months) ?>,
+            datasets: [{
+                label: 'Sales',
+                data: <?= json_encode($salesData) ?>,
+                backgroundColor: '#1abc9c'
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: { legend: { display: false } }
+        }
     });
-  }
-}
 
-if (window.innerWidth < 992) {
-  createSalesChartMobile();
-  createProfitChartMobile();
-}
-
-function printSection(sectionId) {
-    var content = document.getElementById(sectionId).innerHTML;
-
-    // Build a full print document with styles to ensure it prints nicely
-    var printWindow = window.open('', '', 'height=900,width=1200');
-    var styles = `
-        <style>
-            @page { margin: 10mm; }
-            body { font-family: Arial, sans-serif; color: #333; margin: 10mm; }
-            .report-header { display:flex; align-items:center; gap:12px; margin-bottom:12px; }
-            .report-header img { height:70px; border-radius:6px; }
-            .report-header .info { flex:1; text-align:left; }
-            .report-header .meta { text-align:right; }
-            h4, h5 { margin:0; padding:0; }
-            table { width: 100%; border-collapse: collapse; margin-top: 12px; }
-            table, th, td { border: 1px solid #000; }
-            th, td { padding: 8px; text-align: left; font-size: 12px; }
-            th { background: #2c3e50; color: #fff; }
-            tr:nth-child(even){ background: #f9f9f9; }
-            .totals { margin-top: 12px; text-align: right; font-weight: 700; }
-            .small { font-size: 11px; color: #555; }
-            @media print {
-                .no-print { display: none !important; }
-            }
-        </style>
-    `;
-
-    // Header values (recreate the header dynamic values)
-    var businessHeader = document.querySelector('#' + sectionId + ' .card-header') ? document.querySelector('#' + sectionId + ' .card-header').innerHTML : '';
-    var periodText = '';
-    // Try to extract period/branch from the preview area if available
-    var periodNode = document.querySelector('#' + sectionId + ' .card-body');
-    if (periodNode) {
-        // We'll include the whole body content - simpler and safer
-    }
-
-    var html = `
-        <html>
-        <head>
-            <title>Print Report</title>
-            ${styles}
-        </head>
-        <body>
-            ${content}
-        </body>
-        </html>
-    `;
-
-    printWindow.document.open();
-    printWindow.document.write(html);
-    printWindow.document.close();
-    // Wait for resources to load then print
-    printWindow.onload = function() {
-        printWindow.focus();
-        printWindow.print();
-    };
-}
+    var ctxProfitMobile = document.getElementById('profitChartMobile').getContext('2d');
+    new Chart(ctxProfitMobile, {
+        type: 'bar',
+        data: {
+            labels: <?= json_encode($expenseMonths) ?>,
+            datasets: [{
+                label: 'Expenses',
+                data: <?= json_encode($expenseData) ?>,
+                backgroundColor: '#e74c3c'
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: { legend: { display: false } }
+        }
+    });
+});
 </script>
 
 <style>

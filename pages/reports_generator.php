@@ -118,6 +118,27 @@ if ($type === 'expenses') {
     ";
     $res = $conn->query($sql);
     while ($row = $res->fetch_assoc()) $rows[] = $row;
+} elseif ($type === 'sales') {
+    $report_title = 'Sales Report';
+    $thead = '<tr>
+        <th>Date</th><th>Branch</th><th>Product</th><th>Quantity</th><th>Unit Price</th><th>Total</th><th>Sold By</th>
+    </tr>';
+    $where = [];
+    if ($branch) $where[] = "sales.`branch-id` = " . intval($branch);
+    if ($date_from) $where[] = "DATE(sales.date) >= '" . $conn->real_escape_string($date_from) . "'";
+    if ($date_to) $where[] = "DATE(sales.date) <= '" . $conn->real_escape_string($date_to) . "'";
+    $whereClause = count($where) ? "WHERE " . implode(' AND ', $where) : "";
+    $sql = "
+        SELECT sales.date, branch.name AS branch_name, products.name AS product_name, sales.quantity, sales.amount, sales.`sold-by`
+        FROM sales
+        JOIN products ON sales.`product-id` = products.id
+        JOIN branch ON sales.`branch-id` = branch.id
+        $whereClause
+        ORDER BY sales.date DESC
+        LIMIT 500
+    ";
+    $res = $conn->query($sql);
+    while ($row = $res->fetch_assoc()) $rows[] = $row;
 }
 
 ?>
@@ -276,6 +297,18 @@ if ($type === 'expenses') {
                     <?php
                         $prev_date = $row['sale_date'];
                     endforeach; ?>
+                <?php elseif ($type === 'sales'): ?>
+                    <?php foreach ($rows as $row): ?>
+                        <tr>
+                            <td><?= htmlspecialchars($row['date']) ?></td>
+                            <td><?= htmlspecialchars($row['branch_name']) ?></td>
+                            <td><?= htmlspecialchars($row['product_name']) ?></td>
+                            <td><?= htmlspecialchars($row['quantity']) ?></td>
+                            <td>UGX <?= number_format($row['amount'],2) ?></td>
+                            <td>UGX <?= number_format($row['quantity']*$row['amount'],2) ?></td>
+                            <td><?= htmlspecialchars($row['sold-by']) ?></td>
+                        </tr>
+                    <?php endforeach; ?>
                 <?php else: ?>
                     <tr><td colspan="20" style="text-align:center;color:#888;">No data found.</td></tr>
                 <?php endif; ?>
