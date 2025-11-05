@@ -249,13 +249,19 @@ if ($type === 'expenses') {
                         </tr>
                     <?php endforeach; ?>
                 <?php elseif ($type === 'payment_analysis'): ?>
-                    <?php foreach ($rows as $row): ?>
+                    <?php
+                    $prev_day = null;
+                    foreach ($rows as $row):
+                        $show_day = ($prev_day !== $row['day']);
+                    ?>
                         <tr>
-                            <td><?= htmlspecialchars($row['day']) ?></td>
+                            <td><?= $show_day ? htmlspecialchars($row['day']) : '' ?></td>
                             <td><?= htmlspecialchars($row['pm']) ?></td>
                             <td>UGX <?= number_format($row['total'],2) ?></td>
                         </tr>
-                    <?php endforeach; ?>
+                    <?php
+                        $prev_day = $row['day'];
+                    endforeach; ?>
                 <?php elseif ($type === 'product_summary'): ?>
                     <?php
                     $prev_date = null;
