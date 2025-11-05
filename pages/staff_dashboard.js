@@ -688,4 +688,43 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     })();
+
+
+// PHYSICAL HARDWARE BARCODE SCANNER 
+let hwScannedCode = '';
+let hwScanTimeout;
+
+// Listen to all keypresses on the page
+document.addEventListener('keypress', (e) => {
+    if (hwScanTimeout) clearTimeout(hwScanTimeout);
+    hwScannedCode += e.key;
+
+    // Wait 100ms after last keypress to process
+    hwScanTimeout = setTimeout(() => {
+        const code = hwScannedCode.trim();
+        if (code.length >= 3) { // minimal barcode length
+            handleHardwareBarcode(code);
+        }
+        hwScannedCode = '';
+    }, 100);
+});
+
+// Function to handle scanned barcode
+function handleHardwareBarcode(code) {
+    const productKey = Object.keys(productData).find(
+        key => (productData[key].barcode || '').trim() === code
+    );
+
+    if (productKey) {
+        const select = document.getElementById('product_id'); // dropdown ID
+        select.value = productKey;
+        select.dispatchEvent(new Event('change')); // trigger any UI updates
+        console.log(`Product selected: ${productData[productKey].name}`);
+        // Optional: highlight quantity input
+        document.getElementById('quantity').focus();
+    } else {
+        console.log(`No product found for barcode: ${code}`);
+    }
+}
+
 });
