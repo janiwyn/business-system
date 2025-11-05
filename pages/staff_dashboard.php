@@ -3,7 +3,6 @@ session_start();
 include '../includes/db.php';
 include '../includes/auth.php';
 require_role(['staff']);
-// require_once 'vendor/dompdf/autoload.inc.php';
 include '../pages/sidebar_staff.php';
 include '../includes/header.php';
 include 'handle_debtor_payment.php';

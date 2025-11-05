@@ -40,31 +40,38 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('payment_method').dispatchEvent(new Event('change'));
 
     // --- Receipt Confirmation Modal ---
+    // Only create ONCE at the top
     const receiptConfirmModal = document.createElement('div');
     receiptConfirmModal.id = 'receiptConfirmModal';
     receiptConfirmModal.style.display = 'none';
     receiptConfirmModal.innerHTML = `
-      <div style="position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.25);z-index:9999;display:flex;align-items:center;justify-content:center;">
-        <div style="background:#fff;padding:2rem 2.5rem;border-radius:10px;box-shadow:0 2px 16px #0002;max-width:95vw;">
-          <div style="font-size:1.2rem;margin-bottom:1rem;">Print receipt for this sale?</div>
-          <div class="d-flex gap-2 justify-content-end">
-            <button id="receiptConfirmCancel" class="btn btn-secondary">Cancel</button>
-            <button id="receiptConfirmOk" class="btn btn-primary">OK</button>
-          </div>
-        </div>
+  <div style="position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.25);z-index:9999;display:flex;align-items:center;justify-content:center;">
+    <div style="background:#fff;padding:2rem 2.5rem;border-radius:10px;box-shadow:0 2px 16px #0002;max-width:95vw;">
+      <div style="font-size:1.2rem;margin-bottom:1rem;">Print receipt for this sale?</div>
+      <div class="d-flex flex-wrap gap-2 justify-content-end" style="flex-wrap:wrap;">
+        <button id="receiptConfirmCancel" class="btn btn-secondary">Cancel</button>
+        <button id="receiptConfirmRecord" class="btn btn-warning">Record</button>
+        <button id="receiptConfirmOk" class="btn btn-primary">OK</button>
       </div>
-    `;
+    </div>
+  </div>
+`;
     document.body.appendChild(receiptConfirmModal);
 
+    // Only attach event listeners before showing
     function showReceiptConfirmModal(cb) {
         receiptConfirmModal.style.display = '';
         document.getElementById('receiptConfirmOk').onclick = function() {
             receiptConfirmModal.style.display = 'none';
-            cb(true);
+            cb('ok');
         };
         document.getElementById('receiptConfirmCancel').onclick = function() {
             receiptConfirmModal.style.display = 'none';
-            cb(false);
+            cb('cancel');
+        };
+        document.getElementById('receiptConfirmRecord').onclick = function() {
+            receiptConfirmModal.style.display = 'none';
+            cb('record');
         };
     }
 
@@ -209,7 +216,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         // Helper to submit sale and print receipt
-        function submitAndMaybePrint() {
+        function submitAndMaybePrint(printReceipt) {
             if (paymentMethod === 'Customer File') {
                 const custId = document.getElementById('customer_select').value;
                 if (!custId) { alert('Please select a customer for Customer File payment.'); return; }
@@ -218,7 +225,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 document.getElementById('hidden_payment_method').value = paymentMethod;
                 document.getElementById('hidden_customer_id').value = custId;
                 hiddenSaleForm.submit();
-                printCartReceipt(cart, total, paymentMethod, 0);
+                if (printReceipt) printCartReceipt(cart, total, paymentMethod, 0);
                 return;
             }
 
@@ -232,7 +239,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 document.getElementById('hidden_payment_method').value = paymentMethod;
                 document.getElementById('hidden_customer_id').value = '';
                 hiddenSaleForm.submit();
-                printCartReceipt(cart, total, paymentMethod, amountPaid);
+                if (printReceipt) printCartReceipt(cart, total, paymentMethod, amountPaid);
             } else {
                 // Underpayment: Show debtor form
                 const debtorForm = document.getElementById('debtorsFormCard');
@@ -248,14 +255,17 @@ document.addEventListener('DOMContentLoaded', function() {
             (paymentMethod === 'Customer File') ||
             (amountPaid >= total)
         ) {
-            showReceiptConfirmModal(function(ok) {
-                if (ok) {
-                    submitAndMaybePrint();
+            showReceiptConfirmModal(function(action) {
+                if (action === 'ok') {
+                    submitAndMaybePrint(true); // submit and print
+                } else if (action === 'record') {
+                    submitAndMaybePrint(false); // submit only, no print
                 }
+                // cancel does nothing
             });
         } else {
             // For debtors, proceed as before (no receipt)
-            submitAndMaybePrint();
+            submitAndMaybePrint(false);
         }
     };
 
