@@ -219,7 +219,7 @@ $total_items = $count_row['total'];
 $total_pages = ceil($total_items / $items_per_page);
 
 // Fetch expenses for current page (filtered)
-$expenses = $conn->query("
+$expenses_res = $conn->query("
     SELECT e.*, u.username, b.name AS branch_name
     FROM expenses e 
     LEFT JOIN users u ON e.`spent-by` = u.id 
@@ -228,6 +228,14 @@ $expenses = $conn->query("
     ORDER BY e.date DESC
     LIMIT $items_per_page OFFSET $offset
 ");
+
+// Convert expenses to array for reuse in both tables
+$expenses_arr = [];
+if ($expenses_res && $expenses_res->num_rows > 0) {
+    while ($row = $expenses_res->fetch_assoc()) {
+        $expenses_arr[] = $row;
+    }
+}
 
 // Get total expenses (filtered)
 $total_result = $conn->query("SELECT SUM(e.amount) AS total_expenses FROM expenses e $whereClause");
@@ -744,8 +752,8 @@ body.dark-mode .cart-table tfoot td {
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        <?php if ($expenses->num_rows > 0): ?>
-                                            <?php while ($row = $expenses->fetch_assoc()): ?>
+                                        <?php if (count($expenses_arr) > 0): ?>
+                                            <?php foreach ($expenses_arr as $row): ?>
                                                 <tr>
                                                     <td><?= isset($row['id']) ? htmlspecialchars($row['id']) : '' ?></td>
                                                     <td><?= isset($row['date']) ? htmlspecialchars($row['date']) : '' ?></td>
@@ -777,7 +785,7 @@ body.dark-mode .cart-table tfoot td {
                                                     <td><?= isset($row['username']) ? htmlspecialchars($row['username']) : '' ?></td>
                                                     <td><?= isset($row['description']) ? htmlspecialchars($row['description']) : '' ?></td>
                                                 </tr>
-                                            <?php endwhile; ?>
+                                            <?php endforeach; ?>
                                         <?php else: ?>
                                             <tr>
                                                 <td colspan="11" class="text-center text-muted">No expenses recorded yet.</td>
@@ -833,8 +841,8 @@ body.dark-mode .cart-table tfoot td {
                             </tr>
                         </thead>
                         <tbody>
-                            <?php if ($expenses->num_rows > 0): ?>
-                                <?php while ($row = $expenses->fetch_assoc()): ?>
+                            <?php if (count($expenses_arr) > 0): ?>
+                                <?php foreach ($expenses_arr as $row): ?>
                                     <tr>
                                         <td><?= isset($row['id']) ? htmlspecialchars($row['id']) : '' ?></td>
                                         <td><?= isset($row['date']) ? htmlspecialchars($row['date']) : '' ?></td>
@@ -866,7 +874,7 @@ body.dark-mode .cart-table tfoot td {
                                         <td><?= isset($row['username']) ? htmlspecialchars($row['username']) : '' ?></td>
                                         <td><?= isset($row['description']) ? htmlspecialchars($row['description']) : '' ?></td>
                                     </tr>
-                                <?php endwhile; ?>
+                                <?php endforeach; ?>
                             <?php else: ?>
                                 <tr>
                                     <td colspan="11" class="text-center text-muted">No expenses recorded yet.</td>

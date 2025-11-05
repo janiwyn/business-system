@@ -714,7 +714,32 @@ if (isset($_GET['created']) && $_GET['created'] == '1') {
                 <div class="alert alert-info">No suppliers found.</div>
               <?php endif; ?>
             </div>
-            <!-- ...existing code for medium/large devices... -->
+            <!-- Supplier Transactions Table for Medium and Large Devices -->
+            <div class="card mb-4 d-none d-md-block">
+                <div class="card-header">Supplier Transactions</div>
+                <div class="card-body">
+                    <?php if (count($suppliers_arr) > 0): ?>
+                        <div class="accordion" id="suppliersAccordion">
+                            <?php foreach($suppliers_arr as $s): ?>
+                                <div class="accordion-item mb-2">
+                                    <h2 class="accordion-header" id="headingS<?= $s['id'] ?>">
+                                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseS<?= $s['id'] ?>" aria-expanded="false" aria-controls="collapseS<?= $s['id'] ?>">
+                                            <?= htmlspecialchars($s['name']) ?> — Location: <?= htmlspecialchars($s['location']) ?>
+                                        </button>
+                                    </h2>
+                                    <div id="collapseS<?= $s['id'] ?>" class="accordion-collapse collapse" aria-labelledby="headingS<?= $s['id'] ?>" data-bs-parent="#suppliersAccordion">
+                                        <div class="accordion-body">
+                                            <div class="transactions-table" id="transContainerS<?= $s['id'] ?>">Loading transactions...</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+                    <?php else: ?>
+                        <div class="alert alert-info">No suppliers found.</div>
+                    <?php endif; ?>
+                </div>
+            </div>
         </div>
         <!-- SUPPLIER PRODUCTS TAB -->
         <div class="tab-pane fade" id="tab-products">
