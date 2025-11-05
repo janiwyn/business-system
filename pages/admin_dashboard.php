@@ -559,18 +559,21 @@ if (window.innerWidth < 992) {
 }
 
 // Re-render charts on dark mode toggle
-document.querySelector('.dark-toggle').addEventListener('click', () => {
-  document.querySelectorAll('canvas').forEach(canvas => canvas.remove());
-  // Re-add canvas elements
-  const barDiv = document.createElement('canvas'); barDiv.id = 'barChart';
-  document.getElementById('barChart').parentNode.appendChild(barDiv);
+const darkToggle = document.querySelector('.dark-toggle');
+if (darkToggle) {
+  darkToggle.addEventListener('click', () => {
+    document.querySelectorAll('canvas').forEach(canvas => canvas.remove());
+    // Re-add canvas elements
+    const barDiv = document.createElement('canvas'); barDiv.id = 'barChart';
+    document.getElementById('barChart').parentNode.appendChild(barDiv);
 
-  const lineDiv = document.createElement('canvas'); lineDiv.id = 'lineChart';
-  document.getElementById('lineChart').parentNode.appendChild(lineDiv);
+    const lineDiv = document.createElement('canvas'); lineDiv.id = 'lineChart';
+    document.getElementById('lineChart').parentNode.appendChild(lineDiv);
 
-  createBarChart();
-  createLineChart();
-});
+    createBarChart();
+    createLineChart();
+  });
+}
 </script>
 
 <!-- Animated Balls Script -->

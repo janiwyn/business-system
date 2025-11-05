@@ -95,6 +95,7 @@ if ($_SESSION['role'] === 'super') {
       text-align: center;
       margin-bottom: 1.5rem;
     }
+    
     .form-control { border-radius: 50px; padding: 0.7rem 1rem; }
     .btn-corporate {
       background: linear-gradient(90deg, #1e3c72, #2a5298);
@@ -116,8 +117,8 @@ if ($_SESSION['role'] === 'super') {
 
   <div class="login-card">
     <div class="login-header">
-      <img src="../uploads/logo.png" alt="Logo" width="70">
-      <h3>Business System</h3>
+      <img src="../uploads/2.png" alt="Logo" width="100" height="100">
+      <h3>Bluecrest POS</h3>
       <p>Secure Login Portal</p>
     </div>
 
@@ -144,7 +145,7 @@ if ($_SESSION['role'] === 'super') {
     </div>
 
     <div class="footer-text">
-      © <?= date("Y"); ?> Business System. All Rights Reserved.
+      © <?= date("Y"); ?> Bluecrest Technologies. All Rights Reserved.
     </div>
   </div>
 

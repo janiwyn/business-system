@@ -146,7 +146,7 @@ $businesses = $conn->query("SELECT id, name FROM businesses ORDER BY name ASC");
 
 <div class="signup-card">
     <div class="signup-header text-center mb-3">
-        <img src="../uploads/logo.png" alt="Logo" width="60">
+        <img src="../uploads/2.png" alt="Logo" width="60">
         <h3>Create Account</h3>
         <p>Register to access the Business System</p>
     </div>

@@ -40,7 +40,7 @@ $change = $amount_paid - $total;
 <body>
     <div id="receiptToPrint">
         <div style="text-align:center;margin-top:10px;">
-            <img src="https://i.ibb.co/6w1yQnQ/cyinibel-logo.png" alt="Logo" style="width:80px;height:80px;object-fit:contain;margin-bottom:8px;">
+            <img src="../uploads/1 (1).png" alt="Logo" style="width:80px;height:80px;object-fit:contain;margin-bottom:8px;">
         </div>
         <div style="text-align:center;font-weight:bold;font-size:15px;margin-bottom:2px;"><?= $company ?></div>
         <div style="text-align:center;font-size:12px;margin-bottom:2px;">----------------------------------------------------</div>

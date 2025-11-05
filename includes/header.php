@@ -3,12 +3,16 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Business System</title>
+  <!-- Change the favicon path below to your business logo file -->
+  <link rel="icon" type="image/png" href="../uploads/2.png">
+  <title>Bluecrest POS</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/css/bootstrap.min.css" rel="stylesheet" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet" />
   <link rel="stylesheet" href="../pages/assets/css/style.css" />
   <link rel="stylesheet" href="../assets/css/responsive.css" />
+  <!-- Add Google Fonts for tech logo style -->
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700&family=Nunito+Sans:wght@700&display=swap" rel="stylesheet">
   <style>
     .main-header {
       width: 100%;
@@ -38,14 +42,28 @@
       background: #fff;
     }
     .main-header .logo-text {
-      font-size: 1.5rem;
+      font-family: 'Montserrat', 'Nunito Sans', Arial, sans-serif;
       font-weight: 700;
+      font-size: 1.5rem;
       letter-spacing: 1px;
       color: #fff;
-      text-shadow: 0 2px 8px rgba(44,62,80,0.08);
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+      /* Ocean blue animated gradient wave */
+      background: linear-gradient(270deg, #1abc9c, #3498db, #56ccf2, #1abc9c);
+      background-size: 400% 400%;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      text-fill-color: transparent;
+      animation: oceanWave 10s ease-in-out infinite;
+      text-shadow: none;
+    }
+    @keyframes oceanWave {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
     }
     .main-header .header-actions {
       display: flex;
@@ -83,8 +101,15 @@
       box-shadow: 0 2px 8px rgba(44,62,80,0.18);
     }
     body.dark-mode .main-header .logo-text {
-      color: #1abc9c; 
-      text-shadow: 0 2px 8px rgba(44,62,80,0.18);
+      color: #1abc9c;
+      background: linear-gradient(270deg, #159c8c, #3498db, #56ccf2, #159c8c);
+      background-size: 400% 400%;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      text-fill-color: transparent;
+      animation: oceanWave 5s ease-in-out infinite;
+      text-shadow: none;
     }
     body.dark-mode .theme-switch label {
       color: #ffd200;
@@ -243,8 +268,8 @@
 <body>
 <header class="main-header">
   <div class="logo-area">
-    <img src="../uploads/logo.png" alt="Logo" class="logo-img" />
-    <span class="logo-text">Business System</span>
+    <img src="../uploads/2.png" alt="Logo" class="logo-img" />
+    <span class="logo-text">Bluecrest Technologies</span>
   </div>
   <div class="header-actions">
     <div class="notification-icon position-relative">
