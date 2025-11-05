@@ -30,7 +30,7 @@ if ($type === 'expenses') {
     $report_title = 'Expenses Report';
     $thead = '<tr>
         <th>ID</th><th>Date & Time</th><th>Supplier</th><th>Branch</th><th>Category</th>
-        <th>Product</th><th>Quantity</th><th>Unit Price</th><th>Amount</th><th>Spent By</th><th>Description</th>
+        <th>Product</th><th>Quantity</th><th>Unit Price</th><th>Amount</th><th>Spent By</th>
     </tr>';
     $sql = "
         SELECT e.*, u.username, b.name AS branch_name, s.name AS supplier_name

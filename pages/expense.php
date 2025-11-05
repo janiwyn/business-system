@@ -124,7 +124,7 @@ if (
     $date       = $_POST['date'];
     $spent_by   = mysqli_real_escape_string($conn, $_POST['spent_by']);
     $category   = mysqli_real_escape_string($conn, $_POST['category']);
-    $description = mysqli_real_escape_string($conn, $_POST['description']);
+    // $description = mysqli_real_escape_string($conn, $_POST['description']);
     // For each cart item, insert into expenses and supplier_transactions
     if (is_array($cart) && count($cart) > 0) {
         foreach ($cart as $item) {
@@ -134,8 +134,8 @@ if (
             $amount     = isset($item['amount']) ? floatval($item['amount']) : 0;
             $amount_paid = isset($item['amount_paid']) ? floatval($item['amount_paid']) : 0;
             // Insert into expenses
-            $sql = "INSERT INTO expenses (category, `branch-id`, supplier_id, product, quantity, unit_price, amount, description, date, `spent-by`) 
-                    VALUES ('$category', '$branch_id', '$supplier_id', '$product', $quantity, $unit_price, $amount, '$description', '$date', '$spent_by')";
+            $sql = "INSERT INTO expenses (category, `branch-id`, supplier_id, product, quantity, unit_price, amount, date, `spent-by`) 
+                    VALUES ('$category', '$branch_id', '$supplier_id', '$product', $quantity, $unit_price, $amount, '$date', '$spent_by')";
             $conn->query($sql);
             // Insert into supplier_transactions
             $products_res = $conn->query("SELECT product_name FROM supplier_products WHERE id = $product");
@@ -637,10 +637,10 @@ body.dark-mode .cart-table tfoot td {
         </span>
     </button>
                     </div>
-                    <div class="col-md-4">
+                    <!-- <div class="col-md-4">
                         <label for="description" class="form-label fw-semibold">Description</label>
                         <textarea name="description" id="description" class="form-control" rows="1"></textarea>
-                    </div>
+                    </div> -->
                     <div class="col-md-2">
                         <label for="date" class="form-label fw-semibold">Date *</label>
                         <input type="date" name="date" id="date" class="form-control" required value="<?= date('Y-m-d') ?>">
@@ -850,7 +850,6 @@ body.dark-mode .cart-table tfoot td {
                                 <th>Unit Price</th>
                                 <th>Amount Expected</th>
                                 <th>Spent By</th>
-                                <th>Description</th>
                             </tr>
                         </thead>
                         <tbody>
