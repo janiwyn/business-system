@@ -216,7 +216,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         // Helper to submit sale and print receipt
-        function submitAndMaybePrint(printReceipt) {
+        function submitAndMaybePrint(showPreview) {
             if (paymentMethod === 'Customer File') {
                 const custId = document.getElementById('customer_select').value;
                 if (!custId) { alert('Please select a customer for Customer File payment.'); return; }
@@ -225,7 +225,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 document.getElementById('hidden_payment_method').value = paymentMethod;
                 document.getElementById('hidden_customer_id').value = custId;
                 hiddenSaleForm.submit();
-                if (printReceipt) printCartReceipt(cart, total, paymentMethod, 0);
+                if (showPreview) openReceiptPreview(cart, total, paymentMethod, 0);
                 return;
             }
 
@@ -239,7 +239,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 document.getElementById('hidden_payment_method').value = paymentMethod;
                 document.getElementById('hidden_customer_id').value = '';
                 hiddenSaleForm.submit();
-                if (printReceipt) printCartReceipt(cart, total, paymentMethod, amountPaid);
+                if (showPreview) openReceiptPreview(cart, total, paymentMethod, amountPaid);
             } else {
                 // Underpayment: Show debtor form
                 const debtorForm = document.getElementById('debtorsFormCard');
@@ -257,9 +257,9 @@ document.addEventListener('DOMContentLoaded', function() {
         ) {
             showReceiptConfirmModal(function(action) {
                 if (action === 'ok') {
-                    submitAndMaybePrint(true); // submit and print
+                    submitAndMaybePrint(true); // submit and show preview
                 } else if (action === 'record') {
-                    submitAndMaybePrint(false); // submit only, no print
+                    submitAndMaybePrint(false); // submit only, no preview
                 }
                 // cancel does nothing
             });
@@ -268,6 +268,33 @@ document.addEventListener('DOMContentLoaded', function() {
             submitAndMaybePrint(false);
         }
     };
+
+    // --- NEW: Open Receipt Preview Page ---
+    function openReceiptPreview(cart, total, paymentMethod, amountPaid) {
+        // Send data via POST using a temporary form (to avoid URL length limits)
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = 'receipt_preview.php';
+        form.target = '_blank';
+        form.style.display = 'none';
+
+        const addField = (name, value) => {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = name;
+            input.value = typeof value === 'string' ? value : JSON.stringify(value);
+            form.appendChild(input);
+        };
+
+        addField('cart', cart);
+        addField('total', total);
+        addField('payment_method', paymentMethod);
+        addField('amount_paid', amountPaid);
+
+        document.body.appendChild(form);
+        form.submit();
+        setTimeout(() => document.body.removeChild(form), 1000);
+    }
 
     function updateCartUI() {
         const cartSection = document.getElementById('cartSection');
@@ -562,169 +589,167 @@ document.addEventListener('DOMContentLoaded', function() {
                             detector.detect(scanVideo).then(barcodes => {
                                 if (barcodes.length > 0) {
                                     handleBarcode(barcodes[0].rawValue);
-                            } else {
-                                requestAnimationFrame(scanFrame);
-                            }
-                        }).catch(() => requestAnimationFrame(scanFrame));
-                    };
-                    scanFrame();
-                } else {
-                    // Fallback: try QuaggaJS (must be loaded externally if needed)
-                    scanStatus.textContent = 'BarcodeDetector not supported. Please use Chrome/Edge or hardware scanner.';
+                                } else {
+                                    requestAnimationFrame(scanFrame);
+                                }
+                            }).catch(() => requestAnimationFrame(scanFrame));
+                        };
+                        scanFrame();
+                    } else {
+                        // Fallback: try QuaggaJS (must be loaded externally if needed)
+                        scanStatus.textContent = 'BarcodeDetector not supported. Please use Chrome/Edge or hardware scanner.';
+                    }
+                }).catch(err => {
+                    scanStatus.textContent = 'Camera error: ' + err.message;
+                });
+            } else {
+                scanStatus.textContent = 'Camera not supported.';
+            }
+        }
+
+        function stopCameraScan() {
+            scanActive = false;
+            if (currentStream) {
+                currentStream.getTracks().forEach(track => track.stop());
+                currentStream = null;
+            }
+            scanVideo.srcObject = null;
+        }
+
+        // Hardware barcode input (simulate with hidden input)
+        function ensureHardwareInput() {
+            let hwInput = document.getElementById('hardwareBarcodeInput');
+            if (!hwInput) {
+                hwInput = document.createElement('input');
+                hwInput.type = 'text';
+                hwInput.id = 'hardwareBarcodeInput';
+                hwInput.style.position = 'absolute';
+                hwInput.style.opacity = 0;
+                hwInput.style.pointerEvents = 'none';
+                scanModal.appendChild(hwInput);
+            }
+            hwInput.value = '';
+            hwInput.focus();
+            hwInput.oninput = function() {
+                if (hwInput.value.length >= 6) { // basic length check
+                    handleBarcode(hwInput.value.trim());
+                    hwInput.value = '';
                 }
-            }).catch(err => {
-                scanStatus.textContent = 'Camera error: ' + err.message;
-            });
-        } else {
-            scanStatus.textContent = 'Camera not supported.';
+            };
         }
-    }
 
-    function stopCameraScan() {
-        scanActive = false;
-        if (currentStream) {
-            currentStream.getTracks().forEach(track => track.stop());
-            currentStream = null;
-        }
-        scanVideo.srcObject = null;
-    }
-
-    // Hardware barcode input (simulate with hidden input)
-    function ensureHardwareInput() {
-        let hwInput = document.getElementById('hardwareBarcodeInput');
-        if (!hwInput) {
-            hwInput = document.createElement('input');
-            hwInput.type = 'text';
-            hwInput.id = 'hardwareBarcodeInput';
-            hwInput.style.position = 'absolute';
-            hwInput.style.opacity = 0;
-            hwInput.style.pointerEvents = 'none';
-            scanModal.appendChild(hwInput);
-        }
-        hwInput.value = '';
-        hwInput.focus();
-        hwInput.oninput = function() {
-            if (hwInput.value.length >= 6) { // basic length check
-                handleBarcode(hwInput.value.trim());
-                hwInput.value = '';
+        // Handle barcode: auto-select product in dropdown
+        function handleBarcode(barcode) {
+            scanStatus.textContent = 'Barcode detected: ' + barcode;
+            let foundId = null;
+            const scanned = String(barcode).trim();
+            for (const pid in productData) {
+                const prodBarcode = String(productData[pid].barcode || '').trim();
+                if (prodBarcode && prodBarcode === scanned) {
+                    foundId = pid;
+                    break;
+                }
             }
-        };
-    }
-
-    // Handle barcode: auto-select product in dropdown
-    function handleBarcode(barcode) {
-        scanStatus.textContent = 'Barcode detected: ' + barcode;
-        let foundId = null;
-        const scanned = String(barcode).trim();
-        for (const pid in productData) {
-            const prodBarcode = String(productData[pid].barcode || '').trim();
-            if (prodBarcode && prodBarcode === scanned) {
-                foundId = pid;
-                break;
+            if (foundId) {
+                document.getElementById('product_id').value = foundId;
+                scanStatus.textContent = 'Product selected: ' + productData[foundId].name;
+                playBeep();
+                setTimeout(() => {
+                    scanModal.style.display = 'none';
+                    stopCameraScan();
+                    document.getElementById('quantity').focus();
+                }, 350);
+            } else {
+                scanStatus.textContent = 'No matching product found for barcode: ' + barcode;
+                playFailBeep();
             }
         }
-        if (foundId) {
-            document.getElementById('product_id').value = foundId;
-            scanStatus.textContent = 'Product selected: ' + productData[foundId].name;
-            playBeep();
-            setTimeout(() => {
+
+        // Add beep sound function (success)
+        function playBeep() {
+            try {
+                let ctx = audioCtx;
+                if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
+                if (ctx.state === 'suspended') ctx.resume();
+                const oscillator = ctx.createOscillator();
+                const gain = ctx.createGain();
+                oscillator.type = 'triangle';
+                oscillator.frequency.setValueAtTime(1600, ctx.currentTime);
+                gain.gain.value = 0.08;
+                oscillator.connect(gain).connect(ctx.destination);
+                oscillator.start();
+                setTimeout(() => {
+                    oscillator.stop();
+                    oscillator.disconnect();
+                    gain.disconnect();
+                }, 80);
+            } catch (e) {}
+        }
+
+        // Add fail beep sound function (failure)
+        function playFailBeep() {
+            try {
+                let ctx = audioCtx;
+                if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
+                if (ctx.state === 'suspended') ctx.resume();
+                const oscillator = ctx.createOscillator();
+                const gain = ctx.createGain();
+                oscillator.type = 'sawtooth'; // harsher sound
+                oscillator.frequency.setValueAtTime(400, ctx.currentTime); // lower pitch
+                gain.gain.value = 0.12; // slightly louder
+                oscillator.connect(gain).connect(ctx.destination);
+                oscillator.start();
+                setTimeout(() => {
+                    oscillator.stop();
+                    oscillator.disconnect();
+                    gain.disconnect();
+                }, 180); // longer duration for fail
+            } catch (e) {}
+        }
+
+        // If modal is closed by clicking outside
+        scanModal?.addEventListener('click', function(e) {
+            if (e.target === scanModal) {
                 scanModal.style.display = 'none';
                 stopCameraScan();
-                document.getElementById('quantity').focus();
-            }, 350);
-        } else {
-            scanStatus.textContent = 'No matching product found for barcode: ' + barcode;
-            playFailBeep();
-        }
-    }
-
-    // Add beep sound function (success)
-    function playBeep() {
-        try {
-            let ctx = audioCtx;
-            if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
-            if (ctx.state === 'suspended') ctx.resume();
-            const oscillator = ctx.createOscillator();
-            const gain = ctx.createGain();
-            oscillator.type = 'triangle';
-            oscillator.frequency.setValueAtTime(1600, ctx.currentTime);
-            gain.gain.value = 0.08;
-            oscillator.connect(gain).connect(ctx.destination);
-            oscillator.start();
-            setTimeout(() => {
-                oscillator.stop();
-                oscillator.disconnect();
-                gain.disconnect();
-            }, 80);
-        } catch (e) {}
-    }
-
-    // Add fail beep sound function (failure)
-    function playFailBeep() {
-        try {
-            let ctx = audioCtx;
-            if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
-            if (ctx.state === 'suspended') ctx.resume();
-            const oscillator = ctx.createOscillator();
-            const gain = ctx.createGain();
-            oscillator.type = 'sawtooth'; // harsher sound
-            oscillator.frequency.setValueAtTime(400, ctx.currentTime); // lower pitch
-            gain.gain.value = 0.12; // slightly louder
-            oscillator.connect(gain).connect(ctx.destination);
-            oscillator.start();
-            setTimeout(() => {
-                oscillator.stop();
-                oscillator.disconnect();
-                gain.disconnect();
-            }, 180); // longer duration for fail
-        } catch (e) {}
-    }
-
-    // If modal is closed by clicking outside
-    scanModal?.addEventListener('click', function(e) {
-        if (e.target === scanModal) {
-            scanModal.style.display = 'none';
-            stopCameraScan();
-        }
-    });
+            }
+        });
     })();
 
+    // PHYSICAL HARDWARE BARCODE SCANNER 
+    let hwScannedCode = '';
+    let hwScanTimeout;
 
-// PHYSICAL HARDWARE BARCODE SCANNER 
-let hwScannedCode = '';
-let hwScanTimeout;
+    // Listen to all keypresses on the page
+    document.addEventListener('keypress', (e) => {
+        if (hwScanTimeout) clearTimeout(hwScanTimeout);
+        hwScannedCode += e.key;
 
-// Listen to all keypresses on the page
-document.addEventListener('keypress', (e) => {
-    if (hwScanTimeout) clearTimeout(hwScanTimeout);
-    hwScannedCode += e.key;
+        // Wait 100ms after last keypress to process
+        hwScanTimeout = setTimeout(() => {
+            const code = hwScannedCode.trim();
+            if (code.length >= 3) { // minimal barcode length
+                handleHardwareBarcode(code);
+            }
+            hwScannedCode = '';
+        }, 100);
+    });
 
-    // Wait 100ms after last keypress to process
-    hwScanTimeout = setTimeout(() => {
-        const code = hwScannedCode.trim();
-        if (code.length >= 3) { // minimal barcode length
-            handleHardwareBarcode(code);
+    // Function to handle scanned barcode
+    function handleHardwareBarcode(code) {
+        const productKey = Object.keys(productData).find(
+            key => (productData[key].barcode || '').trim() === code
+        );
+
+        if (productKey) {
+            const select = document.getElementById('product_id'); // dropdown ID
+            select.value = productKey;
+            select.dispatchEvent(new Event('change')); // trigger any UI updates
+            console.log(`Product selected: ${productData[productKey].name}`);
+            // Optional: highlight quantity input
+            document.getElementById('quantity').focus();
+        } else {
+            console.log(`No product found for barcode: ${code}`);
         }
-        hwScannedCode = '';
-    }, 100);
-});
-
-// Function to handle scanned barcode
-function handleHardwareBarcode(code) {
-    const productKey = Object.keys(productData).find(
-        key => (productData[key].barcode || '').trim() === code
-    );
-
-    if (productKey) {
-        const select = document.getElementById('product_id'); // dropdown ID
-        select.value = productKey;
-        select.dispatchEvent(new Event('change')); // trigger any UI updates
-        console.log(`Product selected: ${productData[productKey].name}`);
-        // Optional: highlight quantity input
-        document.getElementById('quantity').focus();
-    } else {
-        console.log(`No product found for barcode: ${code}`);
     }
-}
-
 });
