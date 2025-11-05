@@ -577,14 +577,17 @@ $product_summary_res = $conn->query($product_summary_sql);
                             <tbody>
                                 <?php
                                 if ($product_summary_res && $product_summary_res->num_rows > 0):
+                                    $prev_date = null;
                                     while ($row = $product_summary_res->fetch_assoc()):
+                                        $show_date = ($prev_date !== $row['sale_date']);
                                 ?>
                                     <tr>
-                                        <td><?= htmlspecialchars($row['sale_date']) ?></td>
+                                        <td><?= $show_date ? htmlspecialchars($row['sale_date']) : '' ?></td>
                                         <td><?= htmlspecialchars($row['product_name']) ?></td>
                                         <td><?= htmlspecialchars($row['items_sold']) ?></td>
                                     </tr>
                                 <?php
+                                        $prev_date = $row['sale_date'];
                                     endwhile;
                                 else:
                                 ?>
