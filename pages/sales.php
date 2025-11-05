@@ -99,6 +99,19 @@ $debtors_result = $conn->query("
     ORDER BY created_at DESC
     LIMIT 100
 ");
+
+// --- Product Summary Query ---
+$product_summary_where = $whereClause; // use same filters as sales
+$product_summary_sql = "
+    SELECT DATE(sales.date) AS sale_date, products.name AS product_name, SUM(sales.quantity) AS items_sold
+    FROM sales
+    JOIN products ON sales.`product-id` = products.id
+    $product_summary_where
+    GROUP BY sale_date, product_name
+    ORDER BY sale_date DESC, product_name ASC
+    LIMIT 200
+";
+$product_summary_res = $conn->query($product_summary_sql);
 ?>
 
 <!-- Tabs for Sales and Debtors -->
@@ -117,6 +130,12 @@ $debtors_result = $conn->query("
         <li class="nav-item" role="presentation">
             <button class="nav-link" id="payment-analysis-tab" data-bs-toggle="tab" data-bs-target="#payment-analysis" type="button" role="tab" aria-controls="payment-analysis" aria-selected="false">
                 Payment Method Analysis
+            </button>
+        </li>
+        <!-- NEW: Product Summary Tab -->
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="product-summary-tab" data-bs-toggle="tab" data-bs-target="#product-summary" type="button" role="tab" aria-controls="product-summary" aria-selected="false">
+                Product Summary
             </button>
         </li>
     </ul>
@@ -531,6 +550,46 @@ $debtors_result = $conn->query("
                                 <?php else: ?>
                                     <tr>
                                         <td colspan="9" class="text-center text-muted">No debtors recorded yet.</td>
+                                    </tr>
+                                <?php endif; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- NEW: Product Summary Tab -->
+        <div class="tab-pane fade" id="product-summary" role="tabpanel" aria-labelledby="product-summary-tab">
+            <div class="card mb-4 chart-card">
+                <div class="card-header bg-light text-black fw-bold" style="border-radius:12px 12px 0 0;">
+                    Product Summary (Items Sold Per Day)
+                </div>
+                <div class="card-body table-responsive">
+                    <div class="transactions-table">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Product</th>
+                                    <th>Items Sold</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php
+                                if ($product_summary_res && $product_summary_res->num_rows > 0):
+                                    while ($row = $product_summary_res->fetch_assoc()):
+                                ?>
+                                    <tr>
+                                        <td><?= htmlspecialchars($row['sale_date']) ?></td>
+                                        <td><?= htmlspecialchars($row['product_name']) ?></td>
+                                        <td><?= htmlspecialchars($row['items_sold']) ?></td>
+                                    </tr>
+                                <?php
+                                    endwhile;
+                                else:
+                                ?>
+                                    <tr>
+                                        <td colspan="3" class="text-center text-muted">No product summary data found.</td>
                                     </tr>
                                 <?php endif; ?>
                             </tbody>
