@@ -244,6 +244,10 @@ $product_summary_res = $conn->query($product_summary_sql);
                             <?php endif; ?>
                             <button type="submit" class="btn btn-primary ms-2">Filter</button>
                         </form>
+                        <!-- Generate Report Button (moved here) -->
+                        <button type="button" class="btn btn-success ms-2" onclick="openReportGen('payment_analysis')">
+                            <i class="fa fa-file-pdf"></i> Generate Report
+                        </button>
                     </div>
 
                     <!-- Daily Totals Table -->
@@ -480,27 +484,10 @@ $product_summary_res = $conn->query($product_summary_sql);
             <div class="card mb-4 chart-card">
                 <div class="card-header bg-light text-black fw-bold d-flex flex-wrap justify-content-between align-items-center" style="border-radius:12px 12px 0 0;">
                     <span><i class="fa-solid fa-user-clock"></i> Debtors</span>
-                    <form method="GET" class="d-flex align-items-center flex-wrap gap-2" style="gap:1rem;">
-                        <label class="fw-bold me-2">From:</label>
-                        <input type="date" name="debtor_date_from" class="form-select me-2" value="<?= htmlspecialchars($_GET['debtor_date_from'] ?? '') ?>" style="width:150px;">
-                        <label class="fw-bold me-2">To:</label>
-                        <input type="date" name="debtor_date_to" class="form-select me-2" value="<?= htmlspecialchars($_GET['debtor_date_to'] ?? '') ?>" style="width:150px;">
-                        <?php if ($user_role !== 'staff'): ?>
-                        <label class="fw-bold me-2">Branch:</label>
-                        <select name="debtor_branch" class="form-select me-2" onchange="this.form.submit()" style="width:180px;">
-                            <option value="">-- All Branches --</option>
-                            <?php
-                            $branches = $conn->query("SELECT id, name FROM branch");
-                            $selected_debtor_branch = $_GET['debtor_branch'] ?? '';
-                            while ($b = $branches->fetch_assoc()):
-                                $selected = ($selected_debtor_branch == $b['id']) ? 'selected' : '';
-                                echo "<option value='{$b['id']}' $selected>{$b['name']}</option>";
-                            endwhile;
-                            ?>
-                        </select>
-                        <?php endif; ?>
-                        <button type="submit" class="btn btn-primary ms-2">Filter</button>
-                    </form>
+                    <!-- Generate Report Button -->
+                    <button type="button" class="btn btn-success ms-3" onclick="openReportGen('debtors')">
+                        <i class="fa fa-file-pdf"></i> Generate Report
+                    </button>
                 </div>
                 <div class="card-body table-responsive">
                     <div class="transactions-table">
@@ -563,6 +550,10 @@ $product_summary_res = $conn->query($product_summary_sql);
             <div class="card mb-4 chart-card">
                 <div class="card-header bg-light text-black fw-bold" style="border-radius:12px 12px 0 0;">
                     Product Summary (Items Sold Per Day)
+                    <!-- Generate Report Button -->
+                    <button type="button" class="btn btn-success ms-3" onclick="openReportGen('product_summary')">
+                        <i class="fa fa-file-pdf"></i> Generate Report
+                    </button>
                 </div>
                 <div class="card-body table-responsive">
                     <div class="transactions-table">
@@ -602,6 +593,44 @@ $product_summary_res = $conn->query($product_summary_sql);
             </div>
         </div>
     </div>
+</div>
+
+<!-- Modal for report generation -->
+<div class="modal fade" id="reportGenModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <form class="modal-content" id="reportGenForm">
+      <div class="modal-header">
+        <h5 class="modal-title" id="reportGenModalTitle">Generate Report</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body row g-3">
+        <div class="col-md-6">
+          <label class="form-label">From</label>
+          <input type="date" name="date_from" id="report_date_from" class="form-control" required>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">To</label>
+          <input type="date" name="date_to" id="report_date_to" class="form-control" required>
+        </div>
+        <div class="col-md-12">
+          <label class="form-label">Branch</label>
+          <select name="branch" id="report_branch" class="form-select">
+            <option value="">All Branches</option>
+            <?php
+            $branches = $conn->query("SELECT id, name FROM branch");
+            while ($b = $branches->fetch_assoc()):
+                echo "<option value='{$b['id']}'>" . htmlspecialchars($b['name']) . "</option>";
+            endwhile;
+            ?>
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="submit" class="btn btn-primary">Generate & Print</button>
+      </div>
+    </form>
+  </div>
 </div>
 
 <!-- Pay Debtor Modal -->
@@ -734,6 +763,27 @@ $product_summary_res = $conn->query($product_summary_sql);
     ensureBootstrap(initPayModal);
   }
 })();
+
+function openReportGen(type) {
+    let title = 'Generate Report';
+    if (type === 'payment_analysis') title = 'Generate Payment Analysis Report';
+    else if (type === 'debtors') title = 'Generate Debtors Report';
+    else if (type === 'product_summary') title = 'Generate Product Summary Report';
+    document.getElementById('reportGenModalTitle').textContent = title;
+    document.getElementById('reportGenForm').dataset.reportType = type;
+    new bootstrap.Modal(document.getElementById('reportGenModal')).show();
+}
+
+document.getElementById('reportGenForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const type = this.dataset.reportType || 'sales';
+    const date_from = document.getElementById('report_date_from').value;
+    const date_to = document.getElementById('report_date_to').value;
+    const branch = document.getElementById('report_branch').value;
+    const url = `reports_generator.php?type=${encodeURIComponent(type)}&date_from=${encodeURIComponent(date_from)}&date_to=${encodeURIComponent(date_to)}&branch=${encodeURIComponent(branch)}`;
+    window.open(url, '_blank');
+    bootstrap.Modal.getInstance(document.getElementById('reportGenModal')).hide();
+});
 </script>
 
 <style>

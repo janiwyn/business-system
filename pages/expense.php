@@ -714,6 +714,10 @@ body.dark-mode .cart-table tfoot td {
             <div class="d-block d-md-none mb-4">
                 <div class="card transactions-card">
                     <div class="card-body">
+                        <!-- Generate Report Button -->
+                        <button type="button" class="btn btn-success mb-3" onclick="openReportGen('expenses')">
+                            <i class="fa fa-file-pdf"></i> Generate Report
+                        </button>
                         <!-- Filter tools (smaller on small devices) -->
                         <form method="GET" class="expenses-filter-form d-flex align-items-center flex-wrap gap-2 mb-3">
                             <label class="fw-bold me-2">From:</label>
@@ -803,6 +807,10 @@ body.dark-mode .cart-table tfoot td {
             <div class="card mb-5 d-none d-md-block">
                 <div class="card-header bg-light text-black d-flex flex-wrap justify-content-between align-items-center" style="border-radius:12px 12px 0 0;">
                     <span class="fw-bold title-card"><i class="fa-solid fa-wallet"></i> All Expenses</span>
+                    <!-- Generate Report Button -->
+                    <button type="button" class="btn btn-success" onclick="openReportGen('expenses')">
+                        <i class="fa fa-file-pdf"></i> Generate Report
+                    </button>
                     <form method="GET" class="d-flex align-items-center flex-wrap gap-2" style="gap:1rem;">
                         <label class="fw-bold me-2">From:</label>
                         <input type="date" name="date_from" class="form-select me-2" value="<?= htmlspecialchars($date_from) ?>" style="width:150px;">
@@ -907,6 +915,10 @@ body.dark-mode .cart-table tfoot td {
             <div class="card mb-5">
                 <div class="card-header bg-light text-black" style="border-radius:12px 12px 0 0;">
                     <span class="fw-bold title-card"><i class="fa-solid fa-calculator"></i> Total Expenses</span>
+                    <!-- Generate Report Button -->
+                    <button type="button" class="btn btn-success" onclick="openReportGen('total_expenses')">
+                        <i class="fa fa-file-pdf"></i> Generate Report
+                    </button>
                 </div>
                 <div class="card-body p-0">
                     <div class="transactions-table">
@@ -956,6 +968,41 @@ body.dark-mode .cart-table tfoot td {
             </div>
         </div>
     </div>
+</div>
+
+<!-- Modal for report generation -->
+<div class="modal fade" id="reportGenModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <form class="modal-content" id="reportGenForm">
+      <div class="modal-header">
+        <h5 class="modal-title" id="reportGenModalTitle">Generate Expenses Report</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body row g-3">
+        <div class="col-md-6">
+          <label class="form-label">From</label>
+          <input type="date" name="date_from" id="report_date_from" class="form-control" required>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">To</label>
+          <input type="date" name="date_to" id="report_date_to" class="form-control" required>
+        </div>
+        <div class="col-md-12">
+          <label class="form-label">Branch</label>
+          <select name="branch" id="report_branch" class="form-select">
+            <option value="">All Branches</option>
+            <?php foreach($branches as $b): ?>
+              <option value="<?= $b['id'] ?>"><?= htmlspecialchars($b['name']) ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="submit" class="btn btn-primary">Generate & Print</button>
+      </div>
+    </form>
+  </div>
 </div>
 
 <?php
@@ -1075,5 +1122,26 @@ document.getElementById('addExpenseForm').addEventListener('submit', function(e)
     }
     document.getElementById('cart_json').value = JSON.stringify(cart);
     // Allow form to submit
+});
+
+function openReportGen(type) {
+    // Set modal title
+    document.getElementById('reportGenModalTitle').textContent =
+        type === 'expenses' ? 'Generate Expenses Report' : 'Generate Total Expenses Report';
+    // Store type for submit
+    document.getElementById('reportGenForm').dataset.reportType = type;
+    // Show modal
+    new bootstrap.Modal(document.getElementById('reportGenModal')).show();
+}
+
+document.getElementById('reportGenForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const type = this.dataset.reportType || 'expenses';
+    const date_from = document.getElementById('report_date_from').value;
+    const date_to = document.getElementById('report_date_to').value;
+    const branch = document.getElementById('report_branch').value;
+    const url = `reports_generator.php?type=${encodeURIComponent(type)}&date_from=${encodeURIComponent(date_from)}&date_to=${encodeURIComponent(date_to)}&branch=${encodeURIComponent(branch)}`;
+    window.open(url, '_blank');
+    bootstrap.Modal.getInstance(document.getElementById('reportGenModal')).hide();
 });
 </script>
