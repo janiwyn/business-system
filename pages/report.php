@@ -289,23 +289,23 @@ $sales_main = $conn->query("
 <!-- Modal for report generation -->
 <div class="modal fade" id="reportGenModal" tabindex="-1">
   <div class="modal-dialog modal-dialog-centered">
-    <form class="modal-content" id="reportGenForm">
-      <div class="modal-header">
+    <form class="modal-content report-modal-content" id="reportGenForm">
+      <div class="modal-header report-modal-header">
         <h5 class="modal-title" id="reportGenModalTitle">Generate Sales Report</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
-      <div class="modal-body row g-3">
+      <div class="modal-body row g-3 report-modal-body">
         <div class="col-md-6">
           <label class="form-label">From</label>
-          <input type="date" name="date_from" id="report_date_from" class="form-control" required>
+          <input type="date" name="date_from" id="report_date_from" class="form-control report-modal-input" required>
         </div>
         <div class="col-md-6">
           <label class="form-label">To</label>
-          <input type="date" name="date_to" id="report_date_to" class="form-control" required>
+          <input type="date" name="date_to" id="report_date_to" class="form-control report-modal-input" required>
         </div>
         <div class="col-md-12">
           <label class="form-label">Branch</label>
-          <select name="branch" id="report_branch" class="form-select">
+          <select name="branch" id="report_branch" class="form-select report-modal-input">
             <option value="">All Branches</option>
             <?php
             $branches = $conn->query("SELECT id, name FROM branch");
@@ -316,7 +316,7 @@ $sales_main = $conn->query("
           </select>
         </div>
       </div>
-      <div class="modal-footer">
+      <div class="modal-footer report-modal-footer">
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
         <button type="submit" class="btn btn-primary">Generate & Print</button>
       </div>
@@ -529,6 +529,78 @@ body.dark-mode .preview-report-header {
     background: #fff;
     border-radius: 8px;
     box-shadow: 0 2px 8px rgba(44,62,80,0.12);
+}
+
+/* Modal form styling for both light and dark mode */
+.report-modal-content {
+    border-radius: 14px;
+    background: #fff;
+    color: #222;
+    box-shadow: 0 4px 24px #0002;
+}
+.report-modal-header {
+    background: var(--primary-color, #1abc9c);
+    color: #fff;
+    border-radius: 14px 14px 0 0;
+    border-bottom: none;
+}
+.report-modal-header .modal-title {
+    color: #fff !important;
+    font-weight: bold;
+}
+.report-modal-body label {
+    color: var(--primary-color, #1abc9c);
+    font-weight: 600;
+}
+.report-modal-input {
+    border-radius: 8px;
+    background: #fff;
+    color: #222;
+    border: 1px solid #dee2e6;
+    transition: background 0.2s, color 0.2s;
+}
+.report-modal-input:focus {
+    background: #f8f9fa;
+    color: #222;
+    border-color: var(--primary-color, #1abc9c);
+}
+.report-modal-footer {
+    border-top: none;
+    background: #f8f9fa;
+    border-radius: 0 0 14px 14px;
+}
+
+/* Dark mode overrides */
+body.dark-mode .report-modal-content {
+    background: #23243a !important;
+    color: #fff !important;
+    box-shadow: 0 4px 24px #0006;
+}
+body.dark-mode .report-modal-header {
+    background: #1abc9c !important;
+    color: #fff !important;
+}
+body.dark-mode .report-modal-header .modal-title {
+    color: #fff !important;
+}
+body.dark-mode .report-modal-body label {
+    color: #ffd200 !important;
+}
+body.dark-mode .report-modal-input {
+    background: #23243a !important;
+    color: #fff !important;
+    border: 1px solid #444 !important;
+}
+body.dark-mode .report-modal-input:focus {
+    background: #23243a !important;
+    color: #fff !important;
+    border-color: #ffd200 !important;
+}
+body.dark-mode .report-modal-footer {
+    background: #23243a !important;
+    border-top: none;
+    color: #fff !important;
+    border-radius: 0 0 14px 14px;
 }
 </style>
 
