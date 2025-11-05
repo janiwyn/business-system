@@ -244,8 +244,11 @@ $product_summary_res = $conn->query($product_summary_sql);
                             <?php endif; ?>
                             <button type="submit" class="btn btn-primary ms-2">Filter</button>
                         </form>
-                        <!-- Generate Report Button (moved here) -->
-                        <button type="button" class="btn btn-success ms-2" onclick="openReportGen('payment_analysis')">
+                        <!-- Report Button: icon for small, full for md+ -->
+                        <button type="button" class="btn btn-success ms-2 d-inline-flex d-md-none" title="Generate Report" onclick="openReportGen('payment_analysis')">
+                            <i class="fa fa-file-pdf"></i>
+                        </button>
+                        <button type="button" class="btn btn-success ms-2 d-none d-md-inline-flex" onclick="openReportGen('payment_analysis')">
                             <i class="fa fa-file-pdf"></i> Generate Report
                         </button>
                     </div>
@@ -485,7 +488,10 @@ $product_summary_res = $conn->query($product_summary_sql);
                 <div class="card-header bg-light text-black fw-bold d-flex flex-wrap justify-content-between align-items-center" style="border-radius:12px 12px 0 0;">
                     <span><i class="fa-solid fa-user-clock"></i> Debtors</span>
                     <!-- Generate Report Button -->
-                    <button type="button" class="btn btn-success ms-3" onclick="openReportGen('debtors')">
+                    <button type="button" class="btn btn-success ms-3 d-inline-flex d-md-none" title="Generate Report" onclick="openReportGen('debtors')">
+                        <i class="fa fa-file-pdf"></i>
+                    </button>
+                    <button type="button" class="btn btn-success ms-3 d-none d-md-inline-flex" onclick="openReportGen('debtors')">
                         <i class="fa fa-file-pdf"></i> Generate Report
                     </button>
                 </div>
@@ -551,7 +557,10 @@ $product_summary_res = $conn->query($product_summary_sql);
                 <div class="card-header bg-light text-black fw-bold" style="border-radius:12px 12px 0 0;">
                     Product Summary (Items Sold Per Day)
                     <!-- Generate Report Button -->
-                    <button type="button" class="btn btn-success ms-3" onclick="openReportGen('product_summary')">
+                    <button type="button" class="btn btn-success ms-3 d-inline-flex d-md-none" title="Generate Report" onclick="openReportGen('product_summary')">
+                        <i class="fa fa-file-pdf"></i>
+                    </button>
+                    <button type="button" class="btn btn-success ms-3 d-none d-md-inline-flex" onclick="openReportGen('product_summary')">
                         <i class="fa fa-file-pdf"></i> Generate Report
                     </button>
                 </div>

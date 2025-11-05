@@ -219,7 +219,10 @@ $sales_main = $conn->query("
 
     <!-- Generate Report Button -->
     <div class="mb-3 text-end">
-        <button type="button" class="btn btn-success" onclick="openReportGen('sales')">
+        <button type="button" class="btn btn-success d-inline-flex d-md-none" title="Generate Report" onclick="openReportGen('sales')">
+            <i class="fa fa-file-pdf"></i>
+        </button>
+        <button type="button" class="btn btn-success d-none d-md-inline-flex" onclick="openReportGen('sales')">
             <i class="fa fa-file-pdf"></i> Generate Report
         </button>
     </div>
@@ -345,10 +348,19 @@ document.getElementById('reportGenForm').addEventListener('submit', function(e) 
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-document.addEventListener('DOMContentLoaded', function() {
+function getChartColors() {
+    const isDark = document.body.classList.contains('dark-mode');
+    return {
+        textColor: isDark ? '#fff' : '#222',
+        gridColor: isDark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)'
+    };
+}
+function renderCharts() {
+    const { textColor, gridColor } = getChartColors();
+
     // Sales Chart
     var ctxSales = document.getElementById('salesChart').getContext('2d');
-    new Chart(ctxSales, {
+    window.salesChartInstance = new Chart(ctxSales, {
         type: 'bar',
         data: {
             labels: <?= json_encode($months) ?>,
@@ -360,13 +372,17 @@ document.addEventListener('DOMContentLoaded', function() {
         },
         options: {
             responsive: true,
-            plugins: { legend: { display: false } }
+            plugins: { legend: { display: false, labels: { color: textColor } } },
+            scales: {
+                x: { ticks: { color: textColor }, grid: { color: gridColor } },
+                y: { ticks: { color: textColor }, grid: { color: gridColor } }
+            }
         }
     });
 
     // Profit Chart
     var ctxProfit = document.getElementById('profitChart').getContext('2d');
-    new Chart(ctxProfit, {
+    window.profitChartInstance = new Chart(ctxProfit, {
         type: 'bar',
         data: {
             labels: <?= json_encode($expenseMonths) ?>,
@@ -378,13 +394,17 @@ document.addEventListener('DOMContentLoaded', function() {
         },
         options: {
             responsive: true,
-            plugins: { legend: { display: false } }
+            plugins: { legend: { display: false, labels: { color: textColor } } },
+            scales: {
+                x: { ticks: { color: textColor }, grid: { color: gridColor } },
+                y: { ticks: { color: textColor }, grid: { color: gridColor } }
+            }
         }
     });
 
     // Mobile charts
     var ctxSalesMobile = document.getElementById('salesChartMobile').getContext('2d');
-    new Chart(ctxSalesMobile, {
+    window.salesChartMobileInstance = new Chart(ctxSalesMobile, {
         type: 'bar',
         data: {
             labels: <?= json_encode($months) ?>,
@@ -396,12 +416,16 @@ document.addEventListener('DOMContentLoaded', function() {
         },
         options: {
             responsive: true,
-            plugins: { legend: { display: false } }
+            plugins: { legend: { display: false, labels: { color: textColor } } },
+            scales: {
+                x: { ticks: { color: textColor }, grid: { color: gridColor } },
+                y: { ticks: { color: textColor }, grid: { color: gridColor } }
+            }
         }
     });
 
     var ctxProfitMobile = document.getElementById('profitChartMobile').getContext('2d');
-    new Chart(ctxProfitMobile, {
+    window.profitChartMobileInstance = new Chart(ctxProfitMobile, {
         type: 'bar',
         data: {
             labels: <?= json_encode($expenseMonths) ?>,
@@ -413,10 +437,28 @@ document.addEventListener('DOMContentLoaded', function() {
         },
         options: {
             responsive: true,
-            plugins: { legend: { display: false } }
+            plugins: { legend: { display: false, labels: { color: textColor } } },
+            scales: {
+                x: { ticks: { color: textColor }, grid: { color: gridColor } },
+                y: { ticks: { color: textColor }, grid: { color: gridColor } }
+            }
         }
     });
+}
+
+// Initial render
+document.addEventListener('DOMContentLoaded', renderCharts);
+
+// Re-render charts on theme change
+const themeObserver = new MutationObserver(function() {
+    // Destroy old charts
+    if (window.salesChartInstance) window.salesChartInstance.destroy();
+    if (window.profitChartInstance) window.profitChartInstance.destroy();
+    if (window.salesChartMobileInstance) window.salesChartMobileInstance.destroy();
+    if (window.profitChartMobileInstance) window.profitChartMobileInstance.destroy();
+    renderCharts();
 });
+themeObserver.observe(document.body, { attributes: true, attributeFilter: ['class'] });
 </script>
 
 <style>

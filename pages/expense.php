@@ -714,8 +714,11 @@ body.dark-mode .cart-table tfoot td {
             <div class="d-block d-md-none mb-4">
                 <div class="card transactions-card">
                     <div class="card-body">
-                        <!-- Generate Report Button -->
-                        <button type="button" class="btn btn-success mb-3" onclick="openReportGen('expenses')">
+                        <!-- Report Button: icon for small, full for md+ -->
+                        <button type="button" class="btn btn-success mb-3 d-inline-flex d-md-none" title="Generate Report" onclick="openReportGen('expenses')">
+                            <i class="fa fa-file-pdf"></i>
+                        </button>
+                        <button type="button" class="btn btn-success mb-3 d-none d-md-inline-flex" onclick="openReportGen('expenses')">
                             <i class="fa fa-file-pdf"></i> Generate Report
                         </button>
                         <!-- Filter tools (smaller on small devices) -->
@@ -807,8 +810,10 @@ body.dark-mode .cart-table tfoot td {
             <div class="card mb-5 d-none d-md-block">
                 <div class="card-header bg-light text-black d-flex flex-wrap justify-content-between align-items-center" style="border-radius:12px 12px 0 0;">
                     <span class="fw-bold title-card"><i class="fa-solid fa-wallet"></i> All Expenses</span>
-                    <!-- Generate Report Button -->
-                    <button type="button" class="btn btn-success" onclick="openReportGen('expenses')">
+                    <button type="button" class="btn btn-success d-inline-flex d-md-none" title="Generate Report" onclick="openReportGen('expenses')">
+                        <i class="fa fa-file-pdf"></i>
+                    </button>
+                    <button type="button" class="btn btn-success d-none d-md-inline-flex" onclick="openReportGen('expenses')">
                         <i class="fa fa-file-pdf"></i> Generate Report
                     </button>
                     <form method="GET" class="d-flex align-items-center flex-wrap gap-2" style="gap:1rem;">
@@ -915,8 +920,10 @@ body.dark-mode .cart-table tfoot td {
             <div class="card mb-5">
                 <div class="card-header bg-light text-black" style="border-radius:12px 12px 0 0;">
                     <span class="fw-bold title-card"><i class="fa-solid fa-calculator"></i> Total Expenses</span>
-                    <!-- Generate Report Button -->
-                    <button type="button" class="btn btn-success" onclick="openReportGen('total_expenses')">
+                    <button type="button" class="btn btn-success d-inline-flex d-md-none" title="Generate Report" onclick="openReportGen('total_expenses')">
+                        <i class="fa fa-file-pdf"></i>
+                    </button>
+                    <button type="button" class="btn btn-success d-none d-md-inline-flex" onclick="openReportGen('total_expenses')">
                         <i class="fa fa-file-pdf"></i> Generate Report
                     </button>
                 </div>
