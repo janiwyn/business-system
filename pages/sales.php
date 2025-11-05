@@ -112,6 +112,38 @@ $product_summary_sql = "
     LIMIT 200
 ";
 $product_summary_res = $conn->query($product_summary_sql);
+
+// --- Product Summary Filters ---
+$ps_date_from = $_GET['ps_date_from'] ?? '';
+$ps_date_to = $_GET['ps_date_to'] ?? '';
+$ps_branch = $_GET['ps_branch'] ?? '';
+
+// --- Product Summary Query ---
+$product_summary_where = [];
+if ($user_role === 'staff') {
+    $product_summary_where[] = "sales.`branch-id` = $user_branch";
+} elseif ($ps_branch) {
+    $product_summary_where[] = "sales.`branch-id` = " . intval($ps_branch);
+}
+if ($ps_date_from) {
+    $product_summary_where[] = "DATE(sales.date) >= '" . $conn->real_escape_string($ps_date_from) . "'";
+}
+if ($ps_date_to) {
+    $product_summary_where[] = "DATE(sales.date) <= '" . $conn->real_escape_string($ps_date_to) . "'";
+}
+$product_summary_whereClause = count($product_summary_where) ? "WHERE " . implode(' AND ', $product_summary_where) : "";
+
+$product_summary_sql = "
+    SELECT DATE(sales.date) AS sale_date, branch.name AS branch_name, products.name AS product_name, SUM(sales.quantity) AS items_sold
+    FROM sales
+    JOIN products ON sales.`product-id` = products.id
+    JOIN branch ON sales.`branch-id` = branch.id
+    $product_summary_whereClause
+    GROUP BY sale_date, branch_name, product_name
+    ORDER BY sale_date DESC, branch_name ASC, product_name ASC
+    LIMIT 200
+";
+$product_summary_res = $conn->query($product_summary_sql);
 ?>
 
 <!-- Tabs for Sales and Debtors -->
@@ -565,11 +597,30 @@ $product_summary_res = $conn->query($product_summary_sql);
                     </button>
                 </div>
                 <div class="card-body table-responsive">
+                    <!-- Product Summary Filters -->
+                    <form method="GET" class="d-flex align-items-center flex-wrap gap-2 mb-3 product-summary-filter" style="gap:1rem;">
+                        <input type="hidden" name="tab" value="product-summary">
+                        <label class="fw-bold me-2">From:</label>
+                        <input type="date" name="ps_date_from" class="form-select me-2" value="<?= htmlspecialchars($ps_date_from) ?>" style="width:150px;">
+                        <label class="fw-bold me-2">To:</label>
+                        <input type="date" name="ps_date_to" class="form-select me-2" value="<?= htmlspecialchars($ps_date_to) ?>" style="width:150px;">
+                        <?php if ($user_role !== 'staff'): ?>
+                        <label class="fw-bold me-2">Branch:</label>
+                        <select name="ps_branch" class="form-select me-2" style="width:180px;">
+                            <option value="">-- All Branches --</option>
+                            <?php $branches_ps = $conn->query("SELECT id, name FROM branch"); while ($b = $branches_ps->fetch_assoc()): $sel = ($ps_branch == $b['id']) ? 'selected' : ''; ?>
+                                <option value="<?= $b['id'] ?>" <?= $sel ?>><?= htmlspecialchars($b['name']) ?></option>
+                            <?php endwhile; ?>
+                        </select>
+                        <?php endif; ?>
+                        <button type="submit" class="btn btn-primary ms-2">Filter</button>
+                    </form>
                     <div class="transactions-table">
                         <table>
                             <thead>
                                 <tr>
                                     <th>Date</th>
+                                    <th>Branch</th>
                                     <th>Product</th>
                                     <th>Items Sold</th>
                                 </tr>
@@ -578,21 +629,25 @@ $product_summary_res = $conn->query($product_summary_sql);
                                 <?php
                                 if ($product_summary_res && $product_summary_res->num_rows > 0):
                                     $prev_date = null;
+                                    $prev_branch = null;
                                     while ($row = $product_summary_res->fetch_assoc()):
                                         $show_date = ($prev_date !== $row['sale_date']);
+                                        $show_branch = ($prev_branch !== $row['branch_name']) || $show_date;
                                 ?>
                                     <tr>
                                         <td><?= $show_date ? htmlspecialchars($row['sale_date']) : '' ?></td>
+                                        <td><?= $show_branch ? htmlspecialchars($row['branch_name']) : '' ?></td>
                                         <td><?= htmlspecialchars($row['product_name']) ?></td>
                                         <td><?= htmlspecialchars($row['items_sold']) ?></td>
                                     </tr>
                                 <?php
                                         $prev_date = $row['sale_date'];
+                                        $prev_branch = $row['branch_name'];
                                     endwhile;
                                 else:
                                 ?>
                                     <tr>
-                                        <td colspan="3" class="text-center text-muted">No product summary data found.</td>
+                                        <td colspan="4" class="text-center text-muted">No product summary data found.</td>
                                     </tr>
                                 <?php endif; ?>
                             </tbody>
@@ -885,7 +940,7 @@ body.dark-mode .card .card-header.bg-light input[type="date"]::-ms-input-placeho
     margin-bottom: 0;
     text-align: left;
 }
-/* ...existing code... */
+
 /* Payment Analysis filter bar styles */
 .pa-filter-bar {
     background-color: #ffffff;
@@ -906,6 +961,41 @@ body.dark-mode .pa-filter-bar input[type="date"] {
     background-color: #23243a !important;
     color: #ffffff !important;
     border: 1px solid #444 !important;
+}
+
+/* Product Summary filter form label/input colors */
+.product-summary-filter label {
+    color: #222 !important;
+    font-weight: 600;
+}
+.product-summary-filter .form-select,
+.product-summary-filter input[type="date"] {
+    color: #222 !important;
+    background-color: #fff !important;
+    border: 1px solid #dee2e6 !important;
+}
+.product-summary-filter .form-select:focus,
+.product-summary-filter input[type="date"]:focus {
+    color: #222 !important;
+    background-color: #fff !important;
+    border-color: var(--primary-color, #1abc9c);
+}
+
+/* Dark mode overrides for Product Summary filter */
+body.dark-mode .product-summary-filter label {
+    color: #ffd200 !important;
+}
+body.dark-mode .product-summary-filter .form-select,
+body.dark-mode .product-summary-filter input[type="date"] {
+    background-color: #23243a !important;
+    color: #fff !important;
+    border: 1px solid #444 !important;
+}
+body.dark-mode .product-summary-filter .form-select:focus,
+body.dark-mode .product-summary-filter input[type="date"]:focus {
+    background-color: #23243a !important;
+    color: #fff !important;
+    border-color: #ffd200 !important;
 }
 </style>
 
