@@ -118,7 +118,6 @@ if ($_SESSION['role'] === 'super') {
   <div class="login-card">
     <div class="login-header">
       <img src="../uploads/2.png" alt="Logo" width="100" height="100">
-      <h3>Bluecrest POS</h3>
       <p>Secure Login Portal</p>
     </div>
 
