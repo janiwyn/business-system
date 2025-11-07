@@ -787,8 +787,8 @@ body.dark-mode .cart-table tfoot td {
                                                         ?>
                                                     </td>
                                                     <td><?= isset($row['quantity']) ? htmlspecialchars($row['quantity']) : '' ?></td>
-                                                    <td><?= isset($row['unit_price']) ? number_format($row['unit_price'], 2) : '0.00' ?></td>
-                                                    <td><?= isset($row['amount']) ? number_format($row['amount'], 2) : '0.00' ?></td>
+                                                    <td>UGX<?= isset($row['unit_price']) ? number_format($row['unit_price'], 2) : '0.00' ?></td>
+                                                    <td>UGX<?= isset($row['amount']) ? number_format($row['amount'], 2) : '0.00' ?></td>
                                                     <td><?= isset($row['username']) ? htmlspecialchars($row['username']) : '' ?></td>
                                                     <td><?= isset($row['description']) ? htmlspecialchars($row['description']) : '' ?></td>
                                                 </tr>
@@ -881,8 +881,8 @@ body.dark-mode .cart-table tfoot td {
                                             ?>
                                         </td>
                                         <td><?= isset($row['quantity']) ? htmlspecialchars($row['quantity']) : '' ?></td>
-                                        <td><?= isset($row['unit_price']) ? number_format($row['unit_price'], 2) : '0.00' ?></td>
-                                        <td><?= isset($row['amount']) ? number_format($row['amount'], 2) : '0.00' ?></td>
+                                        <td>UGX<?= isset($row['unit_price']) ? number_format($row['unit_price'], 2) : '0.00' ?></td>
+                                        <td>UGX<?= isset($row['amount']) ? number_format($row['amount'], 2) : '0.00' ?></td>
                                         <td><?= isset($row['username']) ? htmlspecialchars($row['username']) : '' ?></td>
                                         <td><?= isset($row['description']) ? htmlspecialchars($row['description']) : '' ?></td>
                                     </tr>

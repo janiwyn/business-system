@@ -483,7 +483,7 @@ $product_summary_res = $conn->query($product_summary_sql);
                                         <?php if ($user_role !== 'staff' && empty($selected_branch)) echo "<td>" . htmlspecialchars($row['branch_name']) . "</td>"; ?>
                                         <td><span class="badge bg-primary"><?= htmlspecialchars($row['product-name']) ?></span></td>
                                         <td><?= $row['quantity'] ?></td>
-                                        <td><span class="fw-bold text-success">$<?= number_format($row['amount'], 2) ?></span></td>
+                                        <td><span class="fw-bold text-success">UGX<?= number_format($row['amount'], 2) ?></span></td>
                                         <td><?= htmlspecialchars($row['payment_method']) ?></td>
                                         <td><small class="text-muted"><?= $row['date'] ?></small></td>
                                         <td><?= htmlspecialchars($row['sold-by']) ?></td>

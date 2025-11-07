@@ -398,7 +398,7 @@ $username = $_SESSION['username'];
                   <td><?= $i++ ?></td>
                   <td><?= $row['product_name'] ?></td>
                   <td><?= $row['quantity'] ?></td>
-                  <td>$<?= number_format($row['amount'], 2) ?></td>
+                  <td>UGX<?= number_format($row['amount'], 2) ?></td>
                   <td><?= date('d-M-Y', strtotime($row['date'])) ?></td>
                   <td><?= $row['sold-by'] ?></td>
                 </tr>
