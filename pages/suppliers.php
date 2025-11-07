@@ -39,26 +39,84 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         echo json_encode(['success'=>true, 'rows'=>$rows]);
         exit;
     }
+
+    /***** UPDATED: pay_supplier_balance handler (supports partial payments & history rows) *****/
     if ($_POST['action'] === 'pay_supplier_balance') {
         header('Content-Type: application/json');
         $trans_id = intval($_POST['trans_id'] ?? 0);
         $amount_paid = floatval($_POST['amount_paid'] ?? 0);
+
+        // Validate
+        if ($trans_id <= 0 || $amount_paid <= 0) {
+            echo json_encode(['success' => false, 'msg' => 'Invalid transaction or amount.']);
+            exit;
+        }
+
         // Fetch original transaction
         $stmt = $conn->prepare("SELECT * FROM supplier_transactions WHERE id = ?");
         $stmt->bind_param("i", $trans_id);
         $stmt->execute();
         $orig = $stmt->get_result()->fetch_assoc();
         $stmt->close();
-        if (!$orig) { echo json_encode(['success'=>false]); exit; }
-        // Duplicate transaction with updated payment info
+
+        if (!$orig) {
+            echo json_encode(['success' => false, 'msg' => 'Original transaction not found.']);
+            exit;
+        }
+
+        // Calculate new remaining balance (never negative)
+        $orig_balance = floatval($orig['balance'] ?? 0.0);
+        $new_balance = $orig_balance - $amount_paid;
+        if ($new_balance < 0) $new_balance = 0.0;
         $now = date('Y-m-d H:i:s');
-        $stmt = $conn->prepare("INSERT INTO supplier_transactions (supplier_id, date_time, products_supplied, quantity, unit_price, amount, payment_method, amount_paid, balance) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0)");
-        $stmt->bind_param("isssddsd", $orig['supplier_id'], $now, $orig['products_supplied'], $orig['quantity'], $orig['unit_price'], $orig['amount'], $orig['payment_method'], $amount_paid);
-        $ok = $stmt->execute();
-        $stmt->close();
-        echo json_encode(['success'=>$ok]);
-        exit;
+
+        // Use DB transaction for consistency
+        $conn->begin_transaction();
+        try {
+            // 1) Update original transaction's balance to remaining balance
+            $u = $conn->prepare("UPDATE supplier_transactions SET balance = ? WHERE id = ?");
+            $u->bind_param("di", $new_balance, $trans_id);
+            $u_ok = $u->execute();
+            $u->close();
+
+            // 2) Insert a new payment-history row representing this payment
+            // Insert all relevant fields and store balance remaining after this payment
+            $ins = $conn->prepare("INSERT INTO supplier_transactions (supplier_id, date_time, products_supplied, quantity, unit_price, amount, payment_method, amount_paid, balance) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
+            $supplier_id = intval($orig['supplier_id']);
+            $products_supplied = $orig['products_supplied'];
+            $quantity = $orig['quantity'];
+            $unit_price = floatval($orig['unit_price']);
+            $amount = floatval($orig['amount']);
+            $payment_method = $orig['payment_method'];
+            // types: i s s s d d s d d  => "isssddsdd"
+            $ins->bind_param("isssddsdd", $supplier_id, $now, $products_supplied, $quantity, $unit_price, $amount, $payment_method, $amount_paid, $new_balance);
+            $i_ok = $ins->execute();
+            $insert_id = $ins->insert_id;
+            $ins->close();
+
+            if ($u_ok && $i_ok) {
+                $conn->commit();
+                echo json_encode([
+                    'success' => true,
+                    'new_balance' => round($new_balance, 2),
+                    'cleared' => ($new_balance == 0.0),
+                    'payment_id' => $insert_id,
+                    'trans_id' => $trans_id
+                ]);
+                exit;
+            } else {
+                $conn->rollback();
+                echo json_encode(['success' => false, 'msg' => 'Database error while recording payment.']);
+                exit;
+            }
+        } catch (Exception $e) {
+            $conn->rollback();
+            echo json_encode(['success' => false, 'msg' => 'Exception: ' . $e->getMessage()]);
+            exit;
+        }
     }
+    /***** END UPDATED handler *****/
+
     // --- AJAX HANDLERS for supplier products ---
     if ($_POST['action'] === 'fetch_supplier_products') {
         header('Content-Type: application/json');
@@ -154,6 +212,7 @@ require_role(["admin", "manager", "staff", "super"]);
 include '../pages/sidebar.php';
 include '../includes/header.php';
 ?>
+
 <link rel="stylesheet" href="assets/css/accounting.css">
 
 <!-- Improved Styling for Suppliers Page -->
@@ -965,100 +1024,168 @@ document.getElementById('editSupplierForm').addEventListener('submit', function(
     });
 });
 
-// Supplier Transactions Accordion
-document.querySelectorAll('#suppliersAccordion .accordion-button').forEach(btn=>{
-  btn.addEventListener('click', async (e) => {
-    const target = e.target.closest('.accordion-button');
-    const collapseId = target.getAttribute('data-bs-target').substring(1);
-    const supplierId = collapseId.replace('collapseS','');
-    const container = document.getElementById('transContainerS'+supplierId);
-    if (container.dataset.loaded) return;
-    container.innerHTML = '<div class="text-muted">Loading...</div>';
-    const form = new FormData();
-    form.append('action','fetch_supplier_transactions');
-    form.append('supplier_id', supplierId);
-    let data;
-    try {
-      const res = await fetch('suppliers.php', {method:'POST', body: form});
-      data = await res.json();
-    } catch (err) {
-      data = {success: false, rows: []};
-    }
-    // Always show table headers
-    let html = '<div class="transactions-table"><table><thead><tr><th>Date & Time</th><th>Branch</th><th>Products</th><th class="text-center">Quantity</th><th class="text-end">Unit Price</th><th class="text-end">Amount</th><th>Payment Method</th><th class="text-end">Amount Paid</th><th class="text-end">Balance</th><th>Actions</th></tr></thead><tbody>';
-    if (!data.success || !Array.isArray(data.rows) || !data.rows.length) {
-      html += '<tr><td colspan="10" class="text-center text-muted">No transactions found.</td></tr>';
-      html += '</tbody></table></div>';
-      container.innerHTML = html;
-      container.dataset.loaded = '1';
-      return;
-    }
+/* =========================
+   Supplier Transactions
+   ========================= */
 
-    data.rows.forEach(r=>{
-      const paid = parseFloat(r.amount_paid || 0).toFixed(2);
-      const balance = parseFloat(r.balance || 0).toFixed(2);
-      const unitPrice = parseFloat(r.unit_price || 0).toFixed(2);
-      const amount = parseFloat(r.amount || 0).toFixed(2);
-      const products = escapeHtml(r.products_supplied || '');
-      const qty = escapeHtml(r.quantity || '');
-      const method = escapeHtml(r.payment_method || '');
-      const date = escapeHtml(r.date_time || '');
-      const branch = escapeHtml(r.branch || '');
-      let actions = '';
-      if (parseFloat(balance) > 0) {
-        actions = `<button class="btn btn-success btn-sm pay-supplier-btn" data-id="${r.id}" data-balance="${balance}">Pay</button>`;
-      } else {
-        actions = `<span class="badge bg-success">Cleared</span>`;
-      }
-      html += `<tr>
-        <td>${date}</td>
-        <td>${branch}</td>
-        <td>${products}</td>
-        <td class="text-center">${qty}</td>
-        <td class="text-end">UGX ${unitPrice}</td>
-        <td class="text-end">UGX ${amount}</td>
-        <td>${method}</td>
-        <td class="text-end">UGX ${paid}</td>
-        <td class="text-end">UGX ${balance}</td>
-        <td>${actions}</td>
-      </tr>`;
-    });
+/* Helper: fetch transactions for a supplier */
+async function fetchTransactionsForSupplier(supplierId) {
+  const form = new FormData();
+  form.append('action','fetch_supplier_transactions');
+  form.append('supplier_id', supplierId);
+  try {
+    const res = await fetch('suppliers.php', { method: 'POST', body: form });
+    return await res.json();
+  } catch (err) {
+    return { success: false, rows: [] };
+  }
+}
+
+/* Render transactions into a container element */
+function renderTransactionsInto(container, data) {
+  let html = '<div class="transactions-table"><table><thead><tr><th>Date & Time</th><th>Branch</th><th>Products</th><th class="text-center">Quantity</th><th class="text-end">Unit Price</th><th class="text-end">Amount</th><th>Payment Method</th><th class="text-end">Amount Paid</th><th class="text-end">Balance</th><th>Actions</th></tr></thead><tbody>';
+
+  if (!data.success || !Array.isArray(data.rows) || !data.rows.length) {
+    html += '<tr><td colspan="10" class="text-center text-muted">No transactions found.</td></tr>';
     html += '</tbody></table></div>';
     container.innerHTML = html;
-    container.dataset.loaded = '1';
+    return;
+  }
 
-    // Attach pay button events
-    container.querySelectorAll('.pay-supplier-btn').forEach(btn=>{
-      btn.addEventListener('click', () => {
-        document.getElementById('payTransId').value = btn.getAttribute('data-id');
-        document.getElementById('payAmount').value = btn.getAttribute('data-balance');
-        document.getElementById('payMsg').innerHTML = '';
-        new bootstrap.Modal(document.getElementById('paySupplierModal')).show();
-      });
+  data.rows.forEach(r=>{
+    const paid = parseFloat(r.amount_paid || 0).toFixed(2);
+    const balance = parseFloat(r.balance || 0).toFixed(2);
+    const unitPrice = parseFloat(r.unit_price || 0).toFixed(2);
+    const originalAmount = parseFloat(r.original_amount || r.amount || 0).toFixed(2);
+    const amount = originalAmount; // always show original
+    const products = escapeHtml(r.products_supplied || '');
+    const qty = escapeHtml(r.quantity || '');
+    const method = escapeHtml(r.payment_method || '');
+    const date = escapeHtml(r.date_time || '');
+    const branch = escapeHtml(r.branch || '');
+    let actions = '';
+
+    if (parseFloat(paid) > 0 && parseFloat(balance) === 0) {
+      actions = `<span class="badge bg-success">Cleared</span>`;
+    } else if (parseFloat(paid) > 0 && parseFloat(balance) > 0) {
+      actions = `<span class="badge bg-warning text-dark">Partial</span>`;
+    } else if (parseFloat(balance) > 0) {
+      const supplierId = r.supplier_id || '';
+      actions = `<button class="btn btn-success btn-sm pay-supplier-btn" data-id="${r.id}" data-balance="${parseFloat(balance)}" data-supplier="${supplierId}" title="Pay">Pay</button>`;
+    } else {
+      actions = `<span class="badge bg-success">Cleared</span>`;
+    }
+
+    html += `<tr>
+      <td>${date}</td>
+      <td>${branch}</td>
+      <td>${products}</td>
+      <td class="text-center">${qty}</td>
+      <td class="text-end">UGX ${unitPrice}</td>
+      <td class="text-end">UGX ${amount}</td>
+      <td>${method}</td>
+      <td class="text-end">UGX ${paid}</td>
+      <td class="text-end">UGX ${balance}</td>
+      <td>${actions}</td>
+    </tr>`;
+  });
+
+  html += '</tbody></table></div>';
+  container.innerHTML = html;
+
+  // Reattach pay button events
+  container.querySelectorAll('.pay-supplier-btn').forEach(btn=>{
+    btn.addEventListener('click', () => {
+      const modal = document.getElementById('paySupplierModal');
+      if (modal && !document.getElementById('paySupplierId')) {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.id = 'paySupplierId';
+        modal.appendChild(input);
+      }
+      document.getElementById('payTransId').value = btn.getAttribute('data-id');
+      document.getElementById('payAmount').value = btn.getAttribute('data-balance');
+      if (document.getElementById('paySupplierId')) {
+        document.getElementById('paySupplierId').value = btn.getAttribute('data-supplier') || '';
+      }
+      document.getElementById('payMsg').innerHTML = '';
+      new bootstrap.Modal(document.getElementById('paySupplierModal')).show();
     });
   });
-});
+}
 
-// Pay Supplier Confirm
+
+/* Setup accordion loader for a given selector prefix (desktop or mobile) */
+function setupAccordionLoader(selectorPrefix, isMobile=false) {
+  document.querySelectorAll(selectorPrefix + ' .accordion-button').forEach(btn=>{
+    btn.addEventListener('click', async (e) => {
+      const target = e.target.closest('.accordion-button');
+      const collapseId = target.getAttribute('data-bs-target').substring(1);
+      let supplierId = collapseId.replace('collapseS','');
+      if (isMobile) supplierId = supplierId.replace('m','');
+      const containerId = 'transContainerS' + supplierId + (isMobile ? 'm' : '');
+      const container = document.getElementById(containerId);
+      if (!container) return;
+      if (container.dataset.loaded) return;
+      container.innerHTML = '<div class="text-muted">Loading...</div>';
+      const data = await fetchTransactionsForSupplier(supplierId);
+      renderTransactionsInto(container, data);
+      container.dataset.loaded = '1';
+    });
+  });
+}
+
+// initialize both desktop and mobile accordions
+setupAccordionLoader('#suppliersAccordion', false);
+setupAccordionLoader('#suppliersAccordionMobile', true);
+
+/* Pay Supplier Confirm - improved: calls backend, then re-fetches supplier transactions only */
 document.getElementById('payConfirmBtn').addEventListener('click', async () => {
   const transId = document.getElementById('payTransId').value;
   const amount = parseFloat(document.getElementById('payAmount').value || 0);
-  if (!transId || amount <= 0) { document.getElementById('payMsg').innerHTML = '<div class="alert alert-warning">Enter valid amount.</div>'; return; }
+  // supplier id might be in hidden input or empty
+  const supplierIdElem = document.getElementById('paySupplierId');
+  const supplierId = supplierIdElem ? supplierIdElem.value : '';
+
+  if (!transId || amount <= 0) {
+    document.getElementById('payMsg').innerHTML = '<div class="alert alert-warning">Enter valid amount.</div>';
+    return;
+  }
+
   const form = new FormData();
   form.append('action','pay_supplier_balance');
   form.append('trans_id', transId);
   form.append('amount_paid', amount);
-  const res = await fetch('suppliers.php', {method:'POST', body: form});
-  const data = await res.json();
-  if (data.success) {
-    document.getElementById('payMsg').innerHTML = '<div class="alert alert-success">Balance paid.</div>';
-    setTimeout(()=>location.reload(),700);
-  } else {
+
+  try {
+    const res = await fetch('suppliers.php', {method:'POST', body: form});
+    const data = await res.json();
+    if (data.success) {
+      document.getElementById('payMsg').innerHTML = '<div class="alert alert-success">Payment recorded.</div>';
+      // reload only this supplier's transactions (desktop & mobile containers if present)
+      if (supplierId) {
+        const fresh = await fetchTransactionsForSupplier(supplierId);
+        const cDesktop = document.getElementById('transContainerS' + supplierId);
+        const cMobile = document.getElementById('transContainerS' + supplierId + 'm');
+        if (cDesktop) renderTransactionsInto(cDesktop, fresh);
+        if (cMobile) renderTransactionsInto(cMobile, fresh);
+      } else {
+        // fallback: reload whole page if we can't identify supplier
+        setTimeout(()=>location.reload(),700);
+      }
+      // close modal after brief delay
+      setTimeout(()=>{ const m = bootstrap.Modal.getInstance(document.getElementById('paySupplierModal')); if (m) m.hide(); }, 800);
+    } else {
+      document.getElementById('payMsg').innerHTML = '<div class="alert alert-danger">Error. Try again.</div>';
+    }
+  } catch (err) {
     document.getElementById('payMsg').innerHTML = '<div class="alert alert-danger">Error. Try again.</div>';
   }
 });
 
-// Supplier Products Accordion
+/* =========================
+   Supplier Products Accordion (unchanged)
+   ========================= */
 document.querySelectorAll('#supplierProductsAccordion .accordion-button').forEach(btn=>{
   btn.addEventListener('click', async (e) => {
     const target = e.target.closest('.accordion-button');
@@ -1173,6 +1300,7 @@ function escapeHtml(s){
   return s.replace(/[&<>"']/g, c=> ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 </script>
+
 
 <style>
 
