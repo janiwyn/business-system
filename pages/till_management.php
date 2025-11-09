@@ -29,6 +29,7 @@ $branches = $conn->query("SELECT id, name FROM branch ORDER BY name ASC");
 $staff = $conn->query("SELECT id, username, `branch-id` FROM users WHERE role='staff' ORDER BY username ASC");
 ?>
 
+
 <div class="container mt-4">
     <h2 class="mb-4">Till Management</h2>
 
@@ -55,124 +56,135 @@ $staff = $conn->query("SELECT id, username, `branch-id` FROM users WHERE role='s
     <div class="tab-content mt-4" id="tillTabsContent">
         <!-- Create & Assign Till Tab -->
         <div class="tab-pane fade<?= (!isset($_GET['tab']) || $_GET['tab'] === 'create-assign') ? ' show active' : '' ?>" id="create-assign" role="tabpanel">
-            <form method="POST" action="">
-                <div class="row g-3">
-                    <div class="col-md-4">
-                        <label for="creation_date" class="form-label">Date of Creation</label>
-                        <input type="date" class="form-control" id="creation_date" name="creation_date" required>
+            <form method="POST" action="" class="create-customer-card">
+                <div class="card-header">Create & Assign Till</div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label for="creation_date" class="form-label">Date of Creation</label>
+                            <input type="date" class="form-control" id="creation_date" name="creation_date" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="till_name" class="form-label">Till Name</label>
+                            <input type="text" class="form-control" id="till_name" name="till_name" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="branch_id" class="form-label">Branch</label>
+                            <select class="form-select" id="branch_id" name="branch_id" required>
+                                <option value="">-- Select Branch --</option>
+                                <?php while ($branch = $branches->fetch_assoc()): ?>
+                                    <option value="<?= $branch['id'] ?>"><?= htmlspecialchars($branch['name']) ?></option>
+                                <?php endwhile; ?>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="staff_id" class="form-label">Staff Member</label>
+                            <select class="form-select" id="staff_id" name="staff_id" required>
+                                <option value="">-- Select Staff --</option>
+                                <?php while ($member = $staff->fetch_assoc()): ?>
+                                    <option value="<?= $member['id'] ?>" data-branch="<?= $member['branch-id'] ?>">
+                                        <?= htmlspecialchars($member['username']) ?>
+                                    </option>
+                                <?php endwhile; ?>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="phone_number" class="form-label">Phone Number</label>
+                            <input type="text" class="form-control" id="phone_number" name="phone_number" required>
+                        </div>
                     </div>
-                    <div class="col-md-4">
-                        <label for="till_name" class="form-label">Till Name</label>
-                        <input type="text" class="form-control" id="till_name" name="till_name" required>
+                    <div class="mt-3">
+                        <button type="submit" class="btn btn-primary">Create</button>
                     </div>
-                    <div class="col-md-4">
-                        <label for="branch_id" class="form-label">Branch</label>
-                        <select class="form-select" id="branch_id" name="branch_id" required>
-                            <option value="">-- Select Branch --</option>
-                            <?php while ($branch = $branches->fetch_assoc()): ?>
-                                <option value="<?= $branch['id'] ?>"><?= htmlspecialchars($branch['name']) ?></option>
-                            <?php endwhile; ?>
-                        </select>
-                    </div>
-                    <div class="col-md-6">
-                        <label for="staff_id" class="form-label">Staff Member</label>
-                        <select class="form-select" id="staff_id" name="staff_id" required>
-                            <option value="">-- Select Staff --</option>
-                            <?php while ($member = $staff->fetch_assoc()): ?>
-                                <option value="<?= $member['id'] ?>" data-branch="<?= $member['branch-id'] ?>">
-                                    <?= htmlspecialchars($member['username']) ?>
-                                </option>
-                            <?php endwhile; ?>
-                        </select>
-                    </div>
-                    <div class="col-md-6">
-                        <label for="phone_number" class="form-label">Phone Number</label>
-                        <input type="text" class="form-control" id="phone_number" name="phone_number" required>
-                    </div>
-                </div>
-                <div class="mt-3">
-                    <button type="submit" class="btn btn-primary">Create</button>
                 </div>
             </form>
         </div>
 
         <!-- Till Management Tab -->
         <div class="tab-pane fade<?= (isset($_GET['tab']) && $_GET['tab'] === 'till-management') ? ' show active' : '' ?>" id="till-management" role="tabpanel">
-            <table class="table table-striped">
-                <thead>
-                    <tr>
-                        <th>Date of Creation</th>
-                        <th>Branch</th>
-                        <th>Till ID</th>
-                        <th>Till Name</th>
-                        <th>Assigned Staff</th>
-                        <th>Contact</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php
-                    $tills = $conn->query("
-                        SELECT t.id, t.creation_date, t.name AS till_name, b.name AS branch_name, u.username AS staff_name, t.phone_number
-                        FROM tills t
-                        JOIN branch b ON t.branch_id = b.id
-                        JOIN users u ON t.staff_id = u.id
-                        ORDER BY t.creation_date DESC
-                    ");
-                    while ($till = $tills->fetch_assoc()):
-                    ?>
-                        <tr>
-                            <td><?= htmlspecialchars($till['creation_date']) ?></td>
-                            <td><?= htmlspecialchars($till['branch_name']) ?></td>
-                            <td><?= str_pad($till['id'], 3, '0', STR_PAD_LEFT) ?></td>
-                            <td><?= htmlspecialchars($till['till_name']) ?></td>
-                            <td><?= htmlspecialchars($till['staff_name']) ?></td>
-                            <td><?= htmlspecialchars($till['phone_number']) ?></td>
-                            <td>
-                                <button class="btn btn-sm btn-warning">Edit</button>
-                                <button class="btn btn-sm btn-danger">Delete</button>
-                            </td>
-                        </tr>
-                    <?php endwhile; ?>
-                </tbody>
-            </table>
+            <div class="card">
+                <div class="card-header">Till Management</div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="transactions-table">
+                            <thead>
+                                <tr>
+                                    <th>Date of Creation</th>
+                                    <th>Branch</th>
+                                    <th>Till ID</th>
+                                    <th>Till Name</th>
+                                    <th>Assigned Staff</th>
+                                    <th>Contact</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php
+                                $tills = $conn->query("
+                                    SELECT t.id, t.creation_date, t.name AS till_name, b.name AS branch_name, u.username AS staff_name, t.phone_number
+                                    FROM tills t
+                                    JOIN branch b ON t.branch_id = b.id
+                                    JOIN users u ON t.staff_id = u.id
+                                    ORDER BY t.creation_date DESC
+                                ");
+                                while ($till = $tills->fetch_assoc()):
+                                ?>
+                                    <tr>
+                                        <td><?= htmlspecialchars($till['creation_date']) ?></td>
+                                        <td><?= htmlspecialchars($till['branch_name']) ?></td>
+                                        <td><?= str_pad($till['id'], 3, '0', STR_PAD_LEFT) ?></td>
+                                        <td><?= htmlspecialchars($till['till_name']) ?></td>
+                                        <td><?= htmlspecialchars($till['staff_name']) ?></td>
+                                        <td><?= htmlspecialchars($till['phone_number']) ?></td>
+                                        <td>
+                                            <button class="btn btn-sm btn-warning">Edit</button>
+                                            <button class="btn btn-sm btn-danger">Delete</button>
+                                        </td>
+                                    </tr>
+                                <?php endwhile; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <!-- Till View Tab -->
         <div class="tab-pane fade<?= (isset($_GET['tab']) && $_GET['tab'] === 'till-view') ? ' show active' : '' ?>" id="till-view" role="tabpanel">
-            <!-- Filter Bar: all filters in one row -->
-            <form method="GET" id="tillViewFilterForm" class="row g-2 align-items-end mb-3">
-                <div class="col-md-2">
-                    <label for="filter_date_from" class="form-label mb-1">From</label>
-                    <input type="date" class="form-control" id="filter_date_from" name="filter_date_from" value="<?= htmlspecialchars($_GET['filter_date_from'] ?? '') ?>">
-                </div>
-                <div class="col-md-2">
-                    <label for="filter_date_to" class="form-label mb-1">To</label>
-                    <input type="date" class="form-control" id="filter_date_to" name="filter_date_to" value="<?= htmlspecialchars($_GET['filter_date_to'] ?? '') ?>">
-                </div>
-                <div class="col-md-3">
-                    <label for="filter_branch" class="form-label mb-1">Branch</label>
-                    <select class="form-select" id="filter_branch" name="filter_branch">
-                        <option value="">-- All Branches --</option>
-                        <?php
-                        $branches->data_seek(0);
-                        while ($branch = $branches->fetch_assoc()):
-                            $selected = (isset($_GET['filter_branch']) && $_GET['filter_branch'] == $branch['id']) ? 'selected' : '';
-                        ?>
-                            <option value="<?= $branch['id'] ?>" <?= $selected ?>><?= htmlspecialchars($branch['name']) ?></option>
-                        <?php endwhile; ?>
-                    </select>
-                </div>
-                <div class="col-md-3">
-                    <label for="filter_summary" class="form-label mb-1">Summary</label>
-                    <select class="form-select" id="filter_summary" name="filter_summary">
-                        <option value="detailed" <?= (($_GET['filter_summary'] ?? '') == 'detailed' ? 'selected' : '') ?>>Detailed</option>
-                        <option value="summarized" <?= (($_GET['filter_summary'] ?? '') == 'summarized' ? 'selected' : '') ?>>Summarized</option>
-                    </select>
-                </div>
-                <div class="col-md-2">
-                    <input type="hidden" name="tab" value="till-view">
-                    <button type="submit" class="btn btn-primary w-100">Filter</button>
+            <form method="GET" id="tillViewFilterForm" class="pa-filter-bar">
+                <div class="row g-2 align-items-end">
+                    <div class="col-md-2">
+                        <label for="filter_date_from" class="form-label mb-1">From</label>
+                        <input type="date" class="form-control" id="filter_date_from" name="filter_date_from" value="<?= htmlspecialchars($_GET['filter_date_from'] ?? '') ?>">
+                    </div>
+                    <div class="col-md-2">
+                        <label for="filter_date_to" class="form-label mb-1">To</label>
+                        <input type="date" class="form-control" id="filter_date_to" name="filter_date_to" value="<?= htmlspecialchars($_GET['filter_date_to'] ?? '') ?>">
+                    </div>
+                    <div class="col-md-3">
+                        <label for="filter_branch" class="form-label mb-1">Branch</label>
+                        <select class="form-select" id="filter_branch" name="filter_branch">
+                            <option value="">-- All Branches --</option>
+                            <?php
+                            $branches->data_seek(0);
+                            while ($branch = $branches->fetch_assoc()):
+                                $selected = (isset($_GET['filter_branch']) && $_GET['filter_branch'] == $branch['id']) ? 'selected' : '';
+                            ?>
+                                <option value="<?= $branch['id'] ?>" <?= $selected ?>><?= htmlspecialchars($branch['name']) ?></option>
+                            <?php endwhile; ?>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="filter_summary" class="form-label mb-1">Summary</label>
+                        <select class="form-select" id="filter_summary" name="filter_summary">
+                            <option value="detailed" <?= (($_GET['filter_summary'] ?? '') == 'detailed' ? 'selected' : '') ?>>Detailed</option>
+                            <option value="summarized" <?= (($_GET['filter_summary'] ?? '') == 'summarized' ? 'selected' : '') ?>>Summarized</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <input type="hidden" name="tab" value="till-view">
+                        <button type="submit" class="btn btn-primary w-100">Filter</button>
+                    </div>
                 </div>
             </form>
 
@@ -259,12 +271,12 @@ $staff = $conn->query("SELECT id, username, `branch-id` FROM users WHERE role='s
                 $sales_res = $conn->query($sales_sql);
             ?>
             <div class="card mt-3">
-                <div class="card-header">
+                <div class="card-header bg-light text-black fw-bold" style="border-radius:12px 12px 0 0;">
                     Sales Records for Till
                 </div>
-                <div class="card-body">
-                    <div class="table-responsive">
-                        <table class="table table-striped">
+                <div class="card-body table-responsive">
+                    <div class="transactions-table">
+                        <table>
                             <thead>
                                 <tr>
                                     <th>#</th>
@@ -575,6 +587,8 @@ $staff = $conn->query("SELECT id, username, `branch-id` FROM users WHERE role='s
         </div>
     </div>
 </div>
+
+<link rel="stylesheet" href="assets/css/supply.css">
 
 <script>
 document.addEventListener('DOMContentLoaded', function () {
