@@ -128,8 +128,8 @@ $username = $_SESSION['username'];
   </div>
 
   <!-- Dashboard Overview Card: Only show on medium and larger devices -->
-  <div class="card mb-4 d-none d-md-block">
-    <div class="card-body">
+  <div class="card mb-4 d-none d-md-block" style="border-left: 4px solid teal;">
+    <div class="card-body" >
       <h5 class="title-card">Dashboard Overview</h5>
       <div class="row">
         <div class="col-md-3 mb-3">
@@ -259,8 +259,8 @@ $username = $_SESSION['username'];
           </div>
         </div>
         <div class="carousel-item">
-          <div class="card">
-            <div class="card-body">
+          <div class="card" >
+            <div class="card-body" style="border-left: 4px solid teal;">
               <h5 class="title-card">Sales Per Month</h5>
               <canvas id="lineChartMobile"></canvas>
             </div>
@@ -278,8 +278,8 @@ $username = $_SESSION['username'];
 
   <!-- Existing charts for medium and large devices -->
   <div class="row mb-4 d-none d-md-flex">
-    <div class="col-md-6">
-      <div class="card">
+    <div class="col-md-6" >
+      <div class="card" style="border-left: 4px solid teal;">
         <div class="card-body">
           <h5 class="title-card">Sales vs Profits</h5>
           <canvas id="barChart"></canvas>
@@ -287,7 +287,7 @@ $username = $_SESSION['username'];
       </div>
     </div>
     <div class="col-md-6">
-      <div class="card">
+      <div class="card" style="border-left: 4px solid teal;">
         <div class="card-body">
           <h5 class="title-card">Sales Per Month</h5>
           <canvas id="lineChart"></canvas>
@@ -366,7 +366,7 @@ $username = $_SESSION['username'];
  
 
   <!-- Recent Transactions -->
-  <div class="card mb-4 transactions-card">
+  <div class="card mb-4 transactions-card" style="border-left: 4px solid teal;">
     <div class="card-body">
       <h5 class="transactions-title">Recent Transactions</h5>
       <div class="table-responsive-sm">

@@ -161,7 +161,7 @@ $customers = $customers_res ? $customers_res->fetch_all(MYSQLI_ASSOC) : [];
 
       <!-- CREATE -->
       <div class="tab-pane fade show active" id="tab-create">
-        <div class="card create-customer-card mb-4">
+        <div class="card create-customer-card mb-4"  style="border-left: 4px solid teal;">
           <div class="card-header">Create Customer File</div>
           <div class="card-body">
             <form id="createCustomerForm" class="row g-3">
@@ -192,12 +192,12 @@ $customers = $customers_res ? $customers_res->fetch_all(MYSQLI_ASSOC) : [];
 
       <!-- VIEW -->
       <div class="tab-pane fade" id="tab-view">
-        <div class="card mb-4">
+        <div class="card mb-4"  style="border-left: 4px solid teal;">
           <div class="card-header" color = #1abc9c><b>View Customer Files</b></div>
           <div class="card-body">
             <!-- Responsive Table Card for Small Devices -->
             <div class="d-block d-md-none mb-4">
-              <div class="card transactions-card">
+              <div class="card transactions-card"  style="border-left: 4px solid teal;">
                 <div class="card-body">
                   <div class="table-responsive-sm">
                     <div class="transactions-table">
@@ -272,12 +272,12 @@ $customers = $customers_res ? $customers_res->fetch_all(MYSQLI_ASSOC) : [];
 
       <!-- MANAGE -->
       <div class="tab-pane fade" id="tab-manage">
-        <div class="card mb-4">
+        <div class="card mb-4"  style="border-left: 4px solid teal;">
           <div class="card-header">Manage Customers</div>
           <div class="card-body">
             <!-- Responsive Table Card for Small Devices -->
-            <div class="d-block d-md-none mb-4">
-              <div class="card transactions-card">
+            <div class="d-block d-md-none mb-4"  style="border-left: 4px solid teal;">
+              <div class="card transactions-card" >
                 <div class="card-body">
                   <div class="table-responsive-sm">
                     <div class="transactions-table">
@@ -360,11 +360,11 @@ $customers = $customers_res ? $customers_res->fetch_all(MYSQLI_ASSOC) : [];
 
       <!-- TRANSACTIONS -->
       <div class="tab-pane fade" id="tab-trans">
-        <div class="card mb-4">
+        <div class="card mb-4"  style="border-left: 4px solid teal;">
           <div class="card-header">Customer Transactions</div>
           <div class="card-body">
             <!-- Responsive Table Card for Small Devices -->
-            <div class="d-block d-md-none mb-4">
+            <div class="d-block d-md-none mb-4" >
               <div class="card transactions-card">
                 <div class="card-body">
                   <div class="table-responsive-sm">
@@ -372,7 +372,7 @@ $customers = $customers_res ? $customers_res->fetch_all(MYSQLI_ASSOC) : [];
                       <?php if (count($customers)): ?>
                         <div class="accordion" id="customersAccordionMobile">
                           <?php foreach($customers as $c): ?>
-                            <div class="accordion-item mb-2">
+                            <div class="accordion-item mb-2" style="border-left: 4px solid teal;">
                               <h2 class="accordion-header" id="heading<?= $c['id'] ?>m">
                                 <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse<?= $c['id'] ?>m" aria-expanded="false" aria-controls="collapse<?= $c['id'] ?>m">
                                   <?= htmlspecialchars($c['name']) ?> — Balance: UGX <?= number_format(floatval($c['account_balance'] ?? 0), 2) ?>
@@ -449,9 +449,9 @@ $customers = $customers_res ? $customers_res->fetch_all(MYSQLI_ASSOC) : [];
               </div>
             </div>
             <!-- Table for medium and large devices -->
-            <div class="accordion d-none d-md-block" id="customersAccordion">
+            <div class="accordion d-none d-md-block" id="customersAccordion" >
               <?php foreach($customers as $c): ?>
-                <div class="accordion-item mb-2">
+                <div class="accordion-item mb-2"  style="border-left: 4px solid teal;">
                   <h2 class="accordion-header" id="heading<?= $c['id'] ?>">
                     <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse<?= $c['id'] ?>" aria-expanded="false" aria-controls="collapse<?= $c['id'] ?>">
                       <?= htmlspecialchars($c['name']) ?> — Balance: UGX <?= number_format(floatval($c['account_balance'] ?? 0), 2) ?>

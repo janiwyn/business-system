@@ -29,7 +29,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 ?>
 
-<div class="container mt-4">
+<div class="container mt-4"  style="border-left: 4px solid teal;">
     <h2 class="mb-4">Add New Admin</h2>
 
     <?php if ($alertMsg): ?>

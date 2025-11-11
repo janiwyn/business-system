@@ -262,7 +262,7 @@ $cust_stmt->close();
     <?php endif; ?>
 
     <!-- Sale Entry Form -->
-    <div class="card add-sale-card mb-4">
+    <div class="card add-sale-card mb-4" style="border-left: 4px solid teal;">
         <div class="card-header d-flex justify-content-between align-items-center">
             <span>Add Sale</span>
             <!-- Scan icon button -->
@@ -393,7 +393,7 @@ $cust_stmt->close();
     </div>
 
     <!-- Debtors Entry Form (hidden, shown by JS if needed) -->
-    <div id="debtorsFormCard" class="card mb-4" style="display:none;">
+    <div id="debtorsFormCard" class="card mb-4" style="display:none;" style="border-left: 4px solid teal;">
         <div class="card-header">Record Debtor</div>
         <div class="card-body">
             <form method="POST" action="" class="row g-3">
@@ -421,7 +421,7 @@ $cust_stmt->close();
     </div>
 
     <!-- Low Stock Products Panel -->
-    <div class="card mb-4">
+    <div class="card mb-4" style="border-left: 4px solid teal;">
         <div class="card-header low-stock-header">
             <span class="low-stock-title">⚠️ Low Stock Products (Branch <?= $branch_id; ?>)</span>
         </div>
@@ -458,7 +458,7 @@ $cust_stmt->close();
     <div class="tab-content" id="salesTabsContent">
         <!-- Recent Sales Table Tab (copied from sales.php, last 10 only, no pagination/filter) -->
         <div class="tab-pane fade show active" id="sales-table" role="tabpanel" aria-labelledby="sales-tab">
-            <div class="card mb-4 chart-card">
+            <div class="card mb-4 chart-card" style="border-left: 4px solid teal;">
                 <div class="card-header bg-light text-black d-flex flex-wrap justify-content-between align-items-center" style="border-radius:12px 12px 0 0;">
                     <span class="fw-bold title-card"><i class="fa-solid fa-receipt"></i> Recent Sales (Last 10)</span>
                 </div>
@@ -501,8 +501,8 @@ $cust_stmt->close();
             </div>
         </div>
         <!-- Debtors Table Tab (copied from sales.php, last 10 only, no pagination/filter) -->
-        <div class="tab-pane fade" id="debtors-table" role="tabpanel" aria-labelledby="debtors-tab">
-            <div class="card mb-4 chart-card">
+        <div class="tab-pane fade" id="debtors-table" role="tabpanel" aria-labelledby="debtors-tab" >
+            <div class="card mb-4 chart-card" style="border-left: 4px solid teal;">
                 <div class="card-header bg-light text-black fw-bold d-flex flex-wrap justify-content-between align-items-center" style="border-radius:12px 12px 0 0;">
                     <span><i class="fa-solid fa-user-clock"></i> Debtors</span>
                 </div>

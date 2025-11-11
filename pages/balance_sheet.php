@@ -8,7 +8,7 @@ include '../includes/header.php';
 <link rel="stylesheet" href="assets/css/accounting.css">
 
 <div class="container mt-5 mb-5">
-  <div class="card balance-sheet-card mb-4">
+  <div class="card balance-sheet-card mb-4"  style="border-left: 4px solid teal;">
     <div class="card-header">Balance Sheet</div>
     <div class="card-body">
       <div class="row">

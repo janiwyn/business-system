@@ -569,7 +569,7 @@ body.dark-mode .cart-table tfoot td {
     <?php endif; ?>
 
     <!-- Add Expense Form -->
-    <div class="card mb-4">
+    <div class="card mb-4" style="border-left: 4px solid teal;"  >
         <div class="card-header title-card">➕ Add New Expense</div>
         <div class="card-body">
             <form method="post" id="addExpenseForm">
@@ -697,23 +697,23 @@ body.dark-mode .cart-table tfoot td {
     <!-- Filter & Table -->
     <ul class="nav nav-tabs mb-3" id="expensesTabs" role="tablist">
         <li class="nav-item" role="presentation">
-            <button class="nav-link active" id="expenses-tab" data-bs-toggle="tab" data-bs-target="#expensesTab" type="button" role="tab" aria-controls="expensesTab" aria-selected="true">
+            <button class="nav-link active" id="expenses-tab" data-bs-toggle="tab" data-bs-target="#expensesTab" type="button" role="tab" aria-controls="expensesTab" aria-selected="true" style="border-left: 4px solid teal;" >
                 Expenses
             </button>
         </li>
         <li class="nav-item" role="presentation">
-            <button class="nav-link" id="total-expenses-tab" data-bs-toggle="tab" data-bs-target="#totalExpensesTab" type="button" role="tab" aria-controls="totalExpensesTab" aria-selected="false">
+            <button class="nav-link" id="total-expenses-tab" data-bs-toggle="tab" data-bs-target="#totalExpensesTab" type="button" role="tab" aria-controls="totalExpensesTab" aria-selected="false" style="border-left: 4px solid teal;" >
                 Total Expenses
             </button>
         </li>
     </ul>
     <div class="tab-content" id="expensesTabsContent">
         <!-- Expenses Tab -->
-        <div class="tab-pane fade show active" id="expensesTab" role="tabpanel" aria-labelledby="expenses-tab">
+        <div class="tab-pane fade show active" id="expensesTab" role="tabpanel" aria-labelledby="expenses-tab" >
             <!-- Card wrapper for small devices -->
             <div class="d-block d-md-none mb-4">
-                <div class="card transactions-card">
-                    <div class="card-body">
+                <div class="card transactions-card"  style="border-left: 4px solid teal;">
+                    <div class="card-body" >
                         <!-- Report Button: icon for small, full for md+ -->
                         <button type="button" class="btn btn-success mb-3 d-inline-flex d-md-none" title="Generate Report" onclick="openReportGen('expenses')">
                             <i class="fa fa-file-pdf"></i>
@@ -807,7 +807,7 @@ body.dark-mode .cart-table tfoot td {
             </div>
 
             <!-- Table for medium and large devices -->
-            <div class="card mb-5 d-none d-md-block">
+            <div class="card mb-5 d-none d-md-block" style="border-left: 4px solid teal;">
                 <div class="card-header bg-light text-black d-flex flex-wrap justify-content-between align-items-center" style="border-radius:12px 12px 0 0;">
                     <span class="fw-bold title-card"><i class="fa-solid fa-wallet"></i> All Expenses</span>
                     <button type="button" class="btn btn-success d-inline-flex d-md-none" title="Generate Report" onclick="openReportGen('expenses')">

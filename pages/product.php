@@ -319,7 +319,7 @@ if ($result && $result->num_rows > 0) {
 
 <div class="container mt-5">
 
-    <div class="card mb-4">
+    <div class="card mb-4"  style="border-left: 4px solid teal;">
         <div class="card-header title-card d-flex justify-content-between align-items-center">
             <span>➕ Add New Product</span>
             <!-- Scan icon button -->
@@ -390,7 +390,7 @@ if ($result && $result->num_rows > 0) {
 
     <!-- Barcode Scan Modal/Card -->
     <div id="productBarcodeScanModal" class="barcode-scan-modal" style="display:none;">
-        <div class="barcode-scan-card">
+        <div class="barcode-scan-card"  style="border-left: 4px solid teal;">
             <div class="barcode-scan-header d-flex justify-content-between align-items-center">
                 <span><i class="fa-solid fa-barcode"></i> Scan Product Barcode</span>
                 <button type="button" id="closeProductBarcodeScan" class="btn btn-close"></button>
@@ -421,7 +421,7 @@ if ($result && $result->num_rows > 0) {
     <!-- Product List -->
     <!-- Card wrapper for small devices -->
     <div class="d-block d-md-none mb-4">
-      <div class="card transactions-card">
+      <div class="card transactions-card"  style="border-left: 4px solid teal;">
         <!-- Add title and search bar for small devices -->
         <div class="card-header d-flex justify-content-between align-items-center title-card">
             <span>📋 Product List</span>
@@ -509,7 +509,7 @@ if (abs($daysLeft) <= 7 && !$row['sms_sent']) {
     </div>
 
     <!-- Table for medium and large devices -->
-    <div class="card mb-5 d-none d-md-block">
+    <div class="card mb-5 d-none d-md-block"  style="border-left: 4px solid teal;">
         <div class="card-header d-flex justify-content-between align-items-center title-card">
             <span>📋 Product List</span>
             <div class="d-flex align-items-center gap-2">

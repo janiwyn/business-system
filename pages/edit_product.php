@@ -140,9 +140,10 @@ body.dark-mode .form-select:focus {
 </style>
 
 
-    <div class="card mb-4" style="max-width: 600px; margin: 0 auto;">
+    <div class="card mb-4" style="max-width: 600px; margin: 50px auto;">
+        <div class="card transactions-card" style="border-left: 4px solid teal;" >
         <div class="card-header">Edit Product</div>
-        <div class="card-body">
+        <div class="card-body" >
             <!-- Product selector -->
             <form method="get" class="mb-4">
                 <label class="form-label fw-semibold">Select Product to Edit:</label>
@@ -182,6 +183,7 @@ body.dark-mode .form-select:focus {
                     Update Product
                 </button>
             </form>
+        </div>
         </div>
     </div>
 

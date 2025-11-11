@@ -174,7 +174,7 @@ $branch = $branch_stmt->get_result()->fetch_assoc();
 ?>
 
     <!-- Branch Info -->
-    <div class="card mb-4 branch-info-card">
+    <div class="card mb-4 branch-info-card" style="border-left: 4px solid teal;">
         <div class="card-header">Branch Information</div>
         <div class="card-body">
             <p><strong>Name:</strong> <?= htmlspecialchars($branch['name']) ?></p>
@@ -238,7 +238,7 @@ $branch = $branch_stmt->get_result()->fetch_assoc();
     <div class="row g-4 mb-4 d-none d-md-flex">
       <div class="col-md-4">
         <div class="card stat-card gradient-primary h-100">
-          <div class="card-body d-flex align-items-center">
+          <div class="card-body d-flex align-items-center" >
             <i class="fa-solid fa-box stat-icon me-3"></i>
             <div>
               <h6>Inventory</h6>
@@ -278,8 +278,8 @@ $branch = $branch_stmt->get_result()->fetch_assoc();
     <div class="d-block d-md-none mb-4">
       <div id="branchChartsCarousel" class="carousel slide charts-carousel" data-bs-ride="false" data-bs-touch="true">
         <div class="carousel-inner">
-          <div class="carousel-item active">
-            <div class="card h-100">
+          <div class="carousel-item active" >
+            <div class="card h-100" style="border-left: 4px solid teal;" >
               <div class="card-header">Top Products (Bar)</div>
               <div class="card-body p-3">
                 <canvas id="barChartMobile"></canvas>
@@ -287,7 +287,7 @@ $branch = $branch_stmt->get_result()->fetch_assoc();
             </div>
           </div>
           <div class="carousel-item">
-            <div class="card h-100">
+            <div class="card h-100" style="border-left: 4px solid teal;">
               <div class="card-header">Top Products (Donut)</div>
               <div class="card-body p-3">
                 <div class="donut-wrapper">
@@ -313,7 +313,7 @@ $branch = $branch_stmt->get_result()->fetch_assoc();
     <div class="row mb-4 d-none d-md-flex">
       <!-- Bar Chart -->
       <div class="col-md-6">
-        <div class="card h-100">
+        <div class="card h-100" style="border-left: 4px solid teal;">
           <div class="card-header">Top Products (Bar)</div>
           <div class="card-body p-4">
             <canvas id="barChart"></canvas>
@@ -322,7 +322,7 @@ $branch = $branch_stmt->get_result()->fetch_assoc();
       </div>
       <!-- Donut Chart -->
       <div class="col-md-6">
-        <div class="card h-100">
+        <div class="card h-100" style="border-left: 4px solid teal;">
           <div class="card-header">Top Products (Donut)</div>
           <div class="card-body p-4">
             <div class="donut-wrapper">
@@ -337,7 +337,7 @@ $branch = $branch_stmt->get_result()->fetch_assoc();
     </div>
 
     <!-- Top Products Table -->
-    <div class="card mb-4">
+    <div class="card mb-4" style="border-left: 4px solid teal;">
         <div class="card-header">Top Selling Products</div>
         <div class="card-body transactions-table">
             <table>
@@ -355,7 +355,7 @@ $branch = $branch_stmt->get_result()->fetch_assoc();
     </div>
 
     <!-- Staff -->
-    <div class="card mb-4">
+    <div class="card mb-4" style="border-left: 4px solid teal;">
         <div class="card-header">Branch Staff</div>
         <div class="card-body transactions-table">
             <table>

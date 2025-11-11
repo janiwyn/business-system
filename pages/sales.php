@@ -150,31 +150,31 @@ $product_summary_res = $conn->query($product_summary_sql);
 <div class="container-fluid mt-4">
     <ul class="nav nav-tabs mb-4" id="salesTabs" role="tablist">
         <li class="nav-item" role="presentation">
-            <button class="nav-link active" id="sales-tab" data-bs-toggle="tab" data-bs-target="#sales-table" type="button" role="tab" aria-controls="sales-table" aria-selected="true">
-                Sales Records
+            <button class="nav-link active" id="sales-tab" data-bs-toggle="tab" data-bs-target="#sales-table" type="button" role="tab" aria-controls="sales-table" aria-selected="true"  style="border-left: 4px solid teal; border-right:1px solid teal; border-top: 1px solid teal; color: #1abc9c;" >
+                <b>Sales Records</b>
             </button>
         </li>
         <li class="nav-item" role="presentation">
-            <button class="nav-link" id="debtors-tab" data-bs-toggle="tab" data-bs-target="#debtors-table" type="button" role="tab" aria-controls="debtors-table" aria-selected="false">
-                Debtors
+            <button class="nav-link" id="debtors-tab" data-bs-toggle="tab" data-bs-target="#debtors-table" type="button" role="tab" aria-controls="debtors-table" aria-selected="false"  style="border-left: 4px solid teal; border-right:1px solid teal; border-top: 1px solid teal; color: #1abc9c;">
+                <b>Debtors</b>
             </button>
         </li>
         <li class="nav-item" role="presentation">
-            <button class="nav-link" id="payment-analysis-tab" data-bs-toggle="tab" data-bs-target="#payment-analysis" type="button" role="tab" aria-controls="payment-analysis" aria-selected="false">
-                Payment Method Analysis
+            <button class="nav-link" id="payment-analysis-tab" data-bs-toggle="tab" data-bs-target="#payment-analysis" type="button" role="tab" aria-controls="payment-analysis" aria-selected="false"  style="border-left: 4px solid teal; border-right:1px solid teal; border-top: 1px solid teal; color: #1abc9c;">
+                <b>Payment Method Analysis</b>
             </button>
         </li>
         <!-- NEW: Product Summary Tab -->
         <li class="nav-item" role="presentation">
-            <button class="nav-link" id="product-summary-tab" data-bs-toggle="tab" data-bs-target="#product-summary" type="button" role="tab" aria-controls="product-summary" aria-selected="false">
-                Product Summary
+            <button class="nav-link" id="product-summary-tab" data-bs-toggle="tab" data-bs-target="#product-summary" type="button" role="tab" aria-controls="product-summary" aria-selected="false"  style="border-left: 4px solid teal; border-right:1px solid teal; border-top: 1px solid teal; color: #1abc9c;">
+                <b>Product Summary</b>
             </button>
         </li>
     </ul>
     <div class="tab-content" id="salesTabsContent">
         <!-- Payment Method Analysis Tab -->
         <div class="tab-pane fade" id="payment-analysis" role="tabpanel" aria-labelledby="payment-analysis-tab">
-            <div class="card mb-4 chart-card">
+            <div class="card mb-4 chart-card"  style="border-left: 4px solid teal;">
                 <div class="card-header bg-light text-black fw-bold" style="border-radius:12px 12px 0 0;">
                     Payment Method Analysis
                 </div>
@@ -434,7 +434,7 @@ $product_summary_res = $conn->query($product_summary_sql);
         </div>
         <!-- Sales Table Tab -->
         <div class="tab-pane fade show active" id="sales-table" role="tabpanel" aria-labelledby="sales-tab">
-            <div class="card mb-4 chart-card">
+            <div class="card mb-4 chart-card"  style="border-left: 4px solid teal;">
                 <div class="card-header bg-light text-black d-flex flex-wrap justify-content-between align-items-center" style="border-radius:12px 12px 0 0;">
                     <span class="fw-bold title-card"><i class="fa-solid fa-receipt"></i> Recent Sales</span>
                     <form method="GET" class="d-flex align-items-center flex-wrap gap-2" style="gap:1rem;">
@@ -516,7 +516,7 @@ $product_summary_res = $conn->query($product_summary_sql);
         </div>
         <!-- Debtors Table Tab -->
         <div class="tab-pane fade" id="debtors-table" role="tabpanel" aria-labelledby="debtors-tab">
-            <div class="card mb-4 chart-card">
+            <div class="card mb-4 chart-card"  style="border-left: 4px solid teal;">
                 <div class="card-header bg-light text-black fw-bold d-flex flex-wrap justify-content-between align-items-center" style="border-radius:12px 12px 0 0;">
                     <span><i class="fa-solid fa-user-clock"></i> Debtors</span>
                     <!-- Generate Report Button -->
@@ -585,7 +585,7 @@ $product_summary_res = $conn->query($product_summary_sql);
         </div>
         <!-- NEW: Product Summary Tab -->
         <div class="tab-pane fade" id="product-summary" role="tabpanel" aria-labelledby="product-summary-tab">
-            <div class="card mb-4 chart-card">
+            <div class="card mb-4 chart-card"  style="border-left: 4px solid teal;">
                 <div class="card-header bg-light text-black fw-bold" style="border-radius:12px 12px 0 0;">
                     Product Summary (Items Sold Per Day)
                     <!-- Generate Report Button -->
