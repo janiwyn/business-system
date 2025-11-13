@@ -168,7 +168,7 @@ body.dark-mode .transactions-table tbody tr:hover {
     <h3 class="mb-3" style="color:var(--primary-color);font-weight:700;">Employee Management</h3>
 
     <!-- Add/Update Employee Form -->
-    <div class="card mb-4">
+    <div class="card mb-4"  style="border-left: 4px solid teal;">
         <div class="card-header">Add or Update Employee</div>
         <div class="card-body">
             <form method="POST">
@@ -243,8 +243,8 @@ body.dark-mode .transactions-table tbody tr:hover {
 
     <!-- Employee List -->
     <!-- Card wrapper for small devices -->
-    <div class="d-block d-md-none mb-4">
-      <div class="card transactions-card">
+    <div class="d-block d-md-none mb-4" >
+      <div class="card transactions-card"  style="border-left: 4px solid teal;">
         <div class="card-body">
           <div class="table-responsive-sm">
             <div class="transactions-table">
@@ -300,7 +300,7 @@ body.dark-mode .transactions-table tbody tr:hover {
     </div>
 
     <!-- Table for medium and large devices -->
-    <div class="card d-none d-md-block">
+    <div class="card d-none d-md-block"  style="border-left: 4px solid teal;">
         <div class="card-header">Employee List</div>
         <div class="card-body">
             <div class="transactions-table">
@@ -351,6 +351,8 @@ body.dark-mode .transactions-table tbody tr:hover {
         </div>
     </div>
 </div>
+
+<?php include '../includes/footer.php'; ?>
 
 <script>
 // Change button text dynamically

@@ -101,8 +101,8 @@ body.dark-mode .btn-info, body.dark-mode .btn-warning, body.dark-mode .btn-dange
     <?php endif; ?>
 
     <!-- Responsive Table Card for Small Devices -->
-    <div class="d-block d-md-none mb-4">
-      <div class="card transactions-card">
+    <div class="d-block d-md-none mb-4" >
+      <div class="card transactions-card" style="border-left: 4px solid teal;" >
         <div class="card-body">
           <div class="table-responsive-sm">
             <div class="transactions-table">
@@ -154,8 +154,9 @@ body.dark-mode .btn-info, body.dark-mode .btn-warning, body.dark-mode .btn-dange
     </div>
 
     <!-- Table for medium and large devices -->
-    <div class="transactions-table d-none d-md-block">
-        <table>
+    <div class="transactions-table d-none d-md-block"  >
+      <div class="card transactions-card" style="border-left: 4px solid teal;" >
+        <table >
             <thead>
                 <tr>
                     <th>#</th>

@@ -199,6 +199,7 @@ $staff = $conn->query("SELECT id, username, `branch-id` FROM users WHERE role='s
 $approvers_res = $conn->query("SELECT id, username, role FROM users WHERE role IN ('admin','manager') ORDER BY username ASC");
 ?>
 
+
 <div class="container mt-4">
     <h2 class="mb-4" style="color:#1abc9c;"><b>Till Management</b></h2>
 
@@ -210,13 +211,13 @@ $approvers_res = $conn->query("SELECT id, username, role FROM users WHERE role I
 
     <ul class="nav nav-tabs" id="tillTabs" role="tablist">
         <li class="nav-item">
-            <button class="nav-link<?= (!isset($_GET['tab']) || $_GET['tab'] === 'create-assign') ? ' active' : '' ?>" id="create-assign-tab" data-bs-toggle="tab" data-bs-target="#create-assign" type="button" role="tab">Create & Assign Till</button>
+            <button class="nav-link<?= (!isset($_GET['tab']) || $_GET['tab'] === 'create-assign') ? ' active' : '' ?>" id="create-assign-tab" data-bs-toggle="tab" data-bs-target="#create-assign" type="button" role="tab"  style="border-left:4px solid teal; border-top: 1px solid teal; border-right: 1px solid teal; color: #1abc9c" ><b>Create & Assign Till</b></button>
         </li>
         <li class="nav-item">
-            <button class="nav-link<?= (isset($_GET['tab']) && $_GET['tab'] === 'till-management') ? ' active' : '' ?>" id="till-management-tab" data-bs-toggle="tab" data-bs-target="#till-management" type="button" role="tab">Till Management</button>
+            <button class="nav-link<?= (isset($_GET['tab']) && $_GET['tab'] === 'till-management') ? ' active' : '' ?>" id="till-management-tab" data-bs-toggle="tab" data-bs-target="#till-management" type="button" role="tab" style="border-left:4px solid teal; border-top: 1px solid teal; border-right: 1px solid teal; color: #1abc9c" ><b>Till Management</b></button>
         </li>
         <li class="nav-item">
-            <button class="nav-link<?= (isset($_GET['tab']) && $_GET['tab'] === 'till-view') ? ' active' : '' ?>" id="till-view-tab" data-bs-toggle="tab" data-bs-target="#till-view" type="button" role="tab">Till View</button>
+            <button class="nav-link<?= (isset($_GET['tab']) && $_GET['tab'] === 'till-view') ? ' active' : '' ?>" id="till-view-tab" data-bs-toggle="tab" data-bs-target="#till-view" type="button" role="tab" style="border-left:4px solid teal; border-top: 1px solid teal; border-right: 1px solid teal; color: #1abc9c" ><b>Till View</b></button>
         </li>
         <li class="nav-item">
             <button class="nav-link<?= (isset($_GET['tab']) && $_GET['tab'] === 'summaries') ? ' active' : '' ?>" id="summaries-tab" data-bs-toggle="tab" data-bs-target="#summaries" type="button" role="tab">Summaries</button>
@@ -391,7 +392,7 @@ $approvers_res = $conn->query("SELECT id, username, role FROM users WHERE role I
                 <?php if ($till_tabs && $till_tabs->num_rows > 0): ?>
                     <?php while ($till = $till_tabs->fetch_assoc()): ?>
                         <li class="nav-item" role="presentation">
-                            <a class="nav-link <?= ($selected_till_id == $till['id'] ? 'active' : '') ?>"
+                            <a class="nav-link <?= ($selected_till_id == $till['id'] ? 'active' : '') ?>" "
                                id="till-tab-<?= $till['id'] ?>"
                                href="?tab=till-view&filter_date_from=<?= urlencode($filter_date_from) ?>&filter_date_to=<?= urlencode($filter_date_to) ?>&filter_branch=<?= urlencode($filter_branch) ?>&filter_summary=<?= urlencode($filter_summary) ?>&entries=<?= urlencode($entries) ?>&till_tab=<?= $till['id'] ?>"
                                role="tab">
@@ -552,7 +553,7 @@ $approvers_res = $conn->query("SELECT id, username, role FROM users WHERE role I
                 $summaries_till_tabs->data_seek(0);
             }
             ?>
-
+            <br>
             <!-- Sub Tabs for Tills (Summaries) -->
             <ul class="nav nav-pills mb-3" id="summariesTillSubTabs" role="tablist">
                 <?php if ($summaries_till_tabs && $summaries_till_tabs->num_rows > 0): ?>
@@ -1128,5 +1129,154 @@ $approvers_res = $conn->query("SELECT id, username, role FROM users WHERE role I
   });
 })();
 </script>
+
+<!-- <style>
+/* ...existing code... */
+.transactions-table table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--card-bg);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 4px 12px var(--card-shadow);
+}
+.transactions-table thead {
+    background: var(--primary-color);
+    color: #fff;
+}
+.transactions-table tbody td {
+    color: var(--text-color);
+    padding: 0.75rem 1rem;
+}
+.transactions-table tbody tr {
+    background-color: #fff;
+    transition: background 0.2s;
+}
+.transactions-table tbody tr:nth-child(even) {
+    background-color: #f4f6f9;
+}
+.transactions-table tbody tr:hover {
+    background-color: rgba(0,0,0,0.05);
+}
+body.dark-mode .transactions-table table {
+    background: var(--card-bg);
+}
+body.dark-mode .transactions-table thead {
+    background-color: #1abc9c;
+    color: #ffffff;
+}
+body.dark-mode .transactions-table tbody tr {
+    background-color: #2c2c3a !important;
+}
+body.dark-mode .transactions-table tbody tr:nth-child(even) {
+    background-color: #272734 !important;
+}
+body.dark-mode .transactions-table tbody td {
+    color: #ffffff !important;
+}
+body.dark-mode .transactions-table tbody td small.text-muted {
+    color: #ffffff !important;
+}
+body.dark-mode .card .card-header.bg-light {
+    background-color: #2c3e50 !important;
+    color: #fff !important;
+    border-bottom: none;
+}
+body.dark-mode .card .card-header.bg-light label,
+body.dark-mode .card .card-header.bg-light select,
+body.dark-mode .card .card-header.bg-light span {
+    color: #fff !important;
+}
+body.dark-mode .card .card-header.bg-light .form-select {
+    background-color: #23243a !important;
+    color: #fff !important;
+    border: 1px solid #444 !important;
+}
+body.dark-mode .card .card-header.bg-light .form-select:focus {
+    background-color: #23243a !important;
+    color: #fff !important;
+}
+body.dark-mode .card .card-header.bg-light input[type="date"]::-webkit-input-placeholder {
+    color: #fff !important;
+}
+body.dark-mode .card .card-header.bg-light input[type="date"] {
+    background-color: #23243a !important;
+    color: #fff !important;
+    border: 1px solid #444 !important;
+}
+body.dark-mode .card .card-header.bg-light input[type="date"]::-webkit-calendar-picker-indicator {
+    filter: invert(1);
+}
+body.dark-mode .card .card-header.bg-light input[type="date"]::-moz-calendar-picker-indicator {
+    filter: invert(1);
+}
+body.dark-mode .card .card-header.bg-light input[type="date"]::-ms-input-placeholder {
+    color: #fff !important;
+}
+.title-card {
+    color: var(--primary-color);
+    font-weight: 600;
+    font-size: 1.1rem;
+    margin-bottom: 0;
+    text-align: left;
+}
+
+/* Payment Analysis filter bar styles */
+.pa-filter-bar {
+    background-color: #ffffff;
+    border-radius: 12px;
+    padding: 0.75rem 1rem;
+    box-shadow: 0 2px 8px var(--card-shadow);
+}
+body.dark-mode .pa-filter-bar {
+    background-color: #23243a !important;
+    color: #ffffff !important;
+    border: 1px solid #444 !important;
+}
+body.dark-mode .pa-filter-bar label {
+    color: #ffffff !important;
+}
+body.dark-mode .pa-filter-bar .form-select,
+body.dark-mode .pa-filter-bar input[type="date"] {
+    background-color: #23243a !important;
+    color: #ffffff !important;
+    border: 1px solid #444 !important;
+}
+
+/* Product Summary filter form label/input colors */
+.product-summary-filter label {
+    color: #222 !important;
+    font-weight: 600;
+}
+.product-summary-filter .form-select,
+.product-summary-filter input[type="date"] {
+    color: #222 !important;
+    background-color: #fff !important;
+    border: 1px solid #dee2e6 !important;
+}
+.product-summary-filter .form-select:focus,
+.product-summary-filter input[type="date"]:focus {
+    color: #222 !important;
+    background-color: #fff !important;
+    border-color: var(--primary-color, #1abc9c);
+}
+
+/* Dark mode overrides for Product Summary filter */
+body.dark-mode .product-summary-filter label {
+    color: #ffd200 !important;
+}
+body.dark-mode .product-summary-filter .form-select,
+body.dark-mode .product-summary-filter input[type="date"] {
+    background-color: #23243a !important;
+    color: #fff !important;
+    border: 1px solid #444 !important;
+}
+body.dark-mode .product-summary-filter .form-select:focus,
+body.dark-mode .product-summary-filter input[type="date"]:focus {
+    background-color: #23243a !important;
+    color: #fff !important;
+    border-color: #ffd200 !important;
+}
+</style> -->
 
 <?php include '../includes/footer.php'; ?>

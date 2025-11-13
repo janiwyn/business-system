@@ -249,8 +249,8 @@ body.dark-mode .nav-tabs .nav-link {
 body.dark-mode .nav-tabs .nav-link.active, 
 body.dark-mode .nav-tabs .nav-link:focus, 
 body.dark-mode .nav-tabs .nav-link:hover {
-    background: #1abc9c;
-    color: #fff !important;
+    background: #fff;
+    color: #1abc9c!important;
 }
 
 /* Card Styling */
@@ -492,22 +492,22 @@ if (isset($_GET['created']) && $_GET['created'] == '1') {
     <h2 class="page-title mb-4 text-center">Suppliers Management</h2>
     <ul class="nav nav-tabs" id="supplierTabs" role="tablist">
         <li class="nav-item">
-            <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-create">Create Supplier</button>
+            <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-create"  style="border-left: 4px solid teal; border-top: 1px solid teal; border-right: 1px solid teal;">Create Supplier</button>
         </li>
         <li class="nav-item">
-            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-manage">Manage Suppliers</button>
+            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-manage"  style="border-left: 4px solid teal; border-top: 1px solid teal; border-right: 1px solid teal;">Manage Suppliers</button>
         </li>
         <li class="nav-item">
-            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-trans">Supplier Transactions</button>
+            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-trans"  style="border-left: 4px solid teal; border-top: 1px solid teal; border-right: 1px solid teal;">Supplier Transactions</button>
         </li>
         <li class="nav-item">
-            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-products">Supplier Products</button>
+            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-products"  style="border-left: 4px solid teal; border-top: 1px solid teal; border-right: 1px solid teal;">Supplier Products</button>
         </li>
     </ul>
     <div class="tab-content mt-3">
         <!-- CREATE SUPPLIER TAB -->
         <div class="tab-pane fade show active" id="tab-create">
-            <div class="card add-supplier-card mb-4">
+            <div class="card add-supplier-card mb-4"  style="border-left: 4px solid teal;">
                 <div class="card-header">Create Supplier</div>
                 <div class="card-body">
                     <?= isset($message) ? $message : "" ?>
@@ -539,7 +539,7 @@ if (isset($_GET['created']) && $_GET['created'] == '1') {
         <!-- MANAGE SUPPLIERS TAB -->
         <div class="tab-pane fade" id="tab-manage">
             <!-- Manage Suppliers Table for Small Devices -->
-            <div class="d-block d-md-none mb-4">
+            <div class="d-block d-md-none mb-4" style="border-left: 4px solid teal;">
               <div class="card transactions-card">
                 <div class="card-body">
                   <div class="table-responsive-sm">
@@ -591,7 +591,7 @@ if (isset($_GET['created']) && $_GET['created'] == '1') {
             </div>
 
             <!-- Manage Suppliers Table for Medium and Large Devices -->
-            <div class="card mb-4 d-none d-md-block">
+            <div class="card mb-4 d-none d-md-block" style="border-left: 4px solid teal;">
               <div class="card-header">Manage Suppliers</div>
               <div class="card-body">
                 <div class="transactions-table">
@@ -672,7 +672,7 @@ if (isset($_GET['created']) && $_GET['created'] == '1') {
         <!-- SUPPLIER TRANSACTIONS TAB -->
         <div class="tab-pane fade" id="tab-trans">
             <!-- Supplier Transactions Table for Small Devices -->
-            <div class="d-block d-md-none mb-4">
+            <div class="d-block d-md-none mb-4" style="border-left: 4px solid teal;">
               <?php if (count($suppliers_arr) > 0): ?>
                 <div class="accordion" id="suppliersAccordionMobile">
                   <?php foreach($suppliers_arr as $s): ?>
@@ -774,7 +774,7 @@ if (isset($_GET['created']) && $_GET['created'] == '1') {
               <?php endif; ?>
             </div>
             <!-- Supplier Transactions Table for Medium and Large Devices -->
-            <div class="card mb-4 d-none d-md-block">
+            <div class="card mb-4 d-none d-md-block" style="border-left: 4px solid teal;">
                 <div class="card-header">Supplier Transactions</div>
                 <div class="card-body">
                     <?php if (count($suppliers_arr) > 0): ?>
@@ -802,13 +802,13 @@ if (isset($_GET['created']) && $_GET['created'] == '1') {
         </div>
         <!-- SUPPLIER PRODUCTS TAB -->
         <div class="tab-pane fade" id="tab-products">
-            <div class="card mb-4">
+            <div class="card mb-4" style="border-left: 4px solid teal;">
                 <div class="card-header">Supplier Products</div>
                 <div class="card-body">
                     <?php if (count($suppliers_arr) > 0): ?>
                         <div class="accordion" id="supplierProductsAccordion">
                             <?php foreach($suppliers_arr as $s): ?>
-                                <div class="accordion-item mb-2">
+                                <div class="accordion-item mb-2" style="border-left: 4px solid teal; border-top: 1px solid teal; border-right: 1px solid teal;">
                                     <h2 class="accordion-header" id="headingP<?= $s['id'] ?>">
                                         <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseP<?= $s['id'] ?>" aria-expanded="false" aria-controls="collapseP<?= $s['id'] ?>">
                                             <?= htmlspecialchars($s['name']) ?> — Location: <?= htmlspecialchars($s['location']) ?>

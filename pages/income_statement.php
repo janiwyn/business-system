@@ -12,7 +12,7 @@ include '../includes/header.php';
   <div class="row">
     <!-- Income Section -->
     <div class="col-md-6">
-      <div class="card income-card mb-4">
+      <div class="card income-card mb-4"  style="border-left: 4px solid teal;">
         <div class="card-header income-header">Income</div>
         <div class="card-body">
           <table class="income-table align-middle">
@@ -61,7 +61,7 @@ include '../includes/header.php';
     </div>
     <!-- Expenses Section -->
     <div class="col-md-6">
-      <div class="card expense-card mb-4">
+      <div class="card expense-card mb-4"  style="border-left: 4px solid teal;">
         <div class="card-header expense-header">Expenses</div>
         <div class="card-body">
           <table class="expense-table align-middle">
@@ -110,7 +110,7 @@ include '../includes/header.php';
     </div>
   </div>
   <!-- Net Profit / Loss -->
-  <div class="card net-result-card shadow-sm mt-4 mb-4">
+  <div class="card net-result-card shadow-sm mt-4 mb-4"  style="border-left: 4px solid teal;">
     <div class="card-header net-result-header text-center">
       Net Result
     </div>
