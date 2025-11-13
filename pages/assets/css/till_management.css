@@ -1,0 +1,115 @@
+/* Create & Assign Till form styling (match Add New Expense form) */
+.create-till-card {
+  border-radius:12px;
+  box-shadow:0 4px 12px var(--card-shadow);
+  background:var(--card-bg);
+}
+.create-till-card .card-header.title-card {
+  background:var(--primary-color);
+  color:#fff !important;
+  border-radius:12px 12px 0 0 !important;
+  font-weight:600;
+  font-size:1.1rem;
+  letter-spacing:1px;
+}
+.create-till-card .form-label { font-weight:600; }
+.create-till-card .form-control,
+.create-till-card .form-select { border-radius:8px; }
+
+body.dark-mode .create-till-card {
+  background:#23243a !important;
+  color:#fff !important;
+}
+body.dark-mode .create-till-card .card-header.title-card {
+  background:#2c3e50 !important;
+  color:#1abc9c !important;
+}
+body.dark-mode .create-till-card .form-label {
+  color:#fff !important;
+}
+body.dark-mode .create-till-card .form-control,
+body.dark-mode .create-till-card .form-select {
+  background:#23243a !important;
+  color:#fff !important;
+  border:1px solid #444 !important;
+}
+body.dark-mode .create-till-card .form-control:focus,
+body.dark-mode .create-till-card .form-select:focus {
+  background:#23243a !important;
+  color:#fff !important;
+}
+
+/* Till View sub-tab pills (green theme) */
+#tillSubTabs .nav-link {
+  border:1px solid var(--primary-color);
+  background:transparent;
+  color:var(--primary-color);
+  font-weight:600;
+  border-radius:8px;
+  padding:0.5rem 1rem;
+  margin-right:6px;
+  transition:background .2s,color .2s;
+}
+#tillSubTabs .nav-link.active,
+#tillSubTabs .nav-link:hover {
+  background:var(--primary-color);
+  color:#fff !important;
+}
+body.dark-mode #tillSubTabs .nav-link {
+  color:#1abc9c;
+  border-color:#1abc9c;
+}
+body.dark-mode #tillSubTabs .nav-link.active,
+body.dark-mode #tillSubTabs .nav-link:hover {
+  background:#1abc9c;
+  color:#fff !important;
+}
+
+/* Till View filter bar (reuse payment analysis styling) */
+.till-view-filter-bar.pa-filter-bar {
+  background:#ffffff;
+  box-shadow:0 2px 8px var(--card-shadow);
+  border:1px solid #e0e0e0;
+}
+.till-view-filter-bar label { color:#2c3e50; font-weight:600; }
+.till-view-filter-bar .form-select {
+  background:#fff;
+  color:#2c3e50;
+  border:1px solid #dee2e6;
+  border-radius:8px;
+  padding:6px 10px;
+}
+.till-view-filter-bar .form-select:focus {
+  background:#fff;
+  color:#2c3e50;
+  border-color:var(--primary-color);
+}
+body.dark-mode .till-view-filter-bar {
+  background:#23243a !important;
+  border:1px solid #444 !important;
+}
+body.dark-mode .till-view-filter-bar label {
+  color:#fff !important;
+}
+body.dark-mode .till-view-filter-bar .form-select,
+body.dark-mode .till-view-filter-bar input[type="date"] {
+  background:#23243a !important;
+  color:#fff !important;
+  border:1px solid #444 !important;
+}
+body.dark-mode .till-view-filter-bar .form-select:focus,
+body.dark-mode .till-view-filter-bar input[type="date"]:focus {
+  background:#23243a !important;
+  color:#fff !important;
+  border-color:#1abc9c !important;
+}
+body.dark-mode .till-view-filter-bar input[type="date"]::-webkit-calendar-picker-indicator {
+  filter:invert(1);
+}
+
+/* Summaries date header rows: dark bg & green text in dark mode */
+body.dark-mode .table tbody tr td.bg-light {
+  background:#272734 !important;
+  color:#1abc9c !important;
+  font-weight:600;
+}
