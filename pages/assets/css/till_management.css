@@ -107,6 +107,58 @@ body.dark-mode .till-view-filter-bar input[type="date"]::-webkit-calendar-picker
   filter:invert(1);
 }
 
+/* Summaries filter bar inherits Till View styles */
+.summaries-filter-bar.pa-filter-bar {
+  background:#ffffff;
+  box-shadow:0 2px 8px var(--card-shadow);
+  border:1px solid #e0e0e0;
+}
+body.dark-mode .summaries-filter-bar {
+  background:#23243a !important;
+  border:1px solid #444 !important;
+}
+body.dark-mode .summaries-filter-bar label {
+  color:#fff !important;
+}
+body.dark-mode .summaries-filter-bar .form-select,
+body.dark-mode .summaries-filter-bar input[type="date"],
+body.dark-mode .summies-filter-bar input[type="number"] {
+  background:#23243a !important;
+  color:#fff !important;
+  border:1px solid #444 !important;
+}
+body.dark-mode .summies-filter-bar .form-select:focus,
+body.dark-mode .summies-filter-bar input[type="date"]:focus,
+body.dark-mode .summies-filter-bar input[type="number"]:focus {
+  border-color:#1abc9c !important;
+}
+
+/* Green pill styling for summaries till selectors (match Till View) */
+#summariesTillSubTabs .nav-link {
+  border:1px solid var(--primary-color);
+  background:transparent;
+  color:var(--primary-color);
+  font-weight:600;
+  border-radius:8px;
+  padding:0.5rem 1rem;
+  margin-right:6px;
+  transition:background .2s,color .2s;
+}
+#summariesTillSubTabs .nav-link.active,
+#summariesTillSubTabs .nav-link:hover {
+  background:var(--primary-color);
+  color:#fff !important;
+}
+body.dark-mode #summariesTillSubTabs .nav-link {
+  color:#1abc9c;
+  border-color:#1abc9c;
+}
+body.dark-mode #summariesTillSubTabs .nav-link.active,
+body.dark-mode #summariesTillSubTabs .nav-link:hover {
+  background:#1abc9c;
+  color:#fff !important;
+}
+
 /* Summaries date header rows: dark bg & green text in dark mode */
 body.dark-mode .table tbody tr td.bg-light {
   background:#272734 !important;

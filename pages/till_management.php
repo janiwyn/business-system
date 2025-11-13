@@ -324,45 +324,32 @@ $staff = $conn->query("SELECT id, username, `branch-id` FROM users WHERE role='s
 
         <!-- Summaries Tab -->
         <div class="tab-pane fade<?= (isset($_GET['tab']) && $_GET['tab'] === 'summaries') ? ' show active' : '' ?>" id="summaries" role="tabpanel">
-            <!-- Filter Bar: all filters in one row -->
-            <form method="GET" id="summariesFilterForm" class="row g-2 align-items-end mb-3">
-                <div class="col-md-2">
-                    <label for="summaries_date_from" class="form-label mb-1">From</label>
-                    <input type="date" class="form-control" id="summaries_date_from" name="summaries_date_from" value="<?= htmlspecialchars($_GET['summaries_date_from'] ?? '') ?>">
-                </div>
-                <div class="col-md-2">
-                    <label for="summaries_date_to" class="form-label mb-1">To</label>
-                    <input type="date" class="form-control" id="summaries_date_to" name="summaries_date_to" value="<?= htmlspecialchars($_GET['summaries_date_to'] ?? '') ?>">
-                </div>
-                <div class="col-md-3">
-                    <label for="summaries_branch" class="form-label mb-1">Branch</label>
-                    <select class="form-select" id="summaries_branch" name="summaries_branch">
-                        <option value="">-- All Branches --</option>
-                        <?php
-                        $branches->data_seek(0);
-                        while ($branch = $branches->fetch_assoc()):
-                            $selected = (isset($_GET['summaries_branch']) && $_GET['summaries_branch'] == $branch['id']) ? 'selected' : '';
-                        ?>
-                            <option value="<?= $branch['id'] ?>" <?= $selected ?>><?= htmlspecialchars($branch['name']) ?></option>
-                        <?php endwhile; ?>
-                    </select>
-                </div>
-                <div class="col-md-3">
-                    <label for="summaries_summary" class="form-label mb-1">Summary</label>
-                    <select class="form-select" id="summaries_summary" name="summaries_summary">
-                        <option value="detailed" <?= (($_GET['summaries_summary'] ?? '') == 'detailed' ? 'selected' : '') ?>>Detailed</option>
-                        <option value="summarized" <?= (($_GET['summaries_summary'] ?? '') == 'summarized' ? 'selected' : '') ?>>Summarized</option>
-                    </select>
-                </div>
-                <!-- NEW: Entries for summaries -->
-                <div class="col-md-2">
-                    <label for="summaries_entries" class="form-label mb-1">Entries</label>
-                    <input type="number" class="form-control" id="summaries_entries" name="summaries_entries" min="1" max="1000" value="<?= htmlspecialchars($_GET['summaries_entries'] ?? '50') ?>">
-                </div>
-                <div class="col-md-2">
-                    <input type="hidden" name="tab" value="summaries">
-                    <button type="submit" class="btn btn-primary w-100">Filter</button>
-                </div>
+            <!-- Filter Bar styled like Till View -->
+            <form method="GET" id="summariesFilterForm" class="pa-filter-bar till-view-filter-bar summaries-filter-bar d-flex align-items-center flex-wrap gap-2 mb-3 p-2 rounded">
+                <input type="hidden" name="tab" value="summaries">
+                <label class="fw-bold me-2 mb-0">From:</label>
+                <input type="date" class="form-select" style="width:150px;" id="summaries_date_from" name="summaries_date_from" value="<?= htmlspecialchars($_GET['summaries_date_from'] ?? '') ?>">
+                <label class="fw-bold me-2 mb-0">To:</label>
+                <input type="date" class="form-select" style="width:150px;" id="summaries_date_to" name="summaries_date_to" value="<?= htmlspecialchars($_GET['summaries_date_to'] ?? '') ?>">
+                <label class="fw-bold me-2 mb-0">Branch:</label>
+                <select class="form-select" style="width:180px;" id="summaries_branch" name="summaries_branch">
+                    <option value="">-- All Branches --</option>
+                    <?php
+                    $branches->data_seek(0);
+                    while ($branch = $branches->fetch_assoc()):
+                        $selected = (isset($_GET['summaries_branch']) && $_GET['summaries_branch'] == $branch['id']) ? 'selected' : '';
+                    ?>
+                        <option value="<?= $branch['id'] ?>" <?= $selected ?>><?= htmlspecialchars($branch['name']) ?></option>
+                    <?php endwhile; ?>
+                </select>
+                <label class="fw-bold me-2 mb-0">Summary:</label>
+                <select class="form-select" style="width:160px;" id="summaries_summary" name="summaries_summary">
+                    <option value="detailed" <?= (($_GET['summaries_summary'] ?? '') == 'detailed' ? 'selected' : '') ?>>Detailed</option>
+                    <option value="summarized" <?= (($_GET['summaries_summary'] ?? '') == 'summarized' ? 'selected' : '') ?>>Summarized</option>
+                </select>
+                <label class="fw-bold me-2 mb-0">Entries:</label>
+                <input type="number" class="form-select" style="width:100px;" id="summaries_entries" name="summaries_entries" min="1" max="1000" value="<?= htmlspecialchars($_GET['summaries_entries'] ?? '50') ?>">
+                <button type="submit" class="btn btn-primary ms-auto">Filter</button>
             </form>
 
             <?php
