@@ -55,45 +55,52 @@ $staff = $conn->query("SELECT id, username, `branch-id` FROM users WHERE role='s
     <div class="tab-content mt-4" id="tillTabsContent">
         <!-- Create & Assign Till Tab -->
         <div class="tab-pane fade<?= (!isset($_GET['tab']) || $_GET['tab'] === 'create-assign') ? ' show active' : '' ?>" id="create-assign" role="tabpanel">
-            <form method="POST" action="">
-                <div class="row g-3">
-                    <div class="col-md-4">
-                        <label for="creation_date" class="form-label">Date of Creation</label>
-                        <input type="date" class="form-control" id="creation_date" name="creation_date" required>
-                    </div>
-                    <div class="col-md-4">
-                        <label for="till_name" class="form-label">Till Name</label>
-                        <input type="text" class="form-control" id="till_name" name="till_name" required>
-                    </div>
-                    <div class="col-md-4">
-                        <label for="branch_id" class="form-label">Branch</label>
-                        <select class="form-select" id="branch_id" name="branch_id" required>
-                            <option value="">-- Select Branch --</option>
-                            <?php while ($branch = $branches->fetch_assoc()): ?>
-                                <option value="<?= $branch['id'] ?>"><?= htmlspecialchars($branch['name']) ?></option>
-                            <?php endwhile; ?>
-                        </select>
-                    </div>
-                    <div class="col-md-6">
-                        <label for="staff_id" class="form-label">Staff Member</label>
-                        <select class="form-select" id="staff_id" name="staff_id" required>
-                            <option value="">-- Select Staff --</option>
-                            <?php while ($member = $staff->fetch_assoc()): ?>
-                                <option value="<?= $member['id'] ?>" data-branch="<?= $member['branch-id'] ?>">
-                                    <?= htmlspecialchars($member['username']) ?>
-                                </option>
-                            <?php endwhile; ?>
-                        </select>
-                    </div>
-                    <div class="col-md-6">
-                        <label for="phone_number" class="form-label">Phone Number</label>
-                        <input type="text" class="form-control" id="phone_number" name="phone_number" required>
-                    </div>
+            <!-- Begin styled card (replaces plain form wrapper) -->
+            <div class="card mb-4 create-till-card">
+                <div class="card-header title-card">Create & Assign Till</div>
+                <div class="card-body">
+                    <form method="POST" action="" id="createTillForm">
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <label for="creation_date" class="form-label">Date of Creation</label>
+                                <input type="date" class="form-control" id="creation_date" name="creation_date" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label for="till_name" class="form-label">Till Name</label>
+                                <input type="text" class="form-control" id="till_name" name="till_name" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label for="branch_id" class="form-label">Branch</label>
+                                <select class="form-select" id="branch_id" name="branch_id" required>
+                                    <option value="">-- Select Branch --</option>
+                                    <?php while ($branch = $branches->fetch_assoc()): ?>
+                                        <option value="<?= $branch['id'] ?>"><?= htmlspecialchars($branch['name']) ?></option>
+                                    <?php endwhile; ?>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="staff_id" class="form-label">Staff Member</label>
+                                <select class="form-select" id="staff_id" name="staff_id" required>
+                                    <option value="">-- Select Staff --</option>
+                                    <?php while ($member = $staff->fetch_assoc()): ?>
+                                        <option value="<?= $member['id'] ?>" data-branch="<?= $member['branch-id'] ?>">
+                                            <?= htmlspecialchars($member['username']) ?>
+                                        </option>
+                                    <?php endwhile; ?>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="phone_number" class="form-label">Phone Number</label>
+                                <input type="text" class="form-control" id="phone_number" name="phone_number" required>
+                            </div>
+                        </div>
+                        <div class="mt-3 text-end">
+                            <button type="submit" class="btn btn-primary">Create</button>
+                        </div>
+                    </form>
                 </div>
-                <div class="mt-3">
-                    <button type="submit" class="btn btn-primary">Create</button>
-                </div>
-            </form>
+            </div>
+            <!-- End styled card -->
         </div>
 
         <!-- Till Management Tab -->
@@ -605,5 +612,49 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 });
 </script>
+
+<!-- Insert styling block for the new create-till-card -->
+<style>
+/* Create & Assign Till form styling (match Add New Expense form) */
+.create-till-card {
+    border-radius:12px;
+    box-shadow:0 4px 12px var(--card-shadow);
+    background:var(--card-bg);
+}
+.create-till-card .card-header.title-card {
+    background:var(--primary-color);
+    color:#fff !important;
+    border-radius:12px 12px 0 0 !important;
+    font-weight:600;
+    font-size:1.1rem;
+    letter-spacing:1px;
+}
+.create-till-card .form-label { font-weight:600; }
+.create-till-card .form-control,
+.create-till-card .form-select { border-radius:8px; }
+
+body.dark-mode .create-till-card {
+    background:#23243a !important;
+    color:#fff !important;
+}
+body.dark-mode .create-till-card .card-header.title-card {
+    background:#2c3e50 !important;
+    color:#1abc9c !important;
+}
+body.dark-mode .create-till-card .form-label {
+    color:#fff !important;
+}
+body.dark-mode .create-till-card .form-control,
+body.dark-mode .create-till-card .form-select {
+    background:#23243a !important;
+    color:#fff !important;
+    border:1px solid #444 !important;
+}
+body.dark-mode .create-till-card .form-control:focus,
+body.dark-mode .create-till-card .form-select:focus {
+    background:#23243a !important;
+    color:#fff !important;
+}
+</style>
 
 <?php include '../includes/footer.php'; ?>
