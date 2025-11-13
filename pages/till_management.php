@@ -277,7 +277,7 @@ $staff = $conn->query("SELECT id, username, `branch-id` FROM users WHERE role='s
 
             <?php if ($selected_till_id && $selected_staff_id): ?>
             <div class="card mt-3">
-                <div class="card-header">Sales Records for Till</div>
+                <div class="card-header" style="color:#1abc9c;"><b>Sales Records for Till</b></div>
                 <div class="card-body table-responsive">
                     <div class="transactions-table">
                         <table>
@@ -456,8 +456,8 @@ $staff = $conn->query("SELECT id, username, `branch-id` FROM users WHERE role='s
                     $product_res = $conn->query($product_sql);
                     ?>
                     <div class="card mt-3">
-                        <div class="card-header">
-                            Product Summaries (Items Sold Per Day)
+                        <div class="card-header" style="color:#1abc9c;">
+                            <b>Product Summaries (Items Sold Per Day)</b>
                         </div>
                         <div class="card-body">
                             <div class="transactions-table">
