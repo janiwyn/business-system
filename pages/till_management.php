@@ -5,6 +5,19 @@ require_role(["admin", "manager"]);
 include '../pages/sidebar.php';
 include '../includes/header.php';
 
+// --- SQL (run once in migration or keep here as safety) ---
+$conn->query("
+CREATE TABLE IF NOT EXISTS tills (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  creation_date DATE NOT NULL,
+  name VARCHAR(100) NOT NULL,
+  branch_id INT NOT NULL,
+  staff_id INT NOT NULL,
+  phone_number VARCHAR(30) NOT NULL,
+  INDEX(branch_id), INDEX(staff_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+");
+
 // Ensure table for till removals exists (idempotent)
 $conn->query("
     CREATE TABLE IF NOT EXISTS till_removals (
@@ -14,7 +27,8 @@ $conn->query("
         amount DECIMAL(15,2) NOT NULL,
         approved_by INT DEFAULT NULL,
         balance_after DECIMAL(15,2) NOT NULL,
-        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        INDEX(till_id), INDEX(branch_id)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 ");
 
@@ -34,23 +48,26 @@ $conn->query("
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 ");
 
-// Handle form submission for creating a till
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $creation_date = $_POST['creation_date'];
-    $till_name = $_POST['till_name'];
-    $branch_id = $_POST['branch_id'];
-    $staff_id = $_POST['staff_id'];
-    $phone_number = $_POST['phone_number'];
+// --- Till creation handler (only runs for action=create_till) ---
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'create_till') {
+    $creation_date = $_POST['creation_date'] ?? null;
+    $till_name     = trim($_POST['till_name'] ?? '');
+    $branch_id     = isset($_POST['branch_id']) ? (int)$_POST['branch_id'] : 0;
+    $staff_id      = isset($_POST['staff_id']) ? (int)$_POST['staff_id'] : 0;
+    $phone_number  = trim($_POST['phone_number'] ?? '');
 
-    $stmt = $conn->prepare("INSERT INTO tills (creation_date, name, branch_id, staff_id, phone_number) VALUES (?, ?, ?, ?, ?)");
-    $stmt->bind_param("ssiss", $creation_date, $till_name, $branch_id, $staff_id, $phone_number);
-
-    if ($stmt->execute()) {
-        $success_message = "Till created successfully!";
+    if ($creation_date && $till_name !== '' && $branch_id > 0 && $staff_id > 0 && $phone_number !== '') {
+        $stmt = $conn->prepare("INSERT INTO tills (creation_date, name, branch_id, staff_id, phone_number) VALUES (?, ?, ?, ?, ?)");
+        $stmt->bind_param("ssiis", $creation_date, $till_name, $branch_id, $staff_id, $phone_number); // fixed format (was ssiss)
+        if ($stmt->execute()) {
+            $success_message = "Till created successfully!";
+        } else {
+            $error_message = "Failed to create till: " . $stmt->error;
+        }
+        $stmt->close();
     } else {
-        $error_message = "Failed to create till: " . $stmt->error;
+        $error_message = "All till fields are required.";
     }
-    $stmt->close();
 }
 
 // NEW: Handle Till Safe removal submission
@@ -157,6 +174,7 @@ $approvers_res = $conn->query("SELECT id, username, role FROM users WHERE role I
                 <div class="card-header title-card">Create & Assign Till</div>
                 <div class="card-body">
                     <form method="POST" action="" id="createTillForm">
+                        <input type="hidden" name="action" value="create_till">
                         <div class="row g-3">
                             <div class="col-md-4">
                                 <label for="creation_date" class="form-label">Date of Creation</label>
