@@ -522,58 +522,56 @@ $staff = $conn->query("SELECT id, username, `branch-id` FROM users WHERE role='s
                     ";
                     $salesval_res = $conn->query($salesval_sql);
 
-                    // Group results by date for display
-                    $salesval_summary = [];
-                    $date_totals = [];
+                    // Flatten rows for output and compute totals
+                    $grouped = [];
                     $grand_total = 0;
                     if ($salesval_res && $salesval_res->num_rows > 0) {
-                        while ($row = $salesval_res->fetch_assoc()) {
-                            $date = $row['date'];
-                            $salesval_summary[$date][] = $row;
-                            if (!isset($date_totals[$date])) $date_totals[$date] = 0;
-                            $date_totals[$date] += $row['total_sales'];
-                            $grand_total += $row['total_sales'];
+                        while ($r = $salesval_res->fetch_assoc()) {
+                            $d = $r['date'];
+                            if (!isset($grouped[$d])) $grouped[$d] = [];
+                            $grouped[$d][] = $r;
+                            $grand_total += $r['total_sales'];
                         }
                     }
                     ?>
                     <div class="card mt-3">
-                        <div class="card-header">
-                            Sales Value Summary (Grouped by Day & Payment Method)
-                        </div>
+                        <div class="card-header" style="color:#1abc9c;"><b>Sales Value Summary (Payment Methods Per Day)</b></div>
                         <div class="card-body">
-                            <div class="table-responsive">
-                                <table class="table table-striped">
+                            <div class="transactions-table">
+                                <table>
                                     <thead>
                                         <tr>
+                                            <th>Date</th>
                                             <th>Payment Method</th>
-                                            <th>Total Sales Value</th>
+                                            <th>Amount</th>
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        <?php if (!empty($salesval_summary)): ?>
-                                            <?php foreach ($salesval_summary as $date => $rows): ?>
+                                        <?php if (!empty($grouped)): ?>
+                                            <?php foreach ($grouped as $day => $rows): ?>
+                                                <?php
+                                                    $day_total = 0;
+                                                    foreach ($rows as $row):
+                                                        $day_total += $row['total_sales'];
+                                                ?>
                                                 <tr>
-                                                    <td colspan="2" class="fw-bold bg-light"><?= htmlspecialchars($date) ?></td>
+                                                    <td><small class="text-muted"><?= htmlspecialchars($day) ?></small></td>
+                                                    <td><?= htmlspecialchars($row['payment_method']) ?></td>
+                                                    <td><span class="fw-bold text-success">UGX <?= number_format($row['total_sales'], 2) ?></span></td>
                                                 </tr>
-                                                <?php foreach ($rows as $row): ?>
-                                                    <tr>
-                                                        <td><?= htmlspecialchars($row['payment_method']) ?></td>
-                                                        <td>UGX <?= number_format($row['total_sales'], 2) ?></td>
-                                                    </tr>
                                                 <?php endforeach; ?>
                                                 <tr>
-                                                    <td class="text-end fw-bold">Total for <?= htmlspecialchars($date) ?>:</td>
-                                                    <td class="fw-bold">UGX <?= number_format($date_totals[$date], 2) ?></td>
+                                                    <td colspan="2" class="text-end fw-bold">Total for <?= htmlspecialchars($day) ?></td>
+                                                    <td><span class="fw-bold text-primary">UGX <?= number_format($day_total, 2) ?></span></td>
                                                 </tr>
                                             <?php endforeach; ?>
-                                            <!-- Grand total row -->
                                             <tr>
-                                                <td class="text-end fw-bold bg-success text-white">Grand Total</td>
-                                                <td class="fw-bold bg-success text-white">UGX <?= number_format($grand_total, 2) ?></td>
+                                                <td colspan="2" class="text-end fw-bold">Grand Total</td>
+                                                <td><span class="fw-bold text-danger">UGX <?= number_format($grand_total, 2) ?></span></td>
                                             </tr>
                                         <?php else: ?>
                                             <tr>
-                                                <td colspan="2" class="text-center text-muted">No sales value summary found for this till and filter.</td>
+                                                <td colspan="3" class="text-center text-muted">No sales value summary found for this till and filter.</td>
                                             </tr>
                                         <?php endif; ?>
                                     </tbody>
