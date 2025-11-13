@@ -422,74 +422,77 @@ $staff = $conn->query("SELECT id, username, `branch-id` FROM users WHERE role='s
                     <?php
                     // Get staff_id for selected till
                     $summaries_selected_staff_id = null;
-                    $staff_res = $conn->query("SELECT staff_id FROM tills WHERE id = " . intval($summaries_selected_till_id));
+                    $staff_res = $conn->query("SELECT staff_id, branch_id FROM tills WHERE id = " . intval($summaries_selected_till_id));
+                    $till_branch_id = null;
                     if ($staff_row = $staff_res->fetch_assoc()) {
                         $summaries_selected_staff_id = $staff_row['staff_id'];
+                        $till_branch_id = $staff_row['branch_id'];
                     }
-                    // Build sales filter for product summary
+                    // Build sales filter for product summary (match sales product summary style)
                     $product_where = ["s.`sold-by` = " . intval($summaries_selected_staff_id)];
-                    if ($summaries_branch) $product_where[] = "s.`branch-id` = " . intval($summaries_branch);
-                    if ($summaries_date_from) $product_where[] = "s.date >= '" . $conn->real_escape_string($summaries_date_from) . "'";
-                    if ($summaries_date_to) $product_where[] = "s.date <= '" . $conn->real_escape_string($summaries_date_to) . "'";
+                    if ($summaries_branch) {
+                        $product_where[] = "s.`branch-id` = " . intval($summaries_branch);
+                    }
+                    if ($summaries_date_from) {
+                        $product_where[] = "DATE(s.date) >= '" . $conn->real_escape_string($summaries_date_from) . "'";
+                    }
+                    if ($summaries_date_to) {
+                        $product_where[] = "DATE(s.date) <= '" . $conn->real_escape_string($summaries_date_to) . "'";
+                    }
                     $product_sql = "
                         SELECT 
-                            s.date,
+                            DATE(s.date) AS sale_date,
+                            b.name AS branch_name,
                             p.name AS product_name,
-                            SUM(s.quantity) AS total_quantity
+                            SUM(s.quantity) AS items_sold
                         FROM sales s
                         JOIN products p ON s.`product-id` = p.id
+                        JOIN branch b ON s.`branch-id` = b.id
                         WHERE " . implode(" AND ", $product_where) . "
-                        GROUP BY s.date, p.name
-                        ORDER BY s.date DESC, p.name ASC
+                        GROUP BY sale_date, branch_name, product_name
+                        ORDER BY sale_date DESC, branch_name ASC, product_name ASC
                         LIMIT " . $summaries_entries . "
                     ";
                     $product_res = $conn->query($product_sql);
-
-                    // Group results by date for display
-                    $product_summary = [];
-                    $date_totals = [];
-                    if ($product_res && $product_res->num_rows > 0) {
-                        while ($row = $product_res->fetch_assoc()) {
-                            $date = $row['date'];
-                            $product_summary[$date][] = $row;
-                            if (!isset($date_totals[$date])) $date_totals[$date] = 0;
-                            $date_totals[$date] += $row['total_quantity'];
-                        }
-                    }
                     ?>
                     <div class="card mt-3">
                         <div class="card-header">
-                            Product Summaries (Grouped by Day)
+                            Product Summaries (Items Sold Per Day)
                         </div>
                         <div class="card-body">
-                            <div class="table-responsive">
-                                <table class="table table-striped">
+                            <div class="transactions-table">
+                                <table>
                                     <thead>
                                         <tr>
+                                            <th>Date</th>
+                                            <th>Branch</th>
                                             <th>Product</th>
-                                            <th>Total Quantity Sold</th>
+                                            <th>Items Sold</th>
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        <?php if (!empty($product_summary)): ?>
-                                            <?php foreach ($product_summary as $date => $rows): ?>
-                                                <tr>
-                                                    <td colspan="2" class="fw-bold bg-light"><?= htmlspecialchars($date) ?></td>
-                                                </tr>
-                                                <?php foreach ($rows as $row): ?>
-                                                    <tr>
-                                                        <td><?= htmlspecialchars($row['product_name']) ?></td>
-                                                        <td><?= $row['total_quantity'] ?></td>
-                                                    </tr>
-                                                <?php endforeach; ?>
-                                                <tr>
-                                                    <td class="text-end fw-bold">Total for <?= htmlspecialchars($date) ?>:</td>
-                                                    <td class="fw-bold"><?= $date_totals[$date] ?></td>
-                                                </tr>
-                                            <?php endforeach; ?>
-                                        <?php else: ?>
-                                            <tr>
-                                                <td colspan="2" class="text-center text-muted">No product sales found for this till and filter.</td>
+                                        <?php
+                                        if ($product_res && $product_res->num_rows > 0):
+                                            $prev_date = null;
+                                            $prev_branch = null;
+                                            while ($row = $product_res->fetch_assoc()):
+                                                $show_date = ($prev_date !== $row['sale_date']);
+                                                $show_branch = ($prev_branch !== $row['branch_name']) || $show_date;
+                                        ?>
+                                        <tr>
+                                            <td><?= $show_date ? htmlspecialchars($row['sale_date']) : '' ?></td>
+                                            <td><?= $show_branch ? htmlspecialchars($row['branch_name']) : '' ?></td>
+                                            <td><?= htmlspecialchars($row['product_name']) ?></td>
+                                            <td><?= htmlspecialchars($row['items_sold']) ?></td>
+                                        </tr>
+                                        <?php
+                                                $prev_date = $row['sale_date'];
+                                                $prev_branch = $row['branch_name'];
+                                            endwhile;
+                                        else:
+                                        ?>
+                                        <tr>
+                                            <td colspan="4" class="text-center text-muted">No product summary data found for this till and filter.</td>
                                         </tr>
                                         <?php endif; ?>
                                     </tbody>
