@@ -38,7 +38,7 @@ $conn->query("
         id INT AUTO_INCREMENT PRIMARY KEY,
         branch_id INT NOT NULL,
         till_id INT NOT NULL,
-        event_type ENUM('removal','sale') NOT NULL,
+        event_type ENUM('removal','sale','return') NOT NULL,
         amount DECIMAL(15,2) NOT NULL,
         balance_after DECIMAL(15,2) NOT NULL,
         reference_removal_id INT NULL,
@@ -125,6 +125,66 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['remove_from_till'])) 
                     $safe_success = 'Till removal recorded successfully.';
                 } else {
                     $safe_error = 'Failed to record till removal.';
+                }
+                $stmt->close();
+            }
+        }
+    }
+}
+
+// NEW: Undo (return) handler
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['undo_removal'])) {
+    $undo_removal_id = intval($_POST['undo_removal_id'] ?? 0);
+    $undo_branch_id  = intval($_POST['undo_branch_id'] ?? 0);
+    $undo_till_id    = intval($_POST['undo_till_id'] ?? 0);
+    $return_amount   = floatval($_POST['return_amount'] ?? 0);
+
+    if ($undo_removal_id <= 0 || $undo_branch_id <= 0 || $undo_till_id <= 0 || $return_amount <= 0) {
+        $safe_error = 'Invalid undo submission.';
+    } else {
+        // Fetch original removal row
+        $orig = $conn->query("SELECT amount FROM till_removals WHERE id = $undo_removal_id AND till_id = $undo_till_id AND branch_id = $undo_branch_id");
+        $orig_row = $orig ? $orig->fetch_assoc() : null;
+        if (!$orig_row) {
+            $safe_error = 'Original removal not found.';
+        } elseif ($return_amount > floatval($orig_row['amount'])) {
+            $safe_error = 'Return amount exceeds original removal.';
+        } else {
+            // Compute current balance (same logic as removal)
+            $tillQ = $conn->query("SELECT staff_id, branch_id FROM tills WHERE id = $undo_till_id LIMIT 1");
+            $tillData = $tillQ ? $tillQ->fetch_assoc() : null;
+            if (!$tillData) {
+                $safe_error = 'Till not found for undo.';
+            } else {
+                $staff_id = intval($tillData['staff_id']);
+                $sales_sql = "SELECT SUM(s.amount) AS total_sales FROM sales s WHERE s.`sold-by` = $staff_id AND s.`branch-id` = " . intval($tillData['branch_id']);
+                $sales_res = $conn->query($sales_sql);
+                $total_sales = ($sales_res && ($r = $sales_res->fetch_assoc())) ? floatval($r['total_sales']) : 0.0;
+
+                $rem_sql = "SELECT SUM(amount) AS total_removed FROM till_removals WHERE till_id = $undo_till_id";
+                $rem_res = $conn->query($rem_sql);
+                $total_removed = ($rem_res && ($r2 = $rem_res->fetch_assoc())) ? floatval($r2['total_removed']) : 0.0;
+
+                $current_balance = $total_sales - $total_removed;
+                // New balance after returning money
+                $balance_after = $current_balance + $return_amount;
+
+                // Insert negative removal row (undo entry)
+                $stmt = $conn->prepare("INSERT INTO till_removals (branch_id, till_id, amount, approved_by, balance_after) VALUES (?, ?, ?, ?, ?)");
+                $neg_amount = -1 * $return_amount;
+                $approved_by = isset($_SESSION['user_id']) ? intval($_SESSION['user_id']) : (isset($_SESSION['id']) ? intval($_SESSION['id']) : null);
+                $stmt->bind_param("iiddi", $undo_branch_id, $undo_till_id, $neg_amount, $approved_by, $balance_after);
+                if ($stmt->execute()) {
+                    $undo_row_id = $stmt->insert_id;
+                    // Log transaction (return)
+                    $tx = $conn->prepare("INSERT INTO till_transactions (branch_id, till_id, event_type, amount, balance_after, reference_removal_id, approved_by) VALUES (?,?,?,?,?,?,?)");
+                    $etype = 'return';
+                    $tx->bind_param("iisdiii", $undo_branch_id, $undo_till_id, $etype, $return_amount, $balance_after, $undo_row_id, $approved_by);
+                    $tx->execute();
+                    $tx->close();
+                    $safe_success = 'Amount returned successfully.';
+                } else {
+                    $safe_error = 'Failed to record undo.';
                 }
                 $stmt->close();
             }
@@ -930,9 +990,9 @@ $approvers_res = $conn->query("SELECT id, username, role FROM users WHERE role I
                     if (!empty($safe_date_from)) $rem_where[] = "DATE(r.created_at) >= '" . $conn->real_escape_string($safe_date_from) . "'";
                     if (!empty($safe_date_to))   $rem_where[] = "DATE(r.created_at) <= '" . $conn->real_escape_string($safe_date_to) . "'";
                     $rem_sql = "
-                        SELECT r.created_at, b.name AS branch_name, t.name AS till_name,
+                        SELECT r.id, r.created_at, b.name AS branch_name, t.id AS till_id, t.name AS till_name,
                                um.username AS manager_name, r.amount, r.balance_after,
-                               ua.username AS approved_by
+                               ua.username AS approved_by, r.branch_id
                         FROM till_removals r
                         JOIN tills t ON r.till_id = t.id
                         JOIN branch b ON r.branch_id = b.id
@@ -958,6 +1018,7 @@ $approvers_res = $conn->query("SELECT id, username, role FROM users WHERE role I
                                             <th>Amount Removed</th>
                                             <th>Balance In Till</th>
                                             <th>Approved By</th>
+                                            <th>Actions</th> <!-- NEW -->
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -968,13 +1029,28 @@ $approvers_res = $conn->query("SELECT id, username, role FROM users WHERE role I
                                                     <td><?= htmlspecialchars($row['branch_name']) ?></td>
                                                     <td><?= htmlspecialchars($row['till_name']) ?></td>
                                                     <td><?= htmlspecialchars($row['manager_name']) ?></td>
-                                                    <td><span class="fw-bold text-danger">UGX <?= number_format($row['amount'], 2) ?></span></td>
+                                                    <td><span class="fw-bold <?= ($row['amount'] < 0 ? 'text-success' : 'text-danger') ?>">UGX <?= number_format($row['amount'], 2) ?></span></td>
                                                     <td><span class="fw-bold text-primary">UGX <?= number_format($row['balance_after'], 2) ?></span></td>
                                                     <td><?= htmlspecialchars($row['approved_by'] ?? '-') ?></td>
+                                                    <td>
+                                                        <?php if ($row['amount'] > 0): ?>
+                                                            <button type="button"
+                                                                class="btn btn-sm btn-warning undo-removal-btn"
+                                                                title="Undo Removal"
+                                                                data-removal-id="<?= $row['id'] ?>"
+                                                                data-till-id="<?= $row['till_id'] ?>"
+                                                                data-branch-id="<?= $row['branch_id'] ?>"
+                                                                data-amount="<?= $row['amount'] ?>">
+                                                                <i class="fa fa-undo"></i>
+                                                            </button>
+                                                        <?php else: ?>
+                                                            <span class="text-muted" style="font-size:0.75rem;">(undo)</span>
+                                                        <?php endif; ?>
+                                                    </td>
                                                 </tr>
                                             <?php endwhile; ?>
                                         <?php else: ?>
-                                            <tr><td colspan="7" class="text-center text-muted">No till removals found for the selected filters.</td></tr>
+                                            <tr><td colspan="8" class="text-center text-muted">No till removals found for the selected filters.</td></tr>
                                         <?php endif; ?>
                                     </tbody>
                                 </table>
@@ -992,5 +1068,65 @@ $approvers_res = $conn->query("SELECT id, username, role FROM users WHERE role I
 
 <!-- Replace inline style with external CSS -->
 <link rel="stylesheet" href="assets/css/till_management.css">
+
+<!-- Undo Removal Modal -->
+<div class="modal fade" id="undoRemovalModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <form method="POST" class="modal-content">
+      <div class="modal-header" style="background:var(--primary-color);color:#fff;">
+        <h5 class="modal-title">Undo Till Removal</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" name="undo_removal" value="1">
+        <input type="hidden" name="undo_removal_id" id="undo_removal_id">
+        <input type="hidden" name="undo_till_id" id="undo_till_id">
+        <input type="hidden" name="undo_branch_id" id="undo_branch_id">
+        <p class="mb-2">Original Removed: <strong id="undo_original_amount">UGX 0.00</strong></p>
+        <div class="mb-3">
+          <label class="form-label">Amount to Return (UGX)</label>
+          <input type="number" step="0.01" min="0.01" class="form-control" name="return_amount" id="return_amount" required>
+          <small class="text-muted">Cannot exceed original removal amount.</small>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="submit" class="btn btn-primary">Return</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+(function(){
+  const modalEl = document.getElementById('undoRemovalModal');
+  const removalIdInput = document.getElementById('undo_removal_id');
+  const tillIdInput = document.getElementById('undo_till_id');
+  const branchIdInput = document.getElementById('undo_branch_id');
+  const originalAmtSpan = document.getElementById('undo_original_amount');
+  const returnAmtInput = document.getElementById('return_amount');
+  document.querySelectorAll('.undo-removal-btn').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      const rid = btn.dataset.removalId;
+      const tid = btn.dataset.tillId;
+      const bid = btn.dataset.branchId;
+      const amt = parseFloat(btn.dataset.amount||'0');
+      removalIdInput.value = rid;
+      tillIdInput.value = tid;
+      branchIdInput.value = bid;
+      originalAmtSpan.textContent = 'UGX ' + amt.toFixed(2);
+      returnAmtInput.value = '';
+      returnAmtInput.max = amt;
+      new bootstrap.Modal(modalEl).show();
+    });
+  });
+  // Simple max validation
+  returnAmtInput && returnAmtInput.addEventListener('input',()=>{
+    const max = parseFloat(returnAmtInput.max||'0');
+    const val = parseFloat(returnAmtInput.value||'0');
+    if(val > max){ returnAmtInput.value = max.toFixed(2); }
+  });
+})();
+</script>
 
 <?php include '../includes/footer.php'; ?>
