@@ -154,40 +154,30 @@ $staff = $conn->query("SELECT id, username, `branch-id` FROM users WHERE role='s
 
         <!-- Till View Tab -->
         <div class="tab-pane fade<?= (isset($_GET['tab']) && $_GET['tab'] === 'till-view') ? ' show active' : '' ?>" id="till-view" role="tabpanel">
-            <!-- Filter Bar: all filters in one row -->
-            <form method="GET" id="tillViewFilterForm" class="row g-2 align-items-end mb-3">
-                <div class="col-md-2">
-                    <label for="filter_date_from" class="form-label mb-1">From</label>
-                    <input type="date" class="form-control" id="filter_date_from" name="filter_date_from" value="<?= htmlspecialchars($_GET['filter_date_from'] ?? '') ?>">
-                </div>
-                <div class="col-md-2">
-                    <label for="filter_date_to" class="form-label mb-1">To</label>
-                    <input type="date" class="form-control" id="filter_date_to" name="filter_date_to" value="<?= htmlspecialchars($_GET['filter_date_to'] ?? '') ?>">
-                </div>
-                <div class="col-md-3">
-                    <label for="filter_branch" class="form-label mb-1">Branch</label>
-                    <select class="form-select" id="filter_branch" name="filter_branch">
-                        <option value="">-- All Branches --</option>
-                        <?php
-                        $branches->data_seek(0);
-                        while ($branch = $branches->fetch_assoc()):
-                            $selected = (isset($_GET['filter_branch']) && $_GET['filter_branch'] == $branch['id']) ? 'selected' : '';
-                        ?>
-                            <option value="<?= $branch['id'] ?>" <?= $selected ?>><?= htmlspecialchars($branch['name']) ?></option>
-                        <?php endwhile; ?>
-                    </select>
-                </div>
-                <div class="col-md-3">
-                    <label for="filter_summary" class="form-label mb-1">Summary</label>
-                    <select class="form-select" id="filter_summary" name="filter_summary">
-                        <option value="detailed" <?= (($_GET['filter_summary'] ?? '') == 'detailed' ? 'selected' : '') ?>>Detailed</option>
-                        <option value="summarized" <?= (($_GET['filter_summary'] ?? '') == 'summarized' ? 'selected' : '') ?>>Summarized</option>
-                    </select>
-                </div>
-                <div class="col-md-2">
-                    <input type="hidden" name="tab" value="till-view">
-                    <button type="submit" class="btn btn-primary w-100">Filter</button>
-                </div>
+            <!-- Filter Bar updated -->
+            <form method="GET" id="tillViewFilterForm" class="pa-filter-bar till-view-filter-bar d-flex align-items-center flex-wrap gap-2 mb-3 p-2 rounded">
+                <input type="hidden" name="tab" value="till-view">
+                <label class="fw-bold me-2 mb-0">From:</label>
+                <input type="date" class="form-select" style="width:150px;" id="filter_date_from" name="filter_date_from" value="<?= htmlspecialchars($_GET['filter_date_from'] ?? '') ?>">
+                <label class="fw-bold me-2 mb-0">To:</label>
+                <input type="date" class="form-select" style="width:150px;" id="filter_date_to" name="filter_date_to" value="<?= htmlspecialchars($_GET['filter_date_to'] ?? '') ?>">
+                <label class="fw-bold me-2 mb-0">Branch:</label>
+                <select class="form-select" style="width:180px;" id="filter_branch" name="filter_branch">
+                    <option value="">-- All Branches --</option>
+                    <?php
+                    $branches->data_seek(0);
+                    while ($branch = $branches->fetch_assoc()):
+                        $selected = (isset($_GET['filter_branch']) && $_GET['filter_branch'] == $branch['id']) ? 'selected' : '';
+                    ?>
+                        <option value="<?= $branch['id'] ?>" <?= $selected ?>><?= htmlspecialchars($branch['name']) ?></option>
+                    <?php endwhile; ?>
+                </select>
+                <label class="fw-bold me-2 mb-0">Summary:</label>
+                <select class="form-select" style="width:160px;" id="filter_summary" name="filter_summary">
+                    <option value="detailed" <?= (($_GET['filter_summary'] ?? '') == 'detailed' ? 'selected' : '') ?>>Detailed</option>
+                    <option value="summarized" <?= (($_GET['filter_summary'] ?? '') == 'summarized' ? 'selected' : '') ?>>Summarized</option>
+                </select>
+                <button type="submit" class="btn btn-primary ms-auto">Filter</button>
             </form>
 
             <?php
@@ -216,9 +206,9 @@ $staff = $conn->query("SELECT id, username, `branch-id` FROM users WHERE role='s
             }
             ?>
 
-            <!-- Sub Tabs for Tills -->
+            <!-- Sub Tabs for Tills (styled green) -->
             <ul class="nav nav-pills mb-3" id="tillSubTabs" role="tablist">
-                <?php if ($till_tabs && $till_tabs->num_rows > 0): $first = true; ?>
+                <?php if ($till_tabs && $till_tabs->num_rows > 0): ?>
                     <?php while ($till = $till_tabs->fetch_assoc()): ?>
                         <li class="nav-item" role="presentation">
                             <a class="nav-link <?= ($selected_till_id == $till['id'] ? 'active' : '') ?>"
@@ -245,14 +235,19 @@ $staff = $conn->query("SELECT id, username, `branch-id` FROM users WHERE role='s
             }
             ?>
 
-            <!-- Sales Table for Selected Till (match sales.php style) -->
             <?php
-            if ($selected_till_id && $selected_staff_id):
-                // Build sales filter
+            // Define sales result BEFORE rendering the table
+            if ($selected_till_id && $selected_staff_id) {
                 $sales_where = ["s.`sold-by` = " . intval($selected_staff_id)];
-                if ($filter_branch) $sales_where[] = "s.`branch-id` = " . intval($filter_branch);
-                if ($filter_date_from) $sales_where[] = "s.date >= '" . $conn->real_escape_string($filter_date_from) . "'";
-                if ($filter_date_to) $sales_where[] = "s.date <= '" . $conn->real_escape_string($filter_date_to) . "'";
+                if (!empty($filter_branch)) {
+                    $sales_where[] = "s.`branch-id` = " . intval($filter_branch);
+                }
+                if (!empty($filter_date_from)) {
+                    $sales_where[] = "DATE(s.date) >= '" . $conn->real_escape_string($filter_date_from) . "'";
+                }
+                if (!empty($filter_date_to)) {
+                    $sales_where[] = "DATE(s.date) <= '" . $conn->real_escape_string($filter_date_to) . "'";
+                }
                 $sales_sql = "
                     SELECT 
                         s.id,
@@ -267,18 +262,19 @@ $staff = $conn->query("SELECT id, username, `branch-id` FROM users WHERE role='s
                     JOIN products p ON s.`product-id` = p.id
                     JOIN branch b ON s.`branch-id` = b.id
                     JOIN users u ON s.`sold-by` = u.id
-                    WHERE " . implode(" AND ", $sales_where) . "
+                    WHERE " . implode(' AND ', $sales_where) . "
                     ORDER BY s.date DESC
                 ";
                 $sales_res = $conn->query($sales_sql);
+            }
             ?>
+
+            <?php if ($selected_till_id && $selected_staff_id): ?>
             <div class="card mt-3">
-                <div class="card-header">
-                    Sales Records for Till
-                </div>
-                <div class="card-body">
-                    <div class="table-responsive">
-                        <table class="table table-striped">
+                <div class="card-header">Sales Records for Till</div>
+                <div class="card-body table-responsive">
+                    <div class="transactions-table">
+                        <table>
                             <thead>
                                 <tr>
                                     <th>#</th>
@@ -293,27 +289,25 @@ $staff = $conn->query("SELECT id, username, `branch-id` FROM users WHERE role='s
                             </thead>
                             <tbody>
                                 <?php
-                                if ($sales_res && $sales_res->num_rows > 0):
+                                // ...existing code...
+                                if (!empty($sales_res) && $sales_res->num_rows > 0):
                                     $i = 1;
                                     while ($row = $sales_res->fetch_assoc()):
                                 ?>
-                                    <tr>
-                                        <td><?= $i++ ?></td>
-                                        <td><?= htmlspecialchars($row['branch_name']) ?></td>
-                                        <td><span class="badge bg-primary"><?= htmlspecialchars($row['product_name']) ?></span></td>
-                                        <td><?= $row['quantity'] ?></td>
-                                        <td><span class="fw-bold text-success">UGX<?= number_format($row['amount'], 2) ?></span></td>
-                                        <td><?= htmlspecialchars($row['payment_method']) ?></td>
-                                        <td><?= htmlspecialchars($row['date']) ?></td>
-                                        <td><?= htmlspecialchars($row['sold_by']) ?></td>
-                                    </tr>
-                                <?php
-                                    endwhile;
-                                else:
-                                ?>
-                                    <tr>
-                                        <td colspan="8" class="text-center text-muted">No sales found for this till and filter.</td>
-                                    </tr>
+                                <tr>
+                                    <td><?= $i++ ?></td>
+                                    <td><?= htmlspecialchars($row['branch_name']) ?></td>
+                                    <td><span class="badge bg-primary"><?= htmlspecialchars($row['product_name']) ?></span></td>
+                                    <td><?= $row['quantity'] ?></td>
+                                    <td><span class="fw-bold text-success">UGX<?= number_format($row['amount'], 2) ?></span></td>
+                                    <td><?= htmlspecialchars($row['payment_method']) ?></td>
+                                    <td><small class="text-muted"><?= htmlspecialchars($row['date']) ?></small></td>
+                                    <td><?= htmlspecialchars($row['sold_by']) ?></td>
+                                </tr>
+                                <?php endwhile; else: ?>
+                                <tr>
+                                    <td colspan="8" class="text-center text-muted">No sales found for this till and filter.</td>
+                                </tr>
                                 <?php endif; ?>
                             </tbody>
                         </table>
@@ -661,6 +655,81 @@ body.dark-mode .create-till-card .form-control:focus,
 body.dark-mode .create-till-card .form-select:focus {
     background:#23243a !important;
     color:#fff !important;
+}
+
+/* Till View sub-tab pills (green theme) */
+#tillSubTabs .nav-link {
+    border:1px solid var(--primary-color);
+    background:transparent;
+    color:var(--primary-color);
+    font-weight:600;
+    border-radius:8px;
+    padding:0.5rem 1rem;
+    margin-right:6px;
+    transition:background .2s,color .2s;
+}
+#tillSubTabs .nav-link.active,
+#tillSubTabs .nav-link:hover {
+    background:var(--primary-color);
+    color:#fff !important;
+}
+body.dark-mode #tillSubTabs .nav-link {
+    color:#1abc9c;
+    border-color:#1abc9c;
+}
+body.dark-mode #tillSubTabs .nav-link.active,
+body.dark-mode #tillSubTabs .nav-link:hover {
+    background:#1abc9c;
+    color:#fff !important;
+}
+
+/* Till View filter bar (reuse payment analysis styling) */
+.till-view-filter-bar.pa-filter-bar {
+    background:#ffffff;
+    box-shadow:0 2px 8px var(--card-shadow);
+    border:1px solid #e0e0e0;
+}
+.till-view-filter-bar label { color:#2c3e50; font-weight:600; }
+.till-view-filter-bar .form-select {
+    background:#fff;
+    color:#2c3e50;
+    border:1px solid #dee2e6;
+    border-radius:8px;
+    padding:6px 10px;
+}
+.till-view-filter-bar .form-select:focus {
+    background:#fff;
+    color:#2c3e50;
+    border-color:var(--primary-color);
+}
+body.dark-mode .till-view-filter-bar {
+    background:#23243a !important;
+    border:1px solid #444 !important;
+}
+body.dark-mode .till-view-filter-bar label {
+    color:#fff !important;
+}
+body.dark-mode .till-view-filter-bar .form-select,
+body.dark-mode .till-view-filter-bar input[type="date"] {
+    background:#23243a !important;
+    color:#fff !important;
+    border:1px solid #444 !important;
+}
+body.dark-mode .till-view-filter-bar .form-select:focus,
+body.dark-mode .till-view-filter-bar input[type="date"]:focus {
+    background:#23243a !important;
+    color:#fff !important;
+    border-color:#1abc9c !important;
+}
+body.dark-mode .till-view-filter-bar input[type="date"]::-webkit-calendar-picker-indicator {
+    filter:invert(1);
+}
+
+/* Ensure date header rows in summaries use dark background & green text in dark mode */
+body.dark-mode .table tbody tr td.bg-light {
+    background:#272734 !important;
+    color:#1abc9c !important;
+    font-weight:600;
 }
 </style>
 
