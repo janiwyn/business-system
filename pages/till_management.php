@@ -105,44 +105,51 @@ $staff = $conn->query("SELECT id, username, `branch-id` FROM users WHERE role='s
 
         <!-- Till Management Tab -->
         <div class="tab-pane fade<?= (isset($_GET['tab']) && $_GET['tab'] === 'till-management') ? ' show active' : '' ?>" id="till-management" role="tabpanel">
-            <table class="table table-striped">
-                <thead>
-                    <tr>
-                        <th>Date of Creation</th>
-                        <th>Branch</th>
-                        <th>Till ID</th>
-                        <th>Till Name</th>
-                        <th>Assigned Staff</th>
-                        <th>Contact</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php
-                    $tills = $conn->query("
-                        SELECT t.id, t.creation_date, t.name AS till_name, b.name AS branch_name, u.username AS staff_name, t.phone_number
-                        FROM tills t
-                        JOIN branch b ON t.branch_id = b.id
-                        JOIN users u ON t.staff_id = u.id
-                        ORDER BY t.creation_date DESC
-                    ");
-                    while ($till = $tills->fetch_assoc()):
-                    ?>
-                        <tr>
-                            <td><?= htmlspecialchars($till['creation_date']) ?></td>
-                            <td><?= htmlspecialchars($till['branch_name']) ?></td>
-                            <td><?= str_pad($till['id'], 3, '0', STR_PAD_LEFT) ?></td>
-                            <td><?= htmlspecialchars($till['till_name']) ?></td>
-                            <td><?= htmlspecialchars($till['staff_name']) ?></td>
-                            <td><?= htmlspecialchars($till['phone_number']) ?></td>
-                            <td>
-                                <button class="btn btn-sm btn-warning">Edit</button>
-                                <button class="btn btn-sm btn-danger">Delete</button>
-                            </td>
-                        </tr>
-                    <?php endwhile; ?>
-                </tbody>
-            </table>
+            <div class="card mb-4">
+                <div class="card-header">Manage Tills</div>
+                <div class="card-body">
+                    <div class="transactions-table">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Date of Creation</th>
+                                    <th>Branch</th>
+                                    <th>Till ID</th>
+                                    <th>Till Name</th>
+                                    <th>Assigned Staff</th>
+                                    <th>Contact</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php
+                                $tills = $conn->query("
+                                    SELECT t.id, t.creation_date, t.name AS till_name, b.name AS branch_name, u.username AS staff_name, t.phone_number
+                                    FROM tills t
+                                    JOIN branch b ON t.branch_id = b.id
+                                    JOIN users u ON t.staff_id = u.id
+                                    ORDER BY t.creation_date DESC
+                                ");
+                                while ($till = $tills->fetch_assoc()):
+                                ?>
+                                <tr>
+                                    <td><?= htmlspecialchars($till['creation_date']) ?></td>
+                                    <td><?= htmlspecialchars($till['branch_name']) ?></td>
+                                    <td><?= str_pad($till['id'], 3, '0', STR_PAD_LEFT) ?></td>
+                                    <td><?= htmlspecialchars($till['till_name']) ?></td>
+                                    <td><?= htmlspecialchars($till['staff_name']) ?></td>
+                                    <td><?= htmlspecialchars($till['phone_number']) ?></td>
+                                    <td>
+                                        <button class="btn btn-warning btn-sm">Edit</button>
+                                        <button class="btn btn-danger btn-sm">Delete</button>
+                                    </td>
+                                </tr>
+                                <?php endwhile; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <!-- Till View Tab -->
