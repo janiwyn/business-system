@@ -177,6 +177,9 @@ $staff = $conn->query("SELECT id, username, `branch-id` FROM users WHERE role='s
                     <option value="detailed" <?= (($_GET['filter_summary'] ?? '') == 'detailed' ? 'selected' : '') ?>>Detailed</option>
                     <option value="summarized" <?= (($_GET['filter_summary'] ?? '') == 'summarized' ? 'selected' : '') ?>>Summarized</option>
                 </select>
+                <!-- NEW: Entries input -->
+                <label class="fw-bold me-2 mb-0">Entries:</label>
+                <input type="number" class="form-select" style="width:100px;" id="entries" name="entries" min="1" max="1000" value="<?= htmlspecialchars($_GET['entries'] ?? '50') ?>">
                 <button type="submit" class="btn btn-primary ms-auto">Filter</button>
             </form>
 
@@ -186,6 +189,8 @@ $staff = $conn->query("SELECT id, username, `branch-id` FROM users WHERE role='s
             $filter_date_from = $_GET['filter_date_from'] ?? '';
             $filter_date_to = $_GET['filter_date_to'] ?? '';
             $filter_summary = $_GET['filter_summary'] ?? 'detailed';
+            // NEW: entries (limit)
+            $entries = isset($_GET['entries']) ? max(1, min(1000, intval($_GET['entries']))) : 50;
 
             // Fetch tills for the selected branch
             $till_where = [];
@@ -213,7 +218,7 @@ $staff = $conn->query("SELECT id, username, `branch-id` FROM users WHERE role='s
                         <li class="nav-item" role="presentation">
                             <a class="nav-link <?= ($selected_till_id == $till['id'] ? 'active' : '') ?>"
                                id="till-tab-<?= $till['id'] ?>"
-                               href="?tab=till-view&filter_date_from=<?= urlencode($filter_date_from) ?>&filter_date_to=<?= urlencode($filter_date_to) ?>&filter_branch=<?= urlencode($filter_branch) ?>&filter_summary=<?= urlencode($filter_summary) ?>&till_tab=<?= $till['id'] ?>"
+                               href="?tab=till-view&filter_date_from=<?= urlencode($filter_date_from) ?>&filter_date_to=<?= urlencode($filter_date_to) ?>&filter_branch=<?= urlencode($filter_branch) ?>&filter_summary=<?= urlencode($filter_summary) ?>&entries=<?= urlencode($entries) ?>&till_tab=<?= $till['id'] ?>"
                                role="tab">
                                 <?= htmlspecialchars($till['name']) ?> <small class="text-muted">(<?= htmlspecialchars($till['staff_name']) ?>)</small>
                             </a>
@@ -264,6 +269,7 @@ $staff = $conn->query("SELECT id, username, `branch-id` FROM users WHERE role='s
                     JOIN users u ON s.`sold-by` = u.id
                     WHERE " . implode(' AND ', $sales_where) . "
                     ORDER BY s.date DESC
+                    LIMIT " . $entries . "
                 ";
                 $sales_res = $conn->query($sales_sql);
             }
@@ -289,7 +295,6 @@ $staff = $conn->query("SELECT id, username, `branch-id` FROM users WHERE role='s
                             </thead>
                             <tbody>
                                 <?php
-                                // ...existing code...
                                 if (!empty($sales_res) && $sales_res->num_rows > 0):
                                     $i = 1;
                                     while ($row = $sales_res->fetch_assoc()):
@@ -349,6 +354,11 @@ $staff = $conn->query("SELECT id, username, `branch-id` FROM users WHERE role='s
                         <option value="summarized" <?= (($_GET['summaries_summary'] ?? '') == 'summarized' ? 'selected' : '') ?>>Summarized</option>
                     </select>
                 </div>
+                <!-- NEW: Entries for summaries -->
+                <div class="col-md-2">
+                    <label for="summaries_entries" class="form-label mb-1">Entries</label>
+                    <input type="number" class="form-control" id="summaries_entries" name="summaries_entries" min="1" max="1000" value="<?= htmlspecialchars($_GET['summaries_entries'] ?? '50') ?>">
+                </div>
                 <div class="col-md-2">
                     <input type="hidden" name="tab" value="summaries">
                     <button type="submit" class="btn btn-primary w-100">Filter</button>
@@ -361,6 +371,8 @@ $staff = $conn->query("SELECT id, username, `branch-id` FROM users WHERE role='s
             $summaries_date_from = $_GET['summaries_date_from'] ?? '';
             $summaries_date_to = $_GET['summaries_date_to'] ?? '';
             $summaries_summary = $_GET['summaries_summary'] ?? 'detailed';
+            // NEW: entries (limit) for summaries
+            $summaries_entries = isset($_GET['summaries_entries']) ? max(1, min(1000, intval($_GET['summaries_entries']))) : 50;
 
             // Fetch tills for the selected branch
             $summaries_till_where = [];
@@ -386,7 +398,7 @@ $staff = $conn->query("SELECT id, username, `branch-id` FROM users WHERE role='s
                         <li class="nav-item" role="presentation">
                             <a class="nav-link <?= ($summaries_selected_till_id == $till['id'] ? 'active' : '') ?>"
                                id="summaries-till-tab-<?= $till['id'] ?>"
-                               href="?tab=summaries&summaries_date_from=<?= urlencode($summaries_date_from) ?>&summaries_date_to=<?= urlencode($summaries_date_to) ?>&summaries_branch=<?= urlencode($summaries_branch) ?>&summaries_summary=<?= urlencode($summaries_summary) ?>&summaries_till_tab=<?= $till['id'] ?>"
+                               href="?tab=summaries&summaries_date_from=<?= urlencode($summaries_date_from) ?>&summaries_date_to=<?= urlencode($summaries_date_to) ?>&summaries_branch=<?= urlencode($summaries_branch) ?>&summaries_summary=<?= urlencode($summaries_summary) ?>&summaries_entries=<?= urlencode($summaries_entries) ?>&summaries_till_tab=<?= $till['id'] ?>"
                                role="tab">
                                 <?= htmlspecialchars($till['name']) ?> <small class="text-muted">(<?= htmlspecialchars($till['staff_name']) ?>)</small>
                             </a>
@@ -406,13 +418,13 @@ $staff = $conn->query("SELECT id, username, `branch-id` FROM users WHERE role='s
                 <li class="nav-item">
                     <a class="nav-link<?= (!isset($_GET['summaries_subtab']) || $_GET['summaries_subtab'] === 'product') ? ' active' : '' ?>"
                        id="summaries-product-tab"
-                       href="?tab=summaries&summaries_date_from=<?= urlencode($summaries_date_from) ?>&summaries_date_to=<?= urlencode($summaries_date_to) ?>&summaries_branch=<?= urlencode($summaries_branch) ?>&summaries_summary=<?= urlencode($summaries_summary) ?>&summaries_till_tab=<?= $summaries_selected_till_id ?>&summaries_subtab=product"
+                       href="?tab=summaries&summaries_date_from=<?= urlencode($summaries_date_from) ?>&summaries_date_to=<?= urlencode($summaries_date_to) ?>&summaries_branch=<?= urlencode($summaries_branch) ?>&summaries_summary=<?= urlencode($summaries_summary) ?>&summaries_entries=<?= urlencode($summaries_entries) ?>&summaries_till_tab=<?= $summaries_selected_till_id ?>&summaries_subtab=product"
                        role="tab">Product Summaries</a>
                 </li>
                 <li class="nav-item">
                     <a class="nav-link<?= (isset($_GET['summaries_subtab']) && $_GET['summaries_subtab'] === 'sales') ? ' active' : '' ?>"
                        id="summaries-sales-tab"
-                       href="?tab=summaries&summaries_date_from=<?= urlencode($summaries_date_from) ?>&summaries_date_to=<?= urlencode($summaries_date_to) ?>&summaries_branch=<?= urlencode($summaries_branch) ?>&summaries_summary=<?= urlencode($summaries_summary) ?>&summaries_till_tab=<?= $summaries_selected_till_id ?>&summaries_subtab=sales"
+                       href="?tab=summaries&summaries_date_from=<?= urlencode($summaries_date_from) ?>&summaries_date_to=<?= urlencode($summaries_date_to) ?>&summaries_branch=<?= urlencode($summaries_branch) ?>&summaries_summary=<?= urlencode($summaries_summary) ?>&summaries_entries=<?= urlencode($summaries_entries) ?>&summaries_till_tab=<?= $summaries_selected_till_id ?>&summaries_subtab=sales"
                        role="tab">Sales Value Summary</a>
                 </li>
             </ul>
@@ -442,6 +454,7 @@ $staff = $conn->query("SELECT id, username, `branch-id` FROM users WHERE role='s
                         WHERE " . implode(" AND ", $product_where) . "
                         GROUP BY s.date, p.name
                         ORDER BY s.date DESC, p.name ASC
+                        LIMIT " . $summaries_entries . "
                     ";
                     $product_res = $conn->query($product_sql);
 
@@ -515,6 +528,7 @@ $staff = $conn->query("SELECT id, username, `branch-id` FROM users WHERE role='s
                         WHERE " . implode(" AND ", $salesval_where) . "
                         GROUP BY s.date, s.payment_method
                         ORDER BY s.date DESC, s.payment_method ASC
+                        LIMIT " . $summaries_entries . "
                     ";
                     $salesval_res = $conn->query($salesval_sql);
 
