@@ -148,29 +148,82 @@ $product_summary_res = $conn->query($product_summary_sql);
 
 <!-- Tabs for Sales and Debtors -->
 <div class="container-fluid mt-4">
-    <ul class="nav nav-tabs mb-4" id="salesTabs" role="tablist">
+    <!-- New pill styles (same as Till Management) -->
+    <style>
+    .tm-main-tabs { display:flex; flex-wrap:wrap; gap:.75rem; margin-top:.25rem; border:none; }
+    .tm-main-tabs .tm-tab-btn {
+        border:2px solid var(--primary-color);
+        background:#fff;
+        color:var(--primary-color);
+        font-weight:600;
+        border-radius:14px;
+        padding:.45rem 1.1rem;
+        box-shadow:0 2px 6px rgba(0,0,0,.08);
+        transition:background .18s,color .18s,box-shadow .18s,transform .18s;
+        font-size:.95rem;
+    }
+    .tm-main-tabs .tm-tab-btn:hover { background:var(--primary-color); color:#fff; transform:translateY(-2px); }
+    .tm-main-tabs .tm-tab-btn.active { background:var(--primary-color); color:#fff; box-shadow:0 4px 10px rgba(26,188,156,.35); }
+    .tm-main-tabs .tm-tab-btn:focus { outline:none; box-shadow:0 0 0 3px rgba(26,188,156,.25); }
+    body.dark-mode .tm-main-tabs .tm-tab-btn {
+        background:#23243a; border-color:#1abc9c; color:#1abc9c; box-shadow:0 2px 6px rgba(0,0,0,.4);
+    }
+    body.dark-mode .tm-main-tabs .tm-tab-btn:hover,
+    body.dark-mode .tm-main-tabs .tm-tab-btn.active { background:#1abc9c; color:#fff; }
+    </style>
+
+    <!-- Updated tabs -->
+    <ul class="nav nav-pills tm-main-tabs mb-4" id="salesTabs" role="tablist">
         <li class="nav-item" role="presentation">
-            <button class="nav-link active" id="sales-tab" data-bs-toggle="tab" data-bs-target="#sales-table" type="button" role="tab" aria-controls="sales-table" aria-selected="true"  style="border-left: 4px solid teal; border-right:1px solid teal; border-top: 1px solid teal; color: #1abc9c;" >
-                <b>Sales Records</b>
+            <button class="nav-link tm-tab-btn active"
+                    id="sales-tab"
+                    data-bs-toggle="tab"
+                    data-bs-target="#sales-table"
+                    type="button"
+                    role="tab"
+                    aria-controls="sales-table"
+                    aria-selected="true">
+                Sales Records
             </button>
         </li>
         <li class="nav-item" role="presentation">
-            <button class="nav-link" id="debtors-tab" data-bs-toggle="tab" data-bs-target="#debtors-table" type="button" role="tab" aria-controls="debtors-table" aria-selected="false"  style="border-left: 4px solid teal; border-right:1px solid teal; border-top: 1px solid teal; color: #1abc9c;">
-                <b>Debtors</b>
+            <button class="nav-link tm-tab-btn"
+                    id="debtors-tab"
+                    data-bs-toggle="tab"
+                    data-bs-target="#debtors-table"
+                    type="button"
+                    role="tab"
+                    aria-controls="debtors-table"
+                    aria-selected="false">
+                Debtors
             </button>
         </li>
         <li class="nav-item" role="presentation">
-            <button class="nav-link" id="payment-analysis-tab" data-bs-toggle="tab" data-bs-target="#payment-analysis" type="button" role="tab" aria-controls="payment-analysis" aria-selected="false"  style="border-left: 4px solid teal; border-right:1px solid teal; border-top: 1px solid teal; color: #1abc9c;">
-                <b>Payment Method Analysis</b>
+            <button class="nav-link tm-tab-btn"
+                    id="payment-analysis-tab"
+                    data-bs-toggle="tab"
+                    data-bs-target="#payment-analysis"
+                    type="button"
+                    role="tab"
+                    aria-controls="payment-analysis"
+                    aria-selected="false">
+                Payment Method Analysis
             </button>
         </li>
-        <!-- NEW: Product Summary Tab -->
         <li class="nav-item" role="presentation">
-            <button class="nav-link" id="product-summary-tab" data-bs-toggle="tab" data-bs-target="#product-summary" type="button" role="tab" aria-controls="product-summary" aria-selected="false"  style="border-left: 4px solid teal; border-right:1px solid teal; border-top: 1px solid teal; color: #1abc9c;">
-                <b>Product Summary</b>
+            <button class="nav-link tm-tab-btn"
+                    id="product-summary-tab"
+                    data-bs-toggle="tab"
+                    data-bs-target="#product-summary"
+                    type="button"
+                    role="tab"
+                    aria-controls="product-summary"
+                    aria-selected="false">
+                Product Summary
             </button>
         </li>
     </ul>
+
     <div class="tab-content" id="salesTabsContent">
         <!-- Payment Method Analysis Tab -->
         <div class="tab-pane fade" id="payment-analysis" role="tabpanel" aria-labelledby="payment-analysis-tab">
