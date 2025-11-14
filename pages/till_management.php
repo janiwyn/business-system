@@ -209,24 +209,93 @@ $approvers_res = $conn->query("SELECT id, username, role FROM users WHERE role I
         <div class="alert alert-danger"><?= htmlspecialchars($error_message) ?></div>
     <?php endif; ?>
 
-    <ul class="nav nav-tabs" id="tillTabs" role="tablist">
+    <!-- NEW: Top navigation pills (tabs) -->
+    <style>
+    /* Main Till Management top tabs styled like Till View till pills */
+    .tm-main-tabs { display:flex; flex-wrap:wrap; gap:.75rem; margin-top:.25rem; border:none; }
+    .tm-main-tabs .tm-tab-btn {
+        border:2px solid var(--primary-color);
+        background:#fff;
+        color:var(--primary-color);
+        font-weight:600;
+        border-radius:14px;
+        padding:.45rem 1.1rem;
+        box-shadow:0 2px 6px rgba(0,0,0,.08);
+        transition:background .18s,color .18s,box-shadow .18s,transform .18s;
+        font-size:.95rem;
+    }
+    .tm-main-tabs .tm-tab-btn:hover {
+        background:var(--primary-color);
+        color:#fff;
+        transform:translateY(-2px);
+    }
+    .tm-main-tabs .tm-tab-btn.active {
+        background:var(--primary-color);
+        color:#fff;
+        box-shadow:0 4px 10px rgba(26,188,156,.35);
+    }
+    .tm-main-tabs .tm-tab-btn:focus { outline:none; box-shadow:0 0 0 3px rgba(26,188,156,.25); }
+
+    body.dark-mode .tm-main-tabs .tm-tab-btn {
+        background:#23243a;
+        border-color:#1abc9c;
+        color:#1abc9c;
+        box-shadow:0 2px 6px rgba(0,0,0,.4);
+    }
+    body.dark-mode .tm-main-tabs .tm-tab-btn:hover {
+        background:#1abc9c;
+        color:#fff;
+    }
+    body.dark-mode .tm-main-tabs .tm-tab-btn.active {
+        background:#1abc9c;
+        color:#fff;
+        box-shadow:0 4px 12px rgba(26,188,156,.55);
+    }
+    </style>
+
+    <ul class="nav nav-pills tm-main-tabs" id="tillTabs" role="tablist">
         <li class="nav-item">
-            <button class="nav-link<?= (!isset($_GET['tab']) || $_GET['tab'] === 'create-assign') ? ' active' : '' ?>" id="create-assign-tab" data-bs-toggle="tab" data-bs-target="#create-assign" type="button" role="tab"  style="border-left:4px solid teal; border-top: 1px solid teal; border-right: 1px solid teal; color: #1abc9c" ><b>Create & Assign Till</b></button>
+            <button class="nav-link tm-tab-btn<?= (!isset($_GET['tab']) || $_GET['tab'] === 'create-assign') ? ' active' : '' ?>"
+                    id="create-assign-tab"
+                    data-bs-toggle="tab"
+                    data-bs-target="#create-assign"
+                    type="button"
+                    role="tab">Create &amp; Assign Till</button>
         </li>
         <li class="nav-item">
-            <button class="nav-link<?= (isset($_GET['tab']) && $_GET['tab'] === 'till-management') ? ' active' : '' ?>" id="till-management-tab" data-bs-toggle="tab" data-bs-target="#till-management" type="button" role="tab" style="border-left:4px solid teal; border-top: 1px solid teal; border-right: 1px solid teal; color: #1abc9c" ><b>Till Management</b></button>
+            <button class="nav-link tm-tab-btn<?= (isset($_GET['tab']) && $_GET['tab'] === 'till-management') ? ' active' : '' ?>"
+                    id="till-management-tab"
+                    data-bs-toggle="tab"
+                    data-bs-target="#till-management"
+                    type="button"
+                    role="tab">Till Management</button>
         </li>
         <li class="nav-item">
-            <button class="nav-link<?= (isset($_GET['tab']) && $_GET['tab'] === 'till-view') ? ' active' : '' ?>" id="till-view-tab" data-bs-toggle="tab" data-bs-target="#till-view" type="button" role="tab" style="border-left:4px solid teal; border-top: 1px solid teal; border-right: 1px solid teal; color: #1abc9c" ><b>Till View</b></button>
+            <button class="nav-link tm-tab-btn<?= (isset($_GET['tab']) && $_GET['tab'] === 'till-view') ? ' active' : '' ?>"
+                    id="till-view-tab"
+                    data-bs-toggle="tab"
+                    data-bs-target="#till-view"
+                    type="button"
+                    role="tab">Till View</button>
         </li>
         <li class="nav-item">
-            <button class="nav-link<?= (isset($_GET['tab']) && $_GET['tab'] === 'summaries') ? ' active' : '' ?>" id="summaries-tab" data-bs-toggle="tab" data-bs-target="#summaries" type="button" role="tab">Summaries</button>
+            <button class="nav-link tm-tab-btn<?= (isset($_GET['tab']) && $_GET['tab'] === 'summaries') ? ' active' : '' ?>"
+                    id="summaries-tab"
+                    data-bs-toggle="tab"
+                    data-bs-target="#summaries"
+                    type="button"
+                    role="tab">Summaries</button>
         </li>
-        <!-- NEW: Till Safes -->
         <li class="nav-item">
-            <button class="nav-link<?= (isset($_GET['tab']) && $_GET['tab'] === 'till-safes') ? ' active' : '' ?>" id="till-safes-tab" data-bs-toggle="tab" data-bs-target="#till-safes" type="button" role="tab">Till Safes</button>
+            <button class="nav-link tm-tab-btn<?= (isset($_GET['tab']) && $_GET['tab'] === 'till-safes') ? ' active' : '' ?>"
+                    id="till-safes-tab"
+                    data-bs-toggle="tab"
+                    data-bs-target="#till-safes"
+                    type="button"
+                    role="tab">Till Safes</button>
         </li>
     </ul>
+
     <div class="tab-content mt-4" id="tillTabsContent">
         <!-- Create & Assign Till Tab -->
         <div class="tab-pane fade<?= (!isset($_GET['tab']) || $_GET['tab'] === 'create-assign') ? ' show active' : '' ?>" id="create-assign" role="tabpanel">
