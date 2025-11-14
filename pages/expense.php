@@ -561,6 +561,28 @@ body.dark-mode .cart-table tfoot td {
     color: #1abc9c !important;
     border-top: 2px solid #444 !important;
 }
+
+/* New pill styles for tabs (matching Till Management) */
+.tm-main-tabs { display:flex; flex-wrap:wrap; gap:.75rem; margin-top:.25rem; border:none; }
+.tm-main-tabs .tm-tab-btn {
+    border:2px solid var(--primary-color);
+    background:#fff;
+    color:var(--primary-color);
+    font-weight:600;
+    border-radius:14px;
+    padding:.45rem 1.1rem;
+    box-shadow:0 2px 6px rgba(0,0,0,.08);
+    transition:background .18s,color .18s,box-shadow .18s,transform .18s;
+    font-size:.95rem;
+}
+.tm-main-tabs .tm-tab-btn:hover { background:var(--primary-color); color:#fff; transform:translateY(-2px); }
+.tm-main-tabs .tm-tab-btn.active { background:var(--primary-color); color:#fff; box-shadow:0 4px 10px rgba(26,188,156,.35); }
+.tm-main-tabs .tm-tab-btn:focus { outline:none; box-shadow:0 0 0 3px rgba(26,188,156,.25); }
+body.dark-mode .tm-main-tabs .tm-tab-btn {
+    background:#23243a; border-color:#1abc9c; color:#1abc9c; box-shadow:0 2px 6px rgba(0,0,0,.4);
+}
+body.dark-mode .tm-main-tabs .tm-tab-btn:hover,
+body.dark-mode .tm-main-tabs .tm-tab-btn.active { background:#1abc9c; color:#fff; }
 </style>
 
 <div class="container-fluid mt-5">
@@ -695,14 +717,52 @@ body.dark-mode .cart-table tfoot td {
     </div>
 
     <!-- Filter & Table -->
-    <ul class="nav nav-tabs mb-3" id="expensesTabs" role="tablist">
+    <!-- Add pill styles (same as Till Management) -->
+    <style>
+    .tm-main-tabs { display:flex; flex-wrap:wrap; gap:.75rem; margin-top:.25rem; border:none; }
+    .tm-main-tabs .tm-tab-btn {
+        border:2px solid var(--primary-color);
+        background:#fff;
+        color:var(--primary-color);
+        font-weight:600;
+        border-radius:14px;
+        padding:.45rem 1.1rem;
+        box-shadow:0 2px 6px rgba(0,0,0,.08);
+        transition:background .18s,color .18s,box-shadow .18s,transform .18s;
+        font-size:.95rem;
+    }
+    .tm-main-tabs .tm-tab-btn:hover { background:var(--primary-color); color:#fff; transform:translateY(-2px); }
+    .tm-main-tabs .tm-tab-btn.active { background:var(--primary-color); color:#fff; box-shadow:0 4px 10px rgba(26,188,156,.35); }
+    .tm-main-tabs .tm-tab-btn:focus { outline:none; box-shadow:0 0 0 3px rgba(26,188,156,.25); }
+    body.dark-mode .tm-main-tabs .tm-tab-btn {
+        background:#23243a; border-color:#1abc9c; color:#1abc9c; box-shadow:0 2px 6px rgba(0,0,0,.4);
+    }
+    body.dark-mode .tm-main-tabs .tm-tab-btn:hover,
+    body.dark-mode .tm-main-tabs .tm-tab-btn.active { background:#1abc9c; color:#fff; }
+    </style>
+
+    <ul class="nav nav-pills tm-main-tabs mb-3" id="expensesTabs" role="tablist">
         <li class="nav-item" role="presentation">
-            <button class="nav-link active" id="expenses-tab" data-bs-toggle="tab" data-bs-target="#expensesTab" type="button" role="tab" aria-controls="expensesTab" aria-selected="true" style="border-left: 4px solid teal;" >
+            <button class="nav-link tm-tab-btn active"
+                    id="expenses-tab"
+                    data-bs-toggle="tab"
+                    data-bs-target="#expensesTab"
+                    type="button"
+                    role="tab"
+                    aria-controls="expensesTab"
+                    aria-selected="true">
                 Expenses
             </button>
         </li>
         <li class="nav-item" role="presentation">
-            <button class="nav-link" id="total-expenses-tab" data-bs-toggle="tab" data-bs-target="#totalExpensesTab" type="button" role="tab" aria-controls="totalExpensesTab" aria-selected="false" style="border-left: 4px solid teal;" >
+            <button class="nav-link tm-tab-btn"
+                    id="total-expenses-tab"
+                    data-bs-toggle="tab"
+                    data-bs-target="#totalExpensesTab"
+                    type="button"
+                    role="tab"
+                    aria-controls="totalExpensesTab"
+                    aria-selected="false">
                 Total Expenses
             </button>
         </li>
