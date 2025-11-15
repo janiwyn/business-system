@@ -522,5 +522,96 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    // --- Debtor Pay Modal wiring (parity with sales.php) ---
+    function ensureBootstrap(cb) {
+        if (window.bootstrap) return cb();
+        const src = 'https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js';
+        if (document.querySelector('script[src="'+src+'"]')) {
+            const t = setInterval(() => { if (window.bootstrap) { clearInterval(t); cb(); } }, 50);
+            return;
+        }
+        const s = document.createElement('script');
+        s.src = src;
+        s.onload = cb;
+        s.onerror = function() { console.error('Failed to load Bootstrap bundle.'); cb(); };
+        document.head.appendChild(s);
+    }
+
+    function initPayModal() {
+        const payButtons = document.querySelectorAll('.btn-pay-debtor');
+        if (!payButtons.length) return;
+
+        const payModalEl = document.getElementById('payDebtorModal');
+        if (!payModalEl) return;
+        const payModal = new bootstrap.Modal(payModalEl);
+        const pdDebtorLabel = document.getElementById('pdDebtorLabel');
+        const pdBalanceText = document.getElementById('pdBalanceText');
+        const pdDebtorId = document.getElementById('pdDebtorId');
+        const pdAmount = document.getElementById('pdAmount');
+        const pdMsg = document.getElementById('pdMsg');
+        const pdConfirmBtn = document.getElementById('pdConfirmBtn');
+
+        payButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const id = btn.getAttribute('data-id');
+                const balance = parseFloat(btn.getAttribute('data-balance') || 0);
+                const name = btn.getAttribute('data-name') || 'Debtor';
+                pdDebtorId.value = id;
+                pdAmount.value = '';
+                pdDebtorLabel.textContent = `Debtor: ${name}`;
+                pdBalanceText.textContent = 'UGX ' + balance.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2});
+                pdMsg.innerHTML = '';
+                payModalEl.dataset.outstanding = String(balance);
+                payModal.show();
+            });
+        });
+
+        pdConfirmBtn?.addEventListener('click', async () => {
+            const id = pdDebtorId.value;
+            let amount = parseFloat(pdAmount.value || 0);
+            const outstanding = parseFloat(payModalEl.dataset.outstanding || 0);
+
+            pdMsg.innerHTML = '';
+            if (!id) { pdMsg.innerHTML = '<div class="alert alert-warning">Invalid debtor selected.</div>'; return; }
+            if (!amount || amount <= 0) { pdMsg.innerHTML = '<div class="alert alert-warning">Enter a valid amount.</div>'; return; }
+            if (amount > outstanding) { pdMsg.innerHTML = '<div class="alert alert-warning">Amount cannot exceed outstanding balance.</div>'; return; }
+
+            pdConfirmBtn.disabled = true;
+            pdConfirmBtn.textContent = 'Processing...';
+            try {
+                const res = await fetch('handle_debtor_payment.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: `pay_debtor=1&id=${encodeURIComponent(id)}&amount=${encodeURIComponent(amount)}`
+                });
+                const text = await res.text();
+                let data;
+                try { data = JSON.parse(text); } catch {
+                    console.error('Invalid JSON response from server:', text);
+                    pdMsg.innerHTML = '<div class="alert alert-danger">Server returned an invalid response. See console.</div>';
+                    pdConfirmBtn.disabled = false;
+                    pdConfirmBtn.textContent = 'OK';
+                    return;
+                }
+                pdConfirmBtn.disabled = false;
+                pdConfirmBtn.textContent = 'OK';
+                if (data && data.reload) {
+                    payModal.hide();
+                    window.location.reload();
+                } else {
+                    pdMsg.innerHTML = '<div class="alert alert-info">' + (data.message || 'Payment recorded') + '</div>';
+                }
+            } catch (err) {
+                console.error('Request error:', err);
+                pdConfirmBtn.disabled = false;
+                pdConfirmBtn.textContent = 'OK';
+                pdMsg.innerHTML = '<div class="alert alert-danger">Error processing payment. Check console.</div>';
+            }
+        });
+    }
+
+    // Initialize modal handlers (works whether Bootstrap was preloaded or not)
+    ensureBootstrap(initPayModal);
+
     // ...existing code (invoice/receipt modals, sellBtn, debtor auto-record, barcode, etc.)...
 });
