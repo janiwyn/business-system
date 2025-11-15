@@ -403,9 +403,17 @@ $customers = $customers_res ? $customers_res->fetch_all(MYSQLI_ASSOC) : [];
                           <?php foreach($customers as $c): ?>
                             <div class="accordion-item mb-2" style="border-left: 4px solid teal;">
                               <h2 class="accordion-header" id="heading<?= $c['id'] ?>m">
-                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse<?= $c['id'] ?>m" aria-expanded="false" aria-controls="collapse<?= $c['id'] ?>m">
-                                  <?= htmlspecialchars($c['name']) ?> — Balance: UGX <?= number_format(floatval($c['account_balance'] ?? 0), 2) ?>
-                                </button>
+                                <div class="d-flex align-items-center w-100">
+                                  <button class="accordion-button collapsed flex-grow-1" type="button" data-bs-toggle="collapse" data-bs-target="#collapse<?= $c['id'] ?>m" aria-expanded="false" aria-controls="collapse<?= $c['id'] ?>m" style="white-space: nowrap;">
+                                    <?= htmlspecialchars($c['name']) ?> — Balance: UGX <?= number_format(floatval($c['account_balance'] ?? 0), 2) ?> — Credited: UGX <?= number_format(floatval($c['amount_credited'] ?? 0), 2) ?>
+                                  </button>
+                                  <button type="button" class="btn btn-sm btn-outline-secondary ms-2 cust-report-btn" title="Generate Report" data-id="<?= $c['id'] ?>" data-name="<?= htmlspecialchars($c['name']) ?>">
+                                    <i class="fa fa-file-alt"></i>
+                                  </button>
+                                  <button type="button" class="btn btn-sm btn-outline-success ms-1 cust-export-btn" title="Export to Excel" data-id="<?= $c['id'] ?>" data-name="<?= htmlspecialchars($c['name']) ?>">
+                                    <i class="fa fa-file-excel"></i>
+                                  </button>
+                                </div>
                               </h2>
                               <div id="collapse<?= $c['id'] ?>m" class="accordion-collapse collapse" aria-labelledby="heading<?= $c['id'] ?>m" data-bs-parent="#customersAccordionMobile">
                                 <div class="accordion-body">
@@ -416,6 +424,10 @@ $customers = $customers_res ? $customers_res->fetch_all(MYSQLI_ASSOC) : [];
                           <?php endforeach; ?>
                         </div>
                         <script>
+                        // FIX: define escapeHtml before usage (mobile)
+                        if(typeof escapeHtml!=='function'){
+                          function escapeHtml(s){return s?String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])):'';}
+                        }
                         // Mobile Customer Transactions Accordion
                         document.querySelectorAll('#customersAccordionMobile .accordion-button').forEach(btn=>{
                           btn.addEventListener('click', async (e) => {
@@ -426,7 +438,12 @@ $customers = $customers_res ? $customers_res->fetch_all(MYSQLI_ASSOC) : [];
                             if (container.dataset.loaded) return;
                             container.innerHTML = '<div class="text-muted">Loading...</div>';
                             const res = await fetch('customer_management.php?fetch_transactions=1&customer_id='+customerId);
-                            const data = await res.json();
+                            let data;
+                            try { data = await res.json(); } catch(err){
+                              container.innerHTML = '<div class="text-muted">Error loading.</div>';
+                              container.dataset.loaded='1';
+                              return;
+                            }
                             if (!data.success) { container.innerHTML = '<div class="text-muted">No transactions.</div>'; return; }
                             if (!data.rows.length) { container.innerHTML = '<div class="text-muted">No transactions.</div>'; container.dataset.loaded = '1'; return; }
 
@@ -482,9 +499,17 @@ $customers = $customers_res ? $customers_res->fetch_all(MYSQLI_ASSOC) : [];
               <?php foreach($customers as $c): ?>
                 <div class="accordion-item mb-2"  style="border-left: 4px solid teal;">
                   <h2 class="accordion-header" id="heading<?= $c['id'] ?>">
-                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse<?= $c['id'] ?>" aria-expanded="false" aria-controls="collapse<?= $c['id'] ?>">
-                      <?= htmlspecialchars($c['name']) ?> — Balance: UGX <?= number_format(floatval($c['account_balance'] ?? 0), 2) ?>
-                    </button>
+                    <div class="d-flex align-items-center w-100">
+                      <button class="accordion-button collapsed flex-grow-1" type="button" data-bs-toggle="collapse" data-bs-target="#collapse<?= $c['id'] ?>" aria-expanded="false" aria-controls="collapse<?= $c['id'] ?>" style="white-space: nowrap;">
+                        <?= htmlspecialchars($c['name']) ?> — Balance: UGX <?= number_format(floatval($c['account_balance'] ?? 0), 2) ?> — Credited: UGX <?= number_format(floatval($c['amount_credited'] ?? 0), 2) ?>
+                      </button>
+                      <button type="button" class="btn btn-sm btn-outline-secondary ms-2 cust-report-btn" title="Generate Report" data-id="<?= $c['id'] ?>" data-name="<?= htmlspecialchars($c['name']) ?>">
+                        <i class="fa fa-file-alt"></i>
+                      </button>
+                      <button type="button" class="btn btn-sm btn-outline-success ms-1 cust-export-btn" title="Export to Excel" data-id="<?= $c['id'] ?>" data-name="<?= htmlspecialchars($c['name']) ?>">
+                        <i class="fa fa-file-excel"></i>
+                      </button>
+                    </div>
                   </h2>
                   <div id="collapse<?= $c['id'] ?>" class="accordion-collapse collapse" aria-labelledby="heading<?= $c['id'] ?>" data-bs-parent="#customersAccordion">
                     <div class="accordion-body">
@@ -536,7 +561,7 @@ body.dark-mode .card,
 body.dark-mode .card-header,
 body.dark-mode .title-card,
 body.dark-mode .form-label,
-body.dark-mode label,
+body.dark_mode label,
 body.dark-mode .card-body,
 body.dark-mode .transactions-table thead,
 body.dark-mode .transactions-table tbody td,
@@ -650,18 +675,20 @@ document.querySelectorAll('#customersAccordion .accordion-button').forEach(btn=>
     const collapseId = target.getAttribute('data-bs-target').substring(1);
     const customerId = collapseId.replace('collapse','');
     const container = document.getElementById('transContainer'+customerId);
-    // If already loaded once, skip re-fetch (simple caching)
     if (container.dataset.loaded) return;
     container.innerHTML = '<div class="text-muted">Loading...</div>';
     const res = await fetch('customer_management.php?fetch_transactions=1&customer_id='+customerId);
-    const data = await res.json();
+    let data;
+    try { data = await res.json(); } catch(err){
+      container.innerHTML = '<div class="text-muted">Error loading.</div>';
+      container.dataset.loaded='1';
+      return;
+    }
     if (!data.success) { container.innerHTML = '<div class="text-muted">No transactions.</div>'; return; }
     if (!data.rows.length) { container.innerHTML = '<div class="text-muted">No transactions.</div>'; container.dataset.loaded = '1'; return; }
 
-    // Build table with parsed products and quantity column
     let html = '<div class="transactions-table"><table><thead><tr><th>Date & Time</th><th>Products</th><th class="text-center">Quantity</th><th class="text-end">Amount Paid</th><th class="text-end">Amount Credited</th><th>Sold By</th></tr></thead><tbody>';
     data.rows.forEach(r=>{
-      // parse products_bought JSON if possible
       let prodDisplay = '';
       let totalQty = 0;
       try {
@@ -699,94 +726,108 @@ document.querySelectorAll('#customersAccordion .accordion-button').forEach(btn=>
   });
 });
 
-// Expose customers data for report/export
-window.manageCustomersData = <?= json_encode($customers, JSON_HEX_TAG|JSON_HEX_APOS|JSON_HEX_QUOT|JSON_HEX_AMP) ?>;
-
-// Helpers for formatting amounts
-function fmt(n){ return 'UGX ' + Number(n||0).toLocaleString(undefined,{minimumFractionDigits:2, maximumFractionDigits:2}); }
-
-// REPLACED: Generate printable report for Manage Customers (styled like reports_generator.php)
-document.getElementById('btnGenerateReport')?.addEventListener('click', () => {
-  const rows = window.manageCustomersData || [];
-  const now = new Date();
-  const periodText = 'All time'; // adjust later if you add date filters
-  const branchText = 'All Branches'; // adjust if you scope by branch
-
-  let totalCredited = 0, totalBalance = 0;
-  // Build table body HTML
-  let bodyHtml = '';
-  if (rows.length) {
-    rows.forEach((c) => {
-      const ac = parseFloat(c.amount_credited||0);
-      const ab = parseFloat(c.account_balance||0);
-      totalCredited += ac; totalBalance += ab;
-      bodyHtml += `
-        <tr>
-          <td>${escapeHtml(c.opening_date || '')}</td>
-          <td>${escapeHtml(c.name || '')}</td>
-          <td>${escapeHtml(c.contact || '')}</td>
-          <td>${escapeHtml(c.email || '')}</td>
-          <td>${escapeHtml(c.payment_method || '')}</td>
-          <td style="text-align:right;">${fmt(ac)}</td>
-          <td style="text-align:right;">${fmt(ab)}</td>
-        </tr>`;
+// --- NEW: Per-customer report/export buttons on accordions ---
+function attachCustomerActionHandlers() {
+  document.querySelectorAll('.cust-report-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.preventDefault(); e.stopPropagation();
+      const id = btn.dataset.id, name = btn.dataset.name || 'Customer';
+      generateCustomerReport(id, name);
     });
-  } else {
-    bodyHtml = `<tr><td colspan="20" style="text-align:center;color:#888;">No data found.</td></tr>`;
-  }
+  });
+  document.querySelectorAll('.cust-export-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.preventDefault(); e.stopPropagation();
+      const id = btn.dataset.id, name = btn.dataset.name || 'Customer';
+      exportCustomerTransactions(id, name);
+    });
+  });
+}
+attachCustomerActionHandlers();
+
+// Build printable report for a single customer's transactions
+async function generateCustomerReport(customerId, customerName){
+  const res = await fetch('customer_management.php?fetch_transactions=1&customer_id='+encodeURIComponent(customerId));
+  const data = await res.json();
+  if (!data.success || !data.rows.length) { alert('No transactions found for '+customerName); return; }
+
+  let totalPaid = 0, totalCredited = 0;
+  const rowsHtml = data.rows.map(r => {
+    let prodDisplay = '', totalQty = 0;
+    try {
+      const pb = JSON.parse(r.products_bought || '[]');
+      if (Array.isArray(pb)) {
+        prodDisplay = pb.map(p => {
+          const name = (p.name || p.product || '').toString();
+          const qty = parseInt(p.quantity || p.qty || 0) || 0;
+          totalQty += qty;
+          return `${escapeHtml(name)} x${qty}`;
+        }).join(', ');
+      } else { prodDisplay = escapeHtml(String(r.products_bought || '')); }
+    } catch { prodDisplay = escapeHtml(String(r.products_bought || '')); }
+    const paid = parseFloat(r.amount_paid || 0); totalPaid += paid;
+    const credited = parseFloat(r.amount_credited || 0); totalCredited += credited;
+    return `<tr>
+      <td>${escapeHtml(r.date_time||'')}</td>
+      <td>${prodDisplay||'-'}</td>
+      <td class="text-center">${totalQty}</td>
+      <td class="text-end">UGX ${paid.toFixed(2)}</td>
+      <td class="text-end">UGX ${credited.toFixed(2)}</td>
+      <td>${escapeHtml(r.sold_by||'')}</td>
+    </tr>`;
+  }).join('');
 
   const html = `
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Customers Report</title>
+  <title>${escapeHtml(customerName)} - Transactions Report</title>
   <meta charset="utf-8">
   <style>
     body { font-family: 'Segoe UI', Arial, sans-serif; background:#f8f9fa; color:#222; margin:0; padding:0; }
     .report-container { max-width: 900px; margin: 2rem auto; background:#fff; border-radius:14px; box-shadow:0 4px 24px #0002; padding:2rem 2.5rem; }
     .report-header { text-align:center; margin-bottom:2rem; }
-    .report-title { font-size:2rem; font-weight:bold; color:#1abc9c; margin-bottom:.5rem; }
-    .report-meta { font-size:1.1rem; color:#555; margin-bottom:1rem; }
-    .report-table { width:100%; border-collapse:collapse; margin-bottom:2rem; }
-    .report-table th, .report-table td { padding:.7rem 1rem; border-bottom:1px solid #e0e0e0; font-size:1rem; }
-    .report-table th { background:#1abc9c; color:#fff; font-weight:600; }
-    .report-table tbody tr:nth-child(even) { background:#f4f6f9; }
-    .report-table tbody tr:hover { background:#e0f7fa; }
+    .report-title { font-size:2rem; font-weight:bold; color:#1abc9c; margin-bottom:.4rem; }
+    .report-meta { font-size:1.05rem; color:#555; }
+    table { width:100%; border-collapse:collapse; margin-top:1rem; }
+    th, td { padding:.7rem 1rem; border-bottom:1px solid #e0e0e0; font-size:1rem; }
+    th { background:#1abc9c; color:#fff; font-weight:600; }
+    tbody tr:nth-child(even) { background:#f4f6f9; }
+    tbody tr:hover { background:#e0f7fa; }
     tfoot td { font-weight:bold; }
-    .print-btn { display:block; margin:2rem auto 0; padding:.7rem 2.5rem; font-size:1.1rem; background:#1abc9c; color:#fff; border:none; border-radius:8px; font-weight:bold; cursor:pointer; box-shadow:0 2px 8px #0002; }
+    .print-btn { display:block; margin:1.5rem auto 0; padding:.7rem 2.5rem; font-size:1.1rem; background:#1abc9c; color:#fff; border:none; border-radius:8px; font-weight:bold; cursor:pointer; box-shadow:0 2px 8px #0002; }
     @media print { .print-btn { display:none; } .report-container { box-shadow:none; border-radius:0; padding:.5rem; } }
   </style>
 </head>
 <body>
   <div class="report-container">
     <div class="report-header">
-      <div class="report-title">Customers Report</div>
+      <div class="report-title">Customer Transactions</div>
       <div class="report-meta">
-        Period: ${escapeHtml(periodText)} <br>
-        Branch: ${escapeHtml(branchText)}
+        Customer: ${escapeHtml(customerName)}<br>
+        Generated: ${new Date().toLocaleString()}
       </div>
     </div>
-    <table class="report-table">
+    <table>
       <thead>
         <tr>
-          <th>Date</th>
-          <th>Customer Name</th>
-          <th>Contact</th>
-          <th>Email</th>
-          <th>Payment Method</th>
-          <th style="text-align:right;">Amount Credited</th>
-          <th style="text-align:right;">Account Balance</th>
+          <th>Date & Time</th>
+          <th>Products</th>
+          <th class="text-center">Quantity</th>
+          <th class="text-end">Amount Paid</th>
+          <th class="text-end">Amount Credited</th>
+          <th>Sold By</th>
         </tr>
       </thead>
-      <tbody>${bodyHtml}</tbody>
-      ${rows.length ? `
+      <tbody>${rowsHtml}</tbody>
       <tfoot>
         <tr>
-          <td colspan="5">Totals</td>
-          <td style="text-align:right;">${fmt(totalCredited)}</td>
-          <td style="text-align:right;">${fmt(totalBalance)}</td>
+          <td colspan="3">Totals</td>
+          <td class="text-end">UGX ${totalPaid.toFixed(2)}</td>
+          <td class="text-end">UGX ${totalCredited.toFixed(2)}</td>
+          <td></td>
         </tr>
-      </tfoot>` : ''}
+      </tfoot>
     </table>
     <button class="print-btn" onclick="window.print()">Print Report</button>
   </div>
@@ -794,47 +835,62 @@ document.getElementById('btnGenerateReport')?.addEventListener('click', () => {
     function escapeHtml(s){return s?String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])):'';}
   <\/script>
 </body>
-</html>
-  `;
-
+</html>`;
   const w = window.open('', '_blank');
   w.document.write(html);
   w.document.close();
-});
+}
 
-// Export Manage Customers to CSV (Excel-compatible)
-document.getElementById('btnExportExcel')?.addEventListener('click', () => {
-  const rows = window.manageCustomersData || [];
-  const header = ['Name','Contact','Payment Method','Opening Date','Amount Credited','Account Balance'];
+// Export single customer's transactions to CSV (Excel-compatible)
+async function exportCustomerTransactions(customerId, customerName){
+  const res = await fetch('customer_management.php?fetch_transactions=1&customer_id='+encodeURIComponent(customerId));
+  const data = await res.json();
+  if (!data.success || !data.rows.length) { alert('No transactions found for '+customerName); return; }
+
+  const header = ['Date & Time','Products','Quantity','Amount Paid','Amount Credited','Sold By'];
   const csvRows = [header.join(',')];
-  rows.forEach(c => {
-    const r = [
-      csvEscape(c.name||''),
-      csvEscape(c.contact||''),
-      csvEscape(c.payment_method||''),
-      csvEscape(c.opening_date||''),
-      String(parseFloat(c.amount_credited||0)),
-      String(parseFloat(c.account_balance||0))
+
+  data.rows.forEach(r => {
+    let prodDisplay = '', totalQty = 0;
+    try {
+      const pb = JSON.parse(r.products_bought || '[]');
+      if (Array.isArray(pb)) {
+        prodDisplay = pb.map(p => {
+          const name = (p.name || p.product || '').toString();
+          const qty = parseInt(p.quantity || p.qty || 0) || 0;
+          totalQty += qty;
+          return `${name} x${qty}`;
+        }).join('; ');
+      } else { prodDisplay = String(r.products_bought || ''); }
+    } catch { prodDisplay = String(r.products_bought || ''); }
+
+    const row = [
+      csvEscape(r.date_time||''),
+      csvEscape(prodDisplay||''),
+      String(totalQty),
+      String(parseFloat(r.amount_paid||0)),
+      String(parseFloat(r.amount_credited||0)),
+      csvEscape(r.sold_by||'')
     ];
-    csvRows.push(r.join(','));
+    csvRows.push(row.join(','));
   });
+
   const blob = new Blob([csvRows.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = 'manage_customers.csv';
-  document.body.appendChild(a);
-  a.click();
+  a.download = `customer_${customerId}_transactions.csv`;
+  document.body.appendChild(a); a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
-});
+}
 
 function csvEscape(v) {
   const s = String(v ?? '');
   if (/[",\n]/.test(s)) return '"' + s.replace(/"/g,'""') + '"';
   return s;
 }
-function escapeHtml(s){return s?String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])):'';}
-</script>
 
+// ...existing code...
+</script>
 <?php include '../includes/footer.php'; ?>
