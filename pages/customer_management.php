@@ -17,7 +17,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         $name = trim($_POST['name'] ?? '');
         $contact = trim($_POST['contact'] ?? '');
         $email = trim($_POST['email'] ?? '');
-        $payment_method = trim($_POST['payment_method'] ?? ''); // <-- NEW
+        $payment_method = trim($_POST['payment_method'] ?? '');
+        $pm_other = trim($_POST['payment_method_other'] ?? ''); // <-- NEW
+        // Use custom payment method if 'Other' selected
+        if (strcasecmp($payment_method, 'Other') === 0 && $pm_other !== '') {
+            $payment_method = $pm_other;
+        }
         $opening_date = $_POST['opening_date'] ?? date('Y-m-d');
         if ($name === '') {
             echo json_encode(['success'=>false,'message'=>'Name required']);
@@ -179,10 +184,9 @@ $customers = $customers_res ? $customers_res->fetch_all(MYSQLI_ASSOC) : [];
                 <label class="form-label">Email</label>
                 <input name="email" type="email" class="form-control">
               </div>
-              <!-- NEW: Payment Method (after Email) -->
               <div class="col-md-4">
                 <label class="form-label">Payment Method</label>
-                <select name="payment_method" class="form-select">
+                <select name="payment_method" class="form-select" id="pmSelect">
                   <option value="">-- Select --</option>
                   <option value="Cash">Cash</option>
                   <option value="MTN MoMo">MTN MoMo</option>
@@ -191,6 +195,11 @@ $customers = $customers_res ? $customers_res->fetch_all(MYSQLI_ASSOC) : [];
                   <option value="Customer File">Customer File</option>
                   <option value="Other">Other</option>
                 </select>
+              </div>
+              <!-- NEW: Other Payment Method text input (shown only when 'Other' selected) -->
+              <div class="col-md-4" id="pmOtherWrap" style="display:none;">
+                <label class="form-label">Other Payment Method</label>
+                <input name="payment_method_other" class="form-control" id="pmOtherInput" placeholder="Enter payment method">
               </div>
               <div class="col-md-4">
                 <label class="form-label">Opening Date</label>
@@ -607,15 +616,46 @@ body.dark-mode .btn-warning {
 </style>
 
 <script>
+// Toggle "Other Payment Method" input visibility
+(function(){
+  const pmSelect = document.getElementById('pmSelect');
+  const pmOtherWrap = document.getElementById('pmOtherWrap');
+  const pmOtherInput = document.getElementById('pmOtherInput');
+  if (pmSelect) {
+    const toggle = () => {
+      if (pmSelect.value === 'Other') {
+        pmOtherWrap.style.display = '';
+        pmOtherInput?.focus();
+      } else {
+        pmOtherWrap.style.display = 'none';
+        if (pmOtherInput) pmOtherInput.value = '';
+      }
+    };
+    pmSelect.addEventListener('change', toggle);
+    toggle();
+  }
+})();
+
 /* Create customer via AJAX */
 document.getElementById('createCustomerForm').addEventListener('submit', async function(e){
   e.preventDefault();
+  const pmSelect = document.getElementById('pmSelect');
+  const pmOtherInput = document.getElementById('pmOtherInput');
+  const msg = document.getElementById('createMsg');
+
+  // Require custom text when 'Other' selected
+  if (pmSelect && pmSelect.value === 'Other') {
+    if (!pmOtherInput || !pmOtherInput.value.trim()) {
+      msg.innerHTML = '<div class="alert alert-warning">Please enter the other payment method.</div>';
+      return;
+    }
+  }
+
   const form = new FormData(this);
   form.append('action','create_customer');
   // Use current page for AJAX POST
   const res = await fetch(location.pathname, {method:'POST', body: form});
   const data = await res.json();
-  const msg = document.getElementById('createMsg');
   if (data.success) {
     msg.innerHTML = '<div class="alert alert-success">Customer created. <a href="view_customer_file.php?id='+data.id+'">Open file</a></div>';
     setTimeout(()=>location.reload(),900);
