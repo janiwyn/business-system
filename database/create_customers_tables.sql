@@ -3,6 +3,7 @@ CREATE TABLE IF NOT EXISTS customers (
   name VARCHAR(255) NOT NULL,
   contact VARCHAR(100) DEFAULT '',
   email VARCHAR(255) DEFAULT '',
+  payment_method VARCHAR(50) DEFAULT NULL,
   opening_date DATE DEFAULT CURRENT_DATE,
   amount_credited DECIMAL(12,2) DEFAULT 0,
   account_balance DECIMAL(12,2) DEFAULT 0,
@@ -54,3 +55,7 @@ CREATE TABLE announcements (
 
 
 ALTER TABLE customers ADD COLUMN opening_date DATE DEFAULT CURDATE();
+
+-- Add payment_method for existing databases
+ALTER TABLE customers
+  ADD COLUMN IF NOT EXISTS payment_method VARCHAR(50) NULL AFTER email;

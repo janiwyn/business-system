@@ -6,3 +6,6 @@ CREATE TABLE suppliers (
     unit_price DECIMAL(12,2) NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+
+

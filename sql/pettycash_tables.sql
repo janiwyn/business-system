@@ -17,4 +17,4 @@ CREATE TABLE petty_cash_transactions (
     approved_by VARCHAR(255) NOT NULL,
     created_at DATETIME NOT NULL,
     action_type VARCHAR(32) DEFAULT NULL
-);
+); 

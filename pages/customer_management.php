@@ -17,13 +17,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         $name = trim($_POST['name'] ?? '');
         $contact = trim($_POST['contact'] ?? '');
         $email = trim($_POST['email'] ?? '');
+        $payment_method = trim($_POST['payment_method'] ?? ''); // <-- NEW
         $opening_date = $_POST['opening_date'] ?? date('Y-m-d');
         if ($name === '') {
             echo json_encode(['success'=>false,'message'=>'Name required']);
             exit;
         }
-        $stmt = $conn->prepare("INSERT INTO customers (name, contact, email, opening_date, amount_credited, account_balance) VALUES (?, ?, ?, ?, 0, 0)");
-        $stmt->bind_param("ssss", $name, $contact, $email, $opening_date);
+        // Store payment_method
+        $stmt = $conn->prepare("INSERT INTO customers (name, contact, email, payment_method, opening_date, amount_credited, account_balance) VALUES (?, ?, ?, ?, ?, 0, 0)");
+        $stmt->bind_param("sssss", $name, $contact, $email, $payment_method, $opening_date);
         if ($stmt->execute()) {
             echo json_encode(['success'=>true,'id'=>$stmt->insert_id]);
         } else {
@@ -138,7 +140,6 @@ include '../includes/header.php';
 // Load customers list for page render
 $customers_res = $conn->query("SELECT * FROM customers ORDER BY id DESC");
 $customers = $customers_res ? $customers_res->fetch_all(MYSQLI_ASSOC) : [];
-
 ?>
   <div class="container-fluid mt-4">
     <!-- Tabs -->
@@ -177,6 +178,19 @@ $customers = $customers_res ? $customers_res->fetch_all(MYSQLI_ASSOC) : [];
                 <label class="form-label">Email</label>
                 <input name="email" type="email" class="form-control">
               </div>
+              <!-- NEW: Payment Method (after Email) -->
+              <div class="col-md-4">
+                <label class="form-label">Payment Method</label>
+                <select name="payment_method" class="form-select">
+                  <option value="">-- Select --</option>
+                  <option value="Cash">Cash</option>
+                  <option value="MTN MoMo">MTN MoMo</option>
+                  <option value="Airtel Money">Airtel Money</option>
+                  <option value="Bank">Bank</option>
+                  <option value="Customer File">Customer File</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
               <div class="col-md-4">
                 <label class="form-label">Opening Date</label>
                 <input name="opening_date" type="date" class="form-control" value="<?= date('Y-m-d') ?>">
@@ -208,6 +222,7 @@ $customers = $customers_res ? $customers_res->fetch_all(MYSQLI_ASSOC) : [];
                             <th>Name</th>
                             <th>Contact</th>
                             <th>Email</th>
+                            <th>Payment Method</th> <!-- NEW -->
                             <th>Opening Date</th>
                             <th class="text-center">Open File</th>
                           </tr>
@@ -219,6 +234,7 @@ $customers = $customers_res ? $customers_res->fetch_all(MYSQLI_ASSOC) : [];
                               <td><?= htmlspecialchars($c['name']) ?></td>
                               <td><?= htmlspecialchars($c['contact']) ?></td>
                               <td><?= htmlspecialchars($c['email']) ?></td>
+                              <td><?= htmlspecialchars($c['payment_method'] ?? '') ?></td> <!-- NEW -->
                               <td><?= htmlspecialchars($c['opening_date'] ?? '') ?></td>
                               <td class="text-center">
                                 <a href="view_customer_file.php?id=<?= $c['id'] ?>" class="btn btn-info btn-sm" title="Open File">
@@ -243,6 +259,7 @@ $customers = $customers_res ? $customers_res->fetch_all(MYSQLI_ASSOC) : [];
                     <th>Name</th>
                     <th>Contact</th>
                     <th>Email</th>
+                    <th>Payment Method</th> <!-- NEW -->
                     <th>Opening Date</th>
                     <th class="text-center">Open File</th>
                   </tr>
@@ -254,6 +271,7 @@ $customers = $customers_res ? $customers_res->fetch_all(MYSQLI_ASSOC) : [];
                       <td><?= htmlspecialchars($c['name']) ?></td>
                       <td><?= htmlspecialchars($c['contact']) ?></td>
                       <td><?= htmlspecialchars($c['email']) ?></td>
+                      <td><?= htmlspecialchars($c['payment_method'] ?? '') ?></td> <!-- NEW -->
                       <td><?= htmlspecialchars($c['opening_date'] ?? '') ?></td>
                       <td class="text-center">
                         <a href="view_customer_file.php?id=<?= $c['id'] ?>" class="btn btn-info btn-sm">Open File</a>
@@ -275,13 +293,23 @@ $customers = $customers_res ? $customers_res->fetch_all(MYSQLI_ASSOC) : [];
         <div class="card mb-4"  style="border-left: 4px solid teal;">
           <div class="card-header">Manage Customers</div>
           <div class="card-body">
+            <!-- NEW: Report/Export buttons -->
+            <div class="mb-3 d-flex gap-2 flex-wrap">
+              <button class="btn btn-warning btn-sm" id="btnGenerateReport">
+                <i class="fa fa-file-alt"></i> Generate Report
+              </button>
+              <button class="btn btn-primary btn-sm" id="btnExportExcel">
+                <i class="fa fa-file-excel"></i> Export to Excel
+              </button>
+            </div>
+
             <!-- Responsive Table Card for Small Devices -->
             <div class="d-block d-md-none mb-4"  style="border-left: 4px solid teal;">
               <div class="card transactions-card" >
                 <div class="card-body">
                   <div class="table-responsive-sm">
                     <div class="transactions-table">
-                      <table>
+                      <table id="manageCustomersTableMobile">
                         <thead>
                           <tr>
                             <th>Name</th>
@@ -319,9 +347,10 @@ $customers = $customers_res ? $customers_res->fetch_all(MYSQLI_ASSOC) : [];
                 </div>
               </div>
             </div>
+
             <!-- Table for medium and large devices -->
             <div class="transactions-table d-none d-md-block">
-              <table>
+              <table id="manageCustomersTable">
                 <thead>
                   <tr>
                     <th>Name</th>
@@ -670,7 +699,142 @@ document.querySelectorAll('#customersAccordion .accordion-button').forEach(btn=>
   });
 });
 
-function escapeHtml(s){ return s ? s.replace(/[&<>"']/g, c=> ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])) : ''; }
+// Expose customers data for report/export
+window.manageCustomersData = <?= json_encode($customers, JSON_HEX_TAG|JSON_HEX_APOS|JSON_HEX_QUOT|JSON_HEX_AMP) ?>;
+
+// Helpers for formatting amounts
+function fmt(n){ return 'UGX ' + Number(n||0).toLocaleString(undefined,{minimumFractionDigits:2, maximumFractionDigits:2}); }
+
+// REPLACED: Generate printable report for Manage Customers (styled like reports_generator.php)
+document.getElementById('btnGenerateReport')?.addEventListener('click', () => {
+  const rows = window.manageCustomersData || [];
+  const now = new Date();
+  const periodText = 'All time'; // adjust later if you add date filters
+  const branchText = 'All Branches'; // adjust if you scope by branch
+
+  let totalCredited = 0, totalBalance = 0;
+  // Build table body HTML
+  let bodyHtml = '';
+  if (rows.length) {
+    rows.forEach((c) => {
+      const ac = parseFloat(c.amount_credited||0);
+      const ab = parseFloat(c.account_balance||0);
+      totalCredited += ac; totalBalance += ab;
+      bodyHtml += `
+        <tr>
+          <td>${escapeHtml(c.opening_date || '')}</td>
+          <td>${escapeHtml(c.name || '')}</td>
+          <td>${escapeHtml(c.contact || '')}</td>
+          <td>${escapeHtml(c.email || '')}</td>
+          <td>${escapeHtml(c.payment_method || '')}</td>
+          <td style="text-align:right;">${fmt(ac)}</td>
+          <td style="text-align:right;">${fmt(ab)}</td>
+        </tr>`;
+    });
+  } else {
+    bodyHtml = `<tr><td colspan="20" style="text-align:center;color:#888;">No data found.</td></tr>`;
+  }
+
+  const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Customers Report</title>
+  <meta charset="utf-8">
+  <style>
+    body { font-family: 'Segoe UI', Arial, sans-serif; background:#f8f9fa; color:#222; margin:0; padding:0; }
+    .report-container { max-width: 900px; margin: 2rem auto; background:#fff; border-radius:14px; box-shadow:0 4px 24px #0002; padding:2rem 2.5rem; }
+    .report-header { text-align:center; margin-bottom:2rem; }
+    .report-title { font-size:2rem; font-weight:bold; color:#1abc9c; margin-bottom:.5rem; }
+    .report-meta { font-size:1.1rem; color:#555; margin-bottom:1rem; }
+    .report-table { width:100%; border-collapse:collapse; margin-bottom:2rem; }
+    .report-table th, .report-table td { padding:.7rem 1rem; border-bottom:1px solid #e0e0e0; font-size:1rem; }
+    .report-table th { background:#1abc9c; color:#fff; font-weight:600; }
+    .report-table tbody tr:nth-child(even) { background:#f4f6f9; }
+    .report-table tbody tr:hover { background:#e0f7fa; }
+    tfoot td { font-weight:bold; }
+    .print-btn { display:block; margin:2rem auto 0; padding:.7rem 2.5rem; font-size:1.1rem; background:#1abc9c; color:#fff; border:none; border-radius:8px; font-weight:bold; cursor:pointer; box-shadow:0 2px 8px #0002; }
+    @media print { .print-btn { display:none; } .report-container { box-shadow:none; border-radius:0; padding:.5rem; } }
+  </style>
+</head>
+<body>
+  <div class="report-container">
+    <div class="report-header">
+      <div class="report-title">Customers Report</div>
+      <div class="report-meta">
+        Period: ${escapeHtml(periodText)} <br>
+        Branch: ${escapeHtml(branchText)}
+      </div>
+    </div>
+    <table class="report-table">
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Customer Name</th>
+          <th>Contact</th>
+          <th>Email</th>
+          <th>Payment Method</th>
+          <th style="text-align:right;">Amount Credited</th>
+          <th style="text-align:right;">Account Balance</th>
+        </tr>
+      </thead>
+      <tbody>${bodyHtml}</tbody>
+      ${rows.length ? `
+      <tfoot>
+        <tr>
+          <td colspan="5">Totals</td>
+          <td style="text-align:right;">${fmt(totalCredited)}</td>
+          <td style="text-align:right;">${fmt(totalBalance)}</td>
+        </tr>
+      </tfoot>` : ''}
+    </table>
+    <button class="print-btn" onclick="window.print()">Print Report</button>
+  </div>
+  <script>
+    function escapeHtml(s){return s?String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])):'';}
+  <\/script>
+</body>
+</html>
+  `;
+
+  const w = window.open('', '_blank');
+  w.document.write(html);
+  w.document.close();
+});
+
+// Export Manage Customers to CSV (Excel-compatible)
+document.getElementById('btnExportExcel')?.addEventListener('click', () => {
+  const rows = window.manageCustomersData || [];
+  const header = ['Name','Contact','Payment Method','Opening Date','Amount Credited','Account Balance'];
+  const csvRows = [header.join(',')];
+  rows.forEach(c => {
+    const r = [
+      csvEscape(c.name||''),
+      csvEscape(c.contact||''),
+      csvEscape(c.payment_method||''),
+      csvEscape(c.opening_date||''),
+      String(parseFloat(c.amount_credited||0)),
+      String(parseFloat(c.account_balance||0))
+    ];
+    csvRows.push(r.join(','));
+  });
+  const blob = new Blob([csvRows.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'manage_customers.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+});
+
+function csvEscape(v) {
+  const s = String(v ?? '');
+  if (/[",\n]/.test(s)) return '"' + s.replace(/"/g,'""') + '"';
+  return s;
+}
+function escapeHtml(s){return s?String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])):'';}
 </script>
 
 <?php include '../includes/footer.php'; ?>
