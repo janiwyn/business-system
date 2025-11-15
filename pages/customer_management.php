@@ -116,7 +116,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['fetch_transactions'])) 
     $customer_id = intval($_GET['customer_id'] ?? 0);
     $out = ['success'=>false,'rows'=>[]];
     if ($customer_id > 0) {
-        $stmt = $conn->prepare("SELECT * FROM customer_transactions WHERE customer_id = ? ORDER BY date_time DESC");
+        // Include customer's payment_method in the response
+        $stmt = $conn->prepare("SELECT ct.*, c.payment_method FROM customer_transactions ct JOIN customers c ON c.id = ct.customer_id WHERE ct.customer_id = ? ORDER BY ct.date_time DESC");
         $stmt->bind_param("i", $customer_id);
         $stmt->execute();
         $res = $stmt->get_result();
@@ -447,7 +448,8 @@ $customers = $customers_res ? $customers_res->fetch_all(MYSQLI_ASSOC) : [];
                             if (!data.success) { container.innerHTML = '<div class="text-muted">No transactions.</div>'; return; }
                             if (!data.rows.length) { container.innerHTML = '<div class="text-muted">No transactions.</div>'; container.dataset.loaded = '1'; return; }
 
-                            let html = '<table><thead><tr><th>Date & Time</th><th>Products</th><th class="text-center">Quantity</th><th class="text-end">Amount Paid</th><th class="text-end">Amount Credited</th><th>Sold By</th></tr></thead><tbody>';
+                            // Add Payment Method column
+                            let html = '<table><thead><tr><th>Date & Time</th><th>Products</th><th class="text-center">Quantity</th><th class="text-end">Amount Paid</th><th class="text-end">Amount Credited</th><th>Payment Method</th><th>Sold By</th></tr></thead><tbody>';
                             data.rows.forEach(r=>{
                               let prodDisplay = '';
                               let totalQty = 0;
@@ -477,6 +479,7 @@ $customers = $customers_res ? $customers_res->fetch_all(MYSQLI_ASSOC) : [];
                                          <td class="text-center">${totalQty}</td>
                                          <td class="text-end">UGX ${paid}</td>
                                          <td class="text-end">UGX ${credited}</td>
+                                         <td>${escapeHtml(r.payment_method || '')}</td>
                                          <td>${soldBy}</td>
                                        </tr>`;
                             });
@@ -687,7 +690,8 @@ document.querySelectorAll('#customersAccordion .accordion-button').forEach(btn=>
     if (!data.success) { container.innerHTML = '<div class="text-muted">No transactions.</div>'; return; }
     if (!data.rows.length) { container.innerHTML = '<div class="text-muted">No transactions.</div>'; container.dataset.loaded = '1'; return; }
 
-    let html = '<div class="transactions-table"><table><thead><tr><th>Date & Time</th><th>Products</th><th class="text-center">Quantity</th><th class="text-end">Amount Paid</th><th class="text-end">Amount Credited</th><th>Sold By</th></tr></thead><tbody>';
+    // Add Payment Method column
+    let html = '<div class="transactions-table"><table><thead><tr><th>Date & Time</th><th>Products</th><th class="text-center">Quantity</th><th class="text-end">Amount Paid</th><th class="text-end">Amount Credited</th><th>Payment Method</th><th>Sold By</th></tr></thead><tbody>';
     data.rows.forEach(r=>{
       let prodDisplay = '';
       let totalQty = 0;
@@ -717,6 +721,7 @@ document.querySelectorAll('#customersAccordion .accordion-button').forEach(btn=>
                  <td class="text-center">${totalQty}</td>
                  <td class="text-end">UGX ${paid}</td>
                  <td class="text-end">UGX ${credited}</td>
+                 <td>${escapeHtml(r.payment_method || '')}</td>
                  <td>${soldBy}</td>
                </tr>`;
     });
