@@ -254,32 +254,59 @@ if (isset($_POST['record_debtor'])) {
         }
 
         if (!$is_duplicate && $debtor_name && $quantity_taken > 0 && $balance > 0 && $item_taken) {
+            // BEGIN: transaction to ensure atomic insert + stock deduction (+ optional customer_transactions)
+            $conn->begin_transaction();
+            $allOk = true;
+
             $stmt = $conn->prepare("INSERT INTO debtors (debtor_name, debtor_contact, debtor_email, item_taken, quantity_taken, amount_paid, balance, branch_id, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
             $stmt->bind_param("ssssiddiss", $debtor_name, $debtor_contact, $debtor_email, $item_taken, $quantity_taken, $amount_paid, $balance, $branch, $created_by, $date);
-            if ($stmt->execute()) {
-                if ($debtor_customer_id > 0) {
-                    $products_bought = json_encode(array_map(function($it){
-                        return [
-                            'name' => $it['name'],
-                            'quantity' => intval($it['quantity']),
-                            'price' => floatval($it['price']),
-                        ];
-                    }, is_array($cart)?$cart:[]));
-                    $sold_by = $_SESSION['username'] ?? 'staff';
-                    $ct = $conn->prepare("INSERT INTO customer_transactions (customer_id, date_time, products_bought, amount_paid, amount_credited, sold_by, status) VALUES (?, ?, ?, ?, ?, ?, ?)");
-                    $zeroPaid = 0.0;
-                    $status = 'debtor';
-                    $ct->bind_param("issddss", $debtor_customer_id, $date, $products_bought, $zeroPaid, $total_amount, $sold_by, $status);
-                    $ct->execute();
-                    $ct->close();
+            if (!$stmt->execute()) {
+                $allOk = false;
+            }
+            $stmt->close();
+
+            // Deduct stock for each cart item (only if insert succeeded so far)
+            if ($allOk && $cart && is_array($cart)) {
+                foreach ($cart as $it) {
+                    $pid = intval($it['id'] ?? 0);
+                    $qty = intval($it['quantity'] ?? 0);
+                    if ($pid > 0 && $qty > 0) {
+                        $u = $conn->prepare("UPDATE products SET stock = stock - ? WHERE id = ? AND `branch-id` = ?");
+                        $u->bind_param("iii", $qty, $pid, $branch);
+                        if (!$u->execute()) { $allOk = false; }
+                        $u->close();
+                        if (!$allOk) break;
+                    }
                 }
-                // Redirect (PRG) prevents refresh duplication
+            }
+
+            // Also add to customer_transactions if bound to a customer file
+            if ($allOk && $debtor_customer_id > 0) {
+                $products_bought = json_encode(array_map(function($it){
+                    return [
+                        'name' => $it['name'],
+                        'quantity' => intval($it['quantity']),
+                        'price' => floatval($it['price']),
+                    ];
+                }, is_array($cart)?$cart:[]));
+                $sold_by = $_SESSION['username'] ?? 'staff';
+                $ct = $conn->prepare("INSERT INTO customer_transactions (customer_id, date_time, products_bought, amount_paid, amount_credited, sold_by, status) VALUES (?, ?, ?, ?, ?, ?, ?)");
+                $zeroPaid = 0.0;
+                $status = 'debtor';
+                if (!$ct->bind_param("issddss", $debtor_customer_id, $date, $products_bought, $zeroPaid, $total_amount, $sold_by, $status)) { $allOk = false; }
+                if ($allOk && !$ct->execute()) { $allOk = false; }
+                $ct->close();
+            }
+
+            if ($allOk) {
+                $conn->commit();
                 header("Location: staff_dashboard.php?debtor_ok=1");
                 exit;
             } else {
-                $message = "❌ Failed to record debtor: " . $stmt->error;
+                $conn->rollback();
+                $message = "❌ Failed to record debtor or update stock. Please try again.";
             }
-            $stmt->close();
+            // END: transaction
         } else {
             if ($is_duplicate) {
                 $message = "⚠️ Debtor already recorded recently (duplicate prevented).";
@@ -287,7 +314,7 @@ if (isset($_POST['record_debtor'])) {
                 $message = "⚠️ Required debtor details missing.";
             }
         }
-        // Generate a fresh token for next potential submission after handling
+        // Fresh token for the next submission
         $_SESSION['debtor_req_token'] = bin2hex(random_bytes(16));
         $debtor_req_token = $_SESSION['debtor_req_token'];
     }
