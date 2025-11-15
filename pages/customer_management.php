@@ -778,6 +778,7 @@ async function generateCustomerReport(customerId, customerName){
       <td class="text-center">${totalQty}</td>
       <td class="text-end">UGX ${paid.toFixed(2)}</td>
       <td class="text-end">UGX ${credited.toFixed(2)}</td>
+      <td>${escapeHtml(r.payment_method||'')}</td>           <!-- NEW -->
       <td>${escapeHtml(r.sold_by||'')}</td>
     </tr>`;
   }).join('');
@@ -821,15 +822,16 @@ async function generateCustomerReport(customerId, customerName){
           <th class="text-center">Quantity</th>
           <th class="text-end">Amount Paid</th>
           <th class="text-end">Amount Credited</th>
+          <th>Payment Method</th>                            <!-- NEW -->
           <th>Sold By</th>
         </tr>
       </thead>
       <tbody>${rowsHtml}</tbody>
       <tfoot>
         <tr>
-          <td colspan="3">Totals</td>
-          <td class="text-end">UGX ${totalPaid.toFixed(2)}</td>
+          <td colspan="4">Totals</td>                        <!-- ADJ colspan for new column -->
           <td class="text-end">UGX ${totalCredited.toFixed(2)}</td>
+          <td></td>
           <td></td>
         </tr>
       </tfoot>
@@ -852,7 +854,7 @@ async function exportCustomerTransactions(customerId, customerName){
   const data = await res.json();
   if (!data.success || !data.rows.length) { alert('No transactions found for '+customerName); return; }
 
-  const header = ['Date & Time','Products','Quantity','Amount Paid','Amount Credited','Sold By'];
+  const header = ['Date & Time','Products','Quantity','Amount Paid','Amount Credited','Payment Method','Sold By']; // NEW
   const csvRows = [header.join(',')];
 
   data.rows.forEach(r => {
@@ -875,6 +877,7 @@ async function exportCustomerTransactions(customerId, customerName){
       String(totalQty),
       String(parseFloat(r.amount_paid||0)),
       String(parseFloat(r.amount_credited||0)),
+      csvEscape(r.payment_method||''),                       // NEW
       csvEscape(r.sold_by||'')
     ];
     csvRows.push(row.join(','));
