@@ -1,5 +1,6 @@
 <?php
 session_start();
+ob_start(); // <-- NEW: start output buffering to allow header() redirects later
 include '../includes/db.php';
 include '../includes/auth.php';
 require_role(['staff']);
@@ -195,51 +196,147 @@ $debtors_stmt->execute();
 $debtors_result = $debtors_stmt->get_result();
 $debtors_stmt->close();
 
+// --- ONE-TIME DEBTOR REQUEST TOKEN (prevents duplicate on refresh) ---
+if (empty($_SESSION['debtor_req_token'])) {
+    $_SESSION['debtor_req_token'] = bin2hex(random_bytes(16));
+}
+$debtor_req_token = $_SESSION['debtor_req_token'];
+
 // Handle debtor record (no invoice/receipt)
 if (isset($_POST['record_debtor'])) {
-    $debtor_name    = trim($_POST['debtor_name']);
-    $debtor_contact = trim($_POST['debtor_contact']);
-    $debtor_email   = trim($_POST['debtor_email']);
-    $created_by     = $user_id;
-    $branch         = $branch_id;
-    $date           = date('Y-m-d H:i:s');
-
-    // Get cart and payment info from POST
-    $cart = json_decode($_POST['cart_data'] ?? '[]', true);
-    $amount_paid = floatval($_POST['amount_paid'] ?? 0);
-
-    // Calculate item_taken, quantity_taken, total_amount
-    $item_taken = '';
-    $quantity_taken = 0;
-    $total_amount = 0;
-    if ($cart && is_array($cart)) {
-        $item_names = [];
-        foreach ($cart as $item) {
-            $item_names[] = $item['name'];
-            $quantity_taken += intval($item['quantity']);
-            $total_amount += floatval($item['price']) * intval($item['quantity']);
-        }
-        $item_taken = implode(', ', $item_names);
-    }
-    $balance = $total_amount - $amount_paid;
-
-    // Only insert if all required fields are present
-    if ($debtor_name && $quantity_taken > 0 && $balance > 0 && !empty($item_taken)) {
-        $stmt = $conn->prepare("INSERT INTO debtors (debtor_name, debtor_contact, debtor_email, item_taken, quantity_taken, amount_paid, balance, branch_id, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-        $stmt->bind_param("ssssiddiss", $debtor_name, $debtor_contact, $debtor_email, $item_taken, $quantity_taken, $amount_paid, $balance, $branch, $created_by, $date);
-        if ($stmt->execute()) {
-            $message = "✅ Debtor recorded successfully!";
-        } else {
-            $message = "❌ Failed to record debtor: " . $stmt->error;
-        }
-        $stmt->close();
+    $token_in = $_POST['debtor_req_token'] ?? '';
+    if (!$token_in || !isset($_SESSION['debtor_req_token']) || $token_in !== $_SESSION['debtor_req_token']) {
+        // Invalid or already used -> prevent duplicate
+        $message = "⚠️ Duplicate or invalid debtor submission ignored.";
     } else {
-        $message = "⚠️ Debtor name, item taken, quantity, and balance are required.";
+        // Consume token (single use)
+        unset($_SESSION['debtor_req_token']);
+
+        $debtor_name    = trim($_POST['debtor_name']);
+        $debtor_contact = trim($_POST['debtor_contact']);
+        $debtor_email   = trim($_POST['debtor_email']);
+        $created_by     = $user_id;
+        $branch         = $branch_id;
+        $date           = date('Y-m-d H:i:s');
+        $debtor_customer_id = intval($_POST['debtor_customer_id'] ?? $_POST['customer_id'] ?? 0);
+
+        $cart = json_decode($_POST['cart_data'] ?? '[]', true);
+        $amount_paid = floatval($_POST['amount_paid'] ?? 0);
+
+        $item_taken = '';
+        $quantity_taken = 0;
+        $total_amount = 0;
+        if ($cart && is_array($cart)) {
+            $item_names = [];
+            foreach ($cart as $item) {
+                $item_names[] = $item['name'];
+                $quantity_taken += intval($item['quantity']);
+                $total_amount += floatval($item['price']) * intval($item['quantity']);
+            }
+            $item_taken = implode(', ', $item_names);
+        }
+        $balance = $total_amount - $amount_paid;
+
+        // Duplicate guard: same debtor_name + item_taken + quantity + balance + branch within last 5 minutes
+        $is_duplicate = false;
+        if ($debtor_name && $quantity_taken > 0 && $balance > 0 && $item_taken) {
+            $dup_stmt = $conn->prepare("
+                SELECT id FROM debtors
+                WHERE debtor_name=? AND item_taken=? AND quantity_taken=? AND balance=? AND branch_id=?
+                  AND created_at >= (NOW() - INTERVAL 5 MINUTE)
+                LIMIT 1
+            ");
+            $dup_stmt->bind_param("ssidi", $debtor_name, $item_taken, $quantity_taken, $balance, $branch);
+            $dup_stmt->execute();
+            $dup_res = $dup_stmt->get_result();
+            if ($dup_res && $dup_res->num_rows > 0) $is_duplicate = true;
+            $dup_stmt->close();
+        }
+
+        if (!$is_duplicate && $debtor_name && $quantity_taken > 0 && $balance > 0 && $item_taken) {
+            $stmt = $conn->prepare("INSERT INTO debtors (debtor_name, debtor_contact, debtor_email, item_taken, quantity_taken, amount_paid, balance, branch_id, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+            $stmt->bind_param("ssssiddiss", $debtor_name, $debtor_contact, $debtor_email, $item_taken, $quantity_taken, $amount_paid, $balance, $branch, $created_by, $date);
+            if ($stmt->execute()) {
+                if ($debtor_customer_id > 0) {
+                    $products_bought = json_encode(array_map(function($it){
+                        return [
+                            'name' => $it['name'],
+                            'quantity' => intval($it['quantity']),
+                            'price' => floatval($it['price']),
+                        ];
+                    }, is_array($cart)?$cart:[]));
+                    $sold_by = $_SESSION['username'] ?? 'staff';
+                    $ct = $conn->prepare("INSERT INTO customer_transactions (customer_id, date_time, products_bought, amount_paid, amount_credited, sold_by, status) VALUES (?, ?, ?, ?, ?, ?, ?)");
+                    $zeroPaid = 0.0;
+                    $status = 'debtor';
+                    $ct->bind_param("issddss", $debtor_customer_id, $date, $products_bought, $zeroPaid, $total_amount, $sold_by, $status);
+                    $ct->execute();
+                    $ct->close();
+                }
+                // Redirect (PRG) prevents refresh duplication
+                header("Location: staff_dashboard.php?debtor_ok=1");
+                exit;
+            } else {
+                $message = "❌ Failed to record debtor: " . $stmt->error;
+            }
+            $stmt->close();
+        } else {
+            if ($is_duplicate) {
+                $message = "⚠️ Debtor already recorded recently (duplicate prevented).";
+            } else {
+                $message = "⚠️ Required debtor details missing.";
+            }
+        }
+        // Generate a fresh token for next potential submission after handling
+        $_SESSION['debtor_req_token'] = bin2hex(random_bytes(16));
+        $debtor_req_token = $_SESSION['debtor_req_token'];
     }
 }
 
+// Fetch products for dropdown
+$stmt = $conn->prepare("SELECT id, name, stock FROM products WHERE `branch-id` = ?");
+$stmt->bind_param("i", $branch_id);
+$stmt->execute();
+$product_query = $stmt->get_result();
+$stmt->close();
+
+// Fetch low stock
+$stmt = $conn->prepare("SELECT name, stock FROM products WHERE `branch-id` = ? AND stock < 10 ORDER BY stock ASC");
+$stmt->bind_param("i", $branch_id);
+$stmt->execute();
+$low_stock_query = $stmt->get_result();
+$stmt->close();
+
+// Fetch recent sales (match sales.php columns/aliases)
+$sales_stmt = $conn->prepare("
+    SELECT s.id, p.name AS `product-name`, s.quantity, s.amount, s.`sold-by`, s.date, b.name AS branch_name, s.payment_method
+    FROM sales s
+    JOIN products p ON s.`product-id` = p.id
+    JOIN branch b ON s.`branch-id` = b.id
+    WHERE s.`branch-id` = ?
+    ORDER BY s.id DESC
+    LIMIT 10
+");
+$sales_stmt->bind_param("i", $branch_id);
+$sales_stmt->execute();
+$sales_result = $sales_stmt->get_result();
+$sales_stmt->close();
+
+// Fetch recent debtors (match sales.php columns/aliases)
+$debtors_stmt = $conn->prepare("
+    SELECT id, debtor_name, debtor_email, item_taken, quantity_taken, amount_paid, balance, is_paid, created_at
+    FROM debtors
+    WHERE branch_id = ?
+    ORDER BY created_at DESC
+    LIMIT 10
+");
+$debtors_stmt->bind_param("i", $branch_id);
+$debtors_stmt->execute();
+$debtors_result = $debtors_stmt->get_result();
+$debtors_stmt->close();
+
 // --- NEW: fetch customers for "Customer File" option (staff only) ---
-$cust_stmt = $conn->prepare("SELECT id, name, COALESCE(account_balance,0) AS account_balance FROM customers ORDER BY name ASC");
+$cust_stmt = $conn->prepare("SELECT id, name, COALESCE(account_balance,0) AS account_balance, contact, email FROM customers ORDER BY name ASC"); // <- add contact,email
 $cust_stmt->execute();
 $customers_res = $cust_stmt->get_result();
 $customers_list = $customers_res ? $customers_res->fetch_all(MYSQLI_ASSOC) : [];
@@ -399,6 +496,7 @@ $cust_stmt->close();
             <form method="POST" action="" class="row g-3">
                 <input type="hidden" name="cart_data" id="debtor_cart_data">
                 <input type="hidden" name="amount_paid" id="debtor_amount_paid">
+                <input type="hidden" name="debtor_req_token" value="<?= htmlspecialchars($debtor_req_token) ?>"><!-- NEW anti-duplicate -->
                 <div class="col-md-4">
                     <label for="debtor_name" class="form-label">Debtor Name</label>
                     <input type="text" class="form-control" name="debtor_name" id="debtor_name" required>
@@ -595,8 +693,13 @@ $cust_stmt->close();
 <script>
     window.productData = <?php echo json_encode($product_list); ?>;
     window.customers = <?php echo json_encode($customers_list); ?>;
+    // Make token accessible if needed by auto debtor JS (already included in form)
+    window.debtorReqToken = "<?= htmlspecialchars($debtor_req_token) ?>";
 </script>
 <script src="staff_dashboard.js"></script>
 <?php include '../includes/footer.php'; ?>
+<?php
+ob_end_flush(); // <-- NEW: flush buffered output at end
+?>
 
 
