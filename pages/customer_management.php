@@ -144,7 +144,16 @@ include '../includes/header.php';
 
 <?php
 // Load customers list for page render
-$customers_res = $conn->query("SELECT * FROM customers ORDER BY id DESC");
+$customers_res = $conn->query("
+    SELECT c.*,
+           COALESCE((
+               SELECT SUM(ct.amount_credited)
+               FROM customer_transactions ct
+               WHERE ct.customer_id = c.id
+           ), 0) AS credited_sum
+    FROM customers c
+    ORDER BY c.id DESC
+");
 $customers = $customers_res ? $customers_res->fetch_all(MYSQLI_ASSOC) : [];
 ?>
   <div class="container-fluid mt-4">
@@ -335,7 +344,8 @@ $customers = $customers_res ? $customers_res->fetch_all(MYSQLI_ASSOC) : [];
                               <td><?= htmlspecialchars($c['name']) ?></td>
                               <td><?= htmlspecialchars($c['contact']) ?></td>
                               <td class="text-end">
-                                <span class="fw-bold text-danger">UGX <?= number_format(floatval($c['amount_credited'] ?? 0), 2) ?></span>
+                                <?php $showCred = isset($c['credited_sum']) ? $c['credited_sum'] : ($c['amount_credited'] ?? 0); ?>
+                                <span class="fw-bold text-danger">UGX <?= number_format(floatval($showCred), 2) ?></span>
                               </td>
                               <td class="text-end">
                                 <span class="fw-bold text-success">UGX <?= number_format(floatval($c['account_balance'] ?? 0), 2) ?></span>
@@ -376,7 +386,8 @@ $customers = $customers_res ? $customers_res->fetch_all(MYSQLI_ASSOC) : [];
                       <td><?= htmlspecialchars($c['name']) ?></td>
                       <td><?= htmlspecialchars($c['contact']) ?></td>
                       <td class="text-end">
-                        <span class="fw-bold text-danger">UGX <?= number_format(floatval($c['amount_credited'] ?? 0), 2) ?></span>
+                        <?php $showCred = isset($c['credited_sum']) ? $c['credited_sum'] : ($c['amount_credited'] ?? 0); ?>
+                        <span class="fw-bold text-danger">UGX <?= number_format(floatval($showCred), 2) ?></span>
                       </td>
                       <td class="text-end">
                         <span class="fw-bold text-success">UGX <?= number_format(floatval($c['account_balance'] ?? 0), 2) ?></span>
@@ -414,8 +425,9 @@ $customers = $customers_res ? $customers_res->fetch_all(MYSQLI_ASSOC) : [];
                             <div class="accordion-item mb-2" style="border-left: 4px solid teal;">
                               <h2 class="accordion-header" id="heading<?= $c['id'] ?>m">
                                 <div class="d-flex align-items-center w-100">
+                                  <?php $showCred = isset($c['credited_sum']) ? $c['credited_sum'] : ($c['amount_credited'] ?? 0); ?>
                                   <button class="accordion-button collapsed flex-grow-1" type="button" data-bs-toggle="collapse" data-bs-target="#collapse<?= $c['id'] ?>m" aria-expanded="false" aria-controls="collapse<?= $c['id'] ?>m" style="white-space: nowrap;">
-                                    <?= htmlspecialchars($c['name']) ?> — Balance: UGX <?= number_format(floatval($c['account_balance'] ?? 0), 2) ?> — Credited: UGX <?= number_format(floatval($c['amount_credited'] ?? 0), 2) ?>
+                                    <?= htmlspecialchars($c['name']) ?> — Balance: UGX <?= number_format(floatval($c['account_balance'] ?? 0), 2) ?> — Credited: UGX <?= number_format(floatval($showCred), 2) ?>
                                   </button>
                                   <button type="button" class="btn btn-sm btn-outline-secondary ms-2 cust-report-btn" title="Generate Report" data-id="<?= $c['id'] ?>" data-name="<?= htmlspecialchars($c['name']) ?>">
                                     <i class="fa fa-file-alt"></i>
@@ -512,8 +524,9 @@ $customers = $customers_res ? $customers_res->fetch_all(MYSQLI_ASSOC) : [];
                 <div class="accordion-item mb-2"  style="border-left: 4px solid teal;">
                   <h2 class="accordion-header" id="heading<?= $c['id'] ?>">
                     <div class="d-flex align-items-center w-100">
+                      <?php $showCred = isset($c['credited_sum']) ? $c['credited_sum'] : ($c['amount_credited'] ?? 0); ?>
                       <button class="accordion-button collapsed flex-grow-1" type="button" data-bs-toggle="collapse" data-bs-target="#collapse<?= $c['id'] ?>" aria-expanded="false" aria-controls="collapse<?= $c['id'] ?>" style="white-space: nowrap;">
-                        <?= htmlspecialchars($c['name']) ?> — Balance: UGX <?= number_format(floatval($c['account_balance'] ?? 0), 2) ?> — Credited: UGX <?= number_format(floatval($c['amount_credited'] ?? 0), 2) ?>
+                        <?= htmlspecialchars($c['name']) ?> — Balance: UGX <?= number_format(floatval($c['account_balance'] ?? 0), 2) ?> — Credited: UGX <?= number_format(floatval($showCred), 2) ?>
                       </button>
                       <button type="button" class="btn btn-sm btn-outline-secondary ms-2 cust-report-btn" title="Generate Report" data-id="<?= $c['id'] ?>" data-name="<?= htmlspecialchars($c['name']) ?>">
                         <i class="fa fa-file-alt"></i>

@@ -296,6 +296,14 @@ if (isset($_POST['record_debtor'])) {
                 if (!$ct->bind_param("issddss", $debtor_customer_id, $date, $products_bought, $zeroPaid, $total_amount, $sold_by, $status)) { $allOk = false; }
                 if ($allOk && !$ct->execute()) { $allOk = false; }
                 $ct->close();
+
+                // NEW: bump customer's running credited total (outstanding)
+                if ($allOk) {
+                    $up = $conn->prepare("UPDATE customers SET amount_credited = amount_credited + ? WHERE id = ?");
+                    $up->bind_param("di", $total_amount, $debtor_customer_id);
+                    if (!$up->execute()) { $allOk = false; }
+                    $up->close();
+                }
             }
 
             if ($allOk) {
