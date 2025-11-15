@@ -325,6 +325,65 @@ body.dark-mode .list-group-item {
 }
 
 /* ===============================
+   Pill-style navigation tabs (shared across pages)
+================================= */
+.tm-main-tabs { display:flex; flex-wrap:wrap; gap:.75rem; margin:.25rem 0 1rem; border:none; }
+.tm-main-tabs .tm-tab-btn,
+.tm-main-tabs .nav-link {
+  border:2px solid var(--primary-color);
+  background:#fff;
+  color:var(--primary-color);
+  font-weight:600;
+  border-radius:14px;
+  padding:.45rem 1.1rem;
+  box-shadow:0 2px 6px rgba(0,0,0,.08);
+  transition:background .18s,color .18s,box-shadow .18s,transform .18s;
+  font-size:.95rem;
+}
+.tm-main-tabs .tm-tab-btn:hover,
+.tm-main-tabs .nav-link:hover { background:var(--primary-color); color:#fff; transform:translateY(-2px); }
+.tm-main-tabs .tm-tab-btn.active,
+.tm-main-tabs .nav-link.active { background:var(--primary-color); color:#fff; box-shadow:0 4px 10px rgba(26,188,156,.35); }
+.tm-main-tabs .tm-tab-btn:focus,
+.tm-main-tabs .nav-link:focus { outline:none; box-shadow:0 0 0 3px rgba(26,188,156,.25); }
+
+/* OVERRIDE: Make pills inside .tm-main-tabs look like Sales page (wins over Bootstrap) */
+.tm-main-tabs .nav-link {
+  border: 2px solid var(--primary-color) !important;
+  background: #fff !important;
+  color: var(--primary-color) !important;
+  border-radius: 14px !important;
+  padding: .45rem 1.1rem !important;
+  font-weight: 600 !important;
+  box-shadow: 0 2px 6px rgba(0,0,0,.08) !important;
+  transition: background .18s,color .18s,box-shadow .18s,transform .18s !important;
+}
+.tm-main-tabs .nav-link:hover {
+  background: var(--primary-color) !important;
+  color: #fff !important;
+  transform: translateY(-2px) !important;
+}
+.tm-main-tabs .nav-link.active {
+  background: var(--primary-color) !important;
+  color: #fff !important;
+  border-color: var(--primary-color) !important;
+  box-shadow: 0 4px 10px rgba(26,188,156,.35) !important;
+}
+
+/* Dark mode parity */
+body.dark-mode .tm-main-tabs .nav-link {
+  background: #23243a !important;
+  border-color: #1abc9c !important;
+  color: #1abc9c !important;
+  box-shadow: 0 2px 6px rgba(0,0,0,.4) !important;
+}
+body.dark-mode .tm-main-tabs .nav-link:hover,
+body.dark-mode .tm-main-tabs .nav-link.active {
+  background: #1abc9c !important;
+  color: #fff !important;
+}
+
+/* ===============================
    Responsive
 ================================= */
 @media(max-width:768px){

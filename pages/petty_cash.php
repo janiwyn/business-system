@@ -91,186 +91,92 @@ $transactions = $conn->query("
 
 // Fetch petty cash balance actions for table
 $balance_actions = $conn->query("SELECT * FROM petty_cash_balance ORDER BY created_at DESC");
+
+// Ensure active state matches shown pane (staff defaults to Transactions)
+$pcTransActive = (isset($_GET['tab']) && $_GET['tab'] === 'transactions') || (($user_role ?? '') === 'staff');
 ?>
-<link rel="stylesheet" href="assets/css/accounting.css">
 <style>
-/* ...existing styles... */
-
-/* Petty balance styling: bold, green, matches Business Systems title */
-.petty-balance {
-    font-size: 1.5rem;
-    font-weight: bold;
-    color: #1abc9c !important;
-    letter-spacing: 1px;
-    /* Optionally add text-shadow for more pop */
-    text-shadow: 0 1px 2px rgba(0,0,0,0.04);
+/* Petty Cash page: pill tabs identical to Sales/Till, forced over Bootstrap */
+.pc-tabs { display:flex; flex-wrap:wrap; gap:.75rem; margin:.5rem 0 1rem; border:none; }
+.pc-tabs .nav-link {
+  border: 2px solid var(--primary-color) !important;
+  background: #fff !important;
+  color: var(--primary-color) !important;
+  border-radius: 14px !important;
+  padding: .48rem 1.15rem !important;
+  font-weight: 600 !important;
+  box-shadow: 0 2px 6px rgba(0,0,0,.08) !important;
+  transition: background .18s, color .18s, box-shadow .18s, transform .18s !important;
 }
-body.dark-mode .petty-balance {
-    color: #1abc9c !important;
+.pc-tabs .nav-link:hover {
+  background: var(--primary-color) !important;
+  color: #fff !important;
+  transform: translateY(-2px);
 }
-
-/* Petty Cash Balance Actions table header: match sidebar bg in dark mode, light in light mode */
-.petty-balance-header {
-    background-color: #f8f9fa !important;
-    color: #222 !important;
-    border-radius: 12px 12px 0 0;
-    font-weight: 700;
-    font-size: 1.1rem;
-    letter-spacing: 1px;
-    display: flex;
-    align-items: center;
-    padding: 1rem 1.25rem;
-}
-body.dark-mode .petty-balance-header {
-    background-color: #23243a !important; /* Match sidebar dark bg */
-    color: #fff !important;
+.pc-tabs .nav-link.active,
+.pc-tabs .show > .nav-link {
+  /* Match Sales/Till “active” look with soft gradient + glow */
+  background: linear-gradient(135deg, #1abc9c 0%, #56ccf2 100%) !important;
+  color: #fff !important;
+  border-color: #1abc9c !important;
+  box-shadow: 0 8px 18px rgba(26,188,156,.28) !important;
 }
 
-/* Petty Cash Transactions Filters styling (match expenses) */
-.petty-filters-header {
-    background-color: #f8f9fa !important;
-    color: #222 !important;
-    border-radius: 12px 12px 0 0;
-    font-weight: 700;
-    font-size: 1.1rem;
-    letter-spacing: 1px;
-    display: flex;
-    align-items: center;
-    padding: 1rem 1.25rem;
-    border-bottom: none;
+/* Dark mode parity */
+body.dark-mode .pc-tabs .nav-link {
+  background: #23243a !important;
+  border-color: #1abc9c !important;
+  color: #1abc9c !important;
+  box-shadow: 0 2px 6px rgba(0,0,0,.4) !important;
 }
-body.dark-mode .petty-filters-header {
-    background-color: #2c3e50 !important;
-    color: #fff !important;
+body.dark-mode .pc-tabs .nav-link:hover {
+  background: #1abc9c !important;
+  color: #fff !important;
 }
-body.dark-mode .petty-filters-header label,
-body.dark-mode .petty-filters-header select,
-body.dark-mode .petty-filters-header span {
-    color: #fff !important;
-}
-body.dark-mode .petty-filters-header .form-select,
-body.dark-mode .petty-filters-header input[type="date"] {
-    color: #fff !important;
-    background-color: #23243a !important;
-    border: 1px solid #444 !important;
-}
-body.dark-mode .petty-filters-header .form-select:focus,
-body.dark-mode .petty-filters-header input[type="date"]:focus {
-    color: #fff !important;
-    background-color: #23243a !important;
-}
-.petty-filters-header label,
-.petty-filters-header select,
-.petty-filters-header span {
-    color: #222 !important;
-}
-.petty-filters-header .form-select,
-.petty-filters-header input[type="date"] {
-    color: #222 !important;
-    background-color: #fff !important;
-    border: 1px solid #dee2e6 !important;
-}
-.petty-filters-header .form-select:focus,
-.petty-filters-header input[type="date"]:focus {
-    color: #222 !important;
-    background-color: #fff !important;
-}
-
-/* Responsive petty cash balance card for small/medium devices */
-@media (max-width: 991.98px) {
-    .petty-balance-card {
-        display: flex;
-        flex-direction: row;
-        align-items: center;
-        justify-content: space-between;
-        padding: 1rem 1.25rem;
-        border-radius: 12px;
-        background: #fff;
-        box-shadow: 0 2px 12px rgba(44,62,80,0.08);
-        margin-bottom: 1.2rem;
-    }
-    body.dark-mode .petty-balance-card {
-        background: #23243a;
-        color: #fff;
-        box-shadow: 0 2px 12px rgba(44,62,80,0.18);
-    }
-    .petty-balance-card .petty-balance {
-        font-size: 1.2rem;
-        font-weight: bold;
-        color: #1abc9c !important;
-        letter-spacing: 1px;
-        text-shadow: 0 1px 2px rgba(0,0,0,0.04);
-    }
-    .petty-balance-actions {
-        display: flex;
-        gap: 0.7rem;
-        align-items: center;
-    }
-    .petty-balance-actions .petty-action-icon-btn {
-        background: none;
-        border: none;
-        color: #fff;
-        font-size: 1.6em;
-        padding: 6px 10px;
-        border-radius: 8px;
-        transition: background 0.18s, color 0.18s;
-        box-shadow: 0 2px 8px rgba(44,62,80,0.08);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-    .petty-balance-actions .petty-action-icon-btn.add {
-        background: #1abc9c;
-        color: #fff;
-    }
-    .petty-balance-actions .petty-action-icon-btn.add:hover,
-    .petty-balance-actions .petty-action-icon-btn.add:focus {
-        background: #159c8c;
-        color: #fff;
-    }
-    .petty-balance-actions .petty-action-icon-btn.remove {
-        background: #e74c3c;
-        color: #fff;
-    }
-    .petty-balance-actions .petty-action-icon-btn.remove:hover,
-    .petty-balance-actions .petty-action-icon-btn.remove:focus {
-        background: #c0392b;
-        color: #fff;
-    }
-}
-/* Hide text buttons on small/medium devices */
-@media (max-width: 991.98px) {
-    .petty-action-btn {
-        display: none !important;
-    }
-}
-/* Show icon buttons only on small/medium devices */
-@media (min-width: 992px) {
-    .petty-balance-card,
-    .petty-balance-actions .petty-action-icon-btn {
-        display: none !important;
-    }
-    .petty-action-btn {
-        display: inline-block !important;
-    }
+body.dark-mode .pc-tabs .nav-link.active,
+body.dark-mode .pc-tabs .show > .nav-link {
+  background: linear-gradient(135deg, #1abc9c 0%, #3498db 100%) !important;
+  color: #fff !important;
+  border-color: #1abc9c !important;
+  box-shadow: 0 10px 20px rgba(26,188,156,.45) !important;
 }
 </style>
+
 <div class="container mt-5 mb-5">
     <h2 class="page-title mb-4 text-center">Petty Cash Management</h2>
-    <ul class="nav nav-tabs" id="pettyTabs" role="tablist">
-        <?php if ($user_role !== 'staff'): ?>
-        <li class="nav-item">
-            <button class="nav-link <?= (!isset($_GET['tab']) || $_GET['tab'] !== 'transactions') ? 'active' : '' ?>" data-bs-toggle="tab" data-bs-target="#tab-petty" type="button">Petty Cash</button>
-        </li>
-        <?php endif; ?>
-        <li class="nav-item">
-            <button class="nav-link <?= (isset($_GET['tab']) && $_GET['tab'] === 'transactions') || $user_role === 'staff' ? 'active' : '' ?>" data-bs-toggle="tab" data-bs-target="#tab-transactions" type="button">Petty Cash Transactions</button>
-        </li>
+
+    <!-- Pills styled like Sales page -->
+    <ul class="nav nav-pills pc-tabs mb-4" id="pettyCashTabs" role="tablist">
+      <li class="nav-item" role="presentation">
+        <button class="nav-link<?= $pcTransActive ? '' : ' active' ?>"
+                id="pc-main-tab"
+                data-bs-toggle="tab"
+                data-bs-target="#petty-cash"
+                type="button"
+                role="tab"
+                aria-controls="petty-cash"
+                aria-selected="<?= $pcTransActive ? 'false' : 'true' ?>">
+          Petty Cash
+        </button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link<?= $pcTransActive ? ' active' : '' ?>"
+                id="pc-trans-tab"
+                data-bs-toggle="tab"
+                data-bs-target="#petty-cash-transactions"
+                type="button"
+                role="tab"
+                aria-controls="petty-cash-transactions"
+                aria-selected="<?= $pcTransActive ? 'true' : 'false' ?>">
+          Petty Cash Transactions
+        </button>
+      </li>
     </ul>
-    <div class="tab-content mt-3">
+
+    <div class="tab-content" id="pettyCashTabsContent">
         <!-- Petty Cash Tab (hide for staff) -->
         <?php if ($user_role !== 'staff'): ?>
-        <div class="tab-pane fade <?= (!isset($_GET['tab']) || $_GET['tab'] !== 'transactions') ? 'show active' : '' ?>" id="tab-petty">
+        <div class="tab-pane fade <?= $pcTransActive ? '' : 'show active' ?>" id="petty-cash">
             <!-- Responsive petty balance card for small/medium devices -->
             <div class="petty-balance-card d-flex d-md-none mb-4">
                 <span class="petty-balance">Account Balance: UGX <?= number_format($petty_balance, 2) ?></span>
@@ -340,7 +246,7 @@ body.dark-mode .petty-filters-header input[type="date"]:focus {
         </div>
         <?php endif; ?>
         <!-- Petty Cash Transactions Tab -->
-        <div class="tab-pane fade <?= (isset($_GET['tab']) && $_GET['tab'] === 'transactions') || $user_role === 'staff' ? 'show active' : '' ?>" id="tab-transactions">
+        <div class="tab-pane fade <?= $pcTransActive ? 'show active' : '' ?>" id="petty-cash-transactions">
             <div class="card mb-4 add-transaction-card">
                 <div class="card-header title-card">➕ Add Petty Cash Transaction</div>
                 <div class="card-body">
