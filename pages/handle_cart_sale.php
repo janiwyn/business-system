@@ -21,6 +21,42 @@ if (isset($_POST['submit_cart']) && !empty($_POST['cart_data'])) {
     // Track products for customer_transactions
     $products_json = json_encode($cart);
 
+    // Generate receipt/invoice number for Customer File transactions
+    $receipt_invoice_no = null;
+    if ($payment_method === 'Customer File' && $customer_id > 0) {
+        // Fetch customer balance to determine if invoice or receipt
+        $cust_stmt = $conn->prepare("SELECT account_balance FROM customers WHERE id = ?");
+        $cust_stmt->bind_param("i", $customer_id);
+        $cust_stmt->execute();
+        $cust_res = $cust_stmt->get_result()->fetch_assoc();
+        $cust_stmt->close();
+        
+        // Calculate total first
+        foreach ($cart as $item) {
+            $total += floatval($item['price']) * intval($item['quantity']);
+        }
+        
+        $customer_balance = floatval($cust_res['account_balance'] ?? 0);
+        
+        if ($customer_balance >= $total) {
+            // Generate RECEIPT number
+            try {
+                $rp4 = str_pad((string)random_int(0, 9999), 4, '0', STR_PAD_LEFT);
+            } catch (Throwable $e) {
+                $rp4 = str_pad((string)mt_rand(0, 9999), 4, '0', STR_PAD_LEFT);
+            }
+            $receipt_invoice_no = 'RP-' . $rp4;
+        } else {
+            // Generate INVOICE number
+            try {
+                $inv4 = str_pad((string)random_int(0, 9999), 4, '0', STR_PAD_LEFT);
+            } catch (Throwable $e) {
+                $inv4 = str_pad((string)mt_rand(0, 9999), 4, '0', STR_PAD_LEFT);
+            }
+            $receipt_invoice_no = 'INV-' . $inv4;
+        }
+    }
+
     foreach ($cart as $item) {
         $product_id = (int)$item['id'];
         $quantity = (int)$item['quantity'];
@@ -42,10 +78,10 @@ if (isset($_POST['submit_cart']) && !empty($_POST['cart_data'])) {
 
         $date = date('Y-m-d');
 
-        // Insert sale row, include payment_method and customer_id if "Customer File"
+        // Insert sale row, include payment_method, customer_id, and receipt_no for Customer File
         if ($payment_method === 'Customer File' && $customer_id > 0) {
-            $stmt = $conn->prepare("INSERT INTO sales (`product-id`, `branch-id`, quantity, amount, `sold-by`, `cost-price`, total_profits, date, payment_method, customer_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-            $stmt->bind_param("iiiidddssi", $product_id, $branch_id, $quantity, $total_price, $user_id, $cost_price, $total_profit, $date, $payment_method, $customer_id);
+            $stmt = $conn->prepare("INSERT INTO sales (`product-id`, `branch-id`, quantity, amount, `sold-by`, `cost-price`, total_profits, date, payment_method, customer_id, receipt_no) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+            $stmt->bind_param("iiiidddssis", $product_id, $branch_id, $quantity, $total_price, $user_id, $cost_price, $total_profit, $date, $payment_method, $customer_id, $receipt_invoice_no);
         } else {
             $stmt = $conn->prepare("INSERT INTO sales (`product-id`, `branch-id`, quantity, amount, `sold-by`, `cost-price`, total_profits, date, payment_method) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
             $stmt->bind_param("iiiidddss", $product_id, $branch_id, $quantity, $total_price, $user_id, $cost_price, $total_profit, $date, $payment_method);
@@ -107,6 +143,7 @@ if (isset($_POST['submit_cart']) && !empty($_POST['cart_data'])) {
             // Full payment from account balance
             $amount_paid = $total;
             $amount_credited = 0;
+            $status = 'paid';
             // Deduct from balance
             $stmt = $conn->prepare("UPDATE customers SET account_balance = account_balance - ? WHERE id = ?");
             $stmt->bind_param("di", $total, $customer_id);
@@ -116,6 +153,7 @@ if (isset($_POST['submit_cart']) && !empty($_POST['cart_data'])) {
             // Partial payment: deduct all balance, record remaining as credited
             $amount_paid = $current_balance;
             $amount_credited = $total - $current_balance;
+            $status = 'debtor';
             // Set balance to zero, increase amount_credited
             $stmt = $conn->prepare("UPDATE customers SET account_balance = 0, amount_credited = amount_credited + ? WHERE id = ?");
             $stmt->bind_param("di", $amount_credited, $customer_id);
@@ -123,9 +161,9 @@ if (isset($_POST['submit_cart']) && !empty($_POST['cart_data'])) {
             $stmt->close();
         }
 
-        // Record customer transaction (deduction and/or credit)
-        $ct = $conn->prepare("INSERT INTO customer_transactions (customer_id, date_time, products_bought, amount_paid, amount_credited, sold_by, status) VALUES (?, ?, ?, ?, ?, ?, 'paid')");
-        $ct->bind_param("issdds", $customer_id, $now, $products_json, $amount_paid, $amount_credited, $sold_by);
+        // Record customer transaction with receipt/invoice number
+        $ct = $conn->prepare("INSERT INTO customer_transactions (customer_id, date_time, products_bought, amount_paid, amount_credited, sold_by, status, invoice_receipt_no) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+        $ct->bind_param("issddsss", $customer_id, $now, $products_json, $amount_paid, $amount_credited, $sold_by, $status, $receipt_invoice_no);
         $ct->execute();
         $ct->close();
     }

@@ -1,19 +1,232 @@
 <?php
+// --- STEP 1: Start session and include ONLY db.php (NO HTML OUTPUT) ---
+session_start();
 include '../includes/db.php';
+
+// --- STEP 2: HANDLE ALL AJAX REQUESTS FIRST (before any HTML/includes) ---
+
+// AJAX: Shop Debtor Repayment
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pay_debtor'])) {
+    header('Content-Type: application/json; charset=utf-8');
+    $debtor_id = intval($_POST['id'] ?? 0);
+    $pay_amt = max(0, floatval($_POST['amount'] ?? 0));
+    $pm_in = trim($_POST['pm'] ?? 'Cash');
+    $uid = $_SESSION['user_id'] ?? 0;
+    $user_branch = $_SESSION['branch_id'] ?? null;
+
+    if ($debtor_id <= 0 || $pay_amt <= 0) { 
+        echo json_encode(['success'=>false,'message'=>'Invalid input']); 
+        exit; 
+    }
+
+    $dq = $conn->prepare("SELECT id, customer_id, invoice_no, balance, amount_paid, payment_method FROM debtors WHERE id=? LIMIT 1");
+    $dq->bind_param("i", $debtor_id);
+    $dq->execute();
+    $debtor = $dq->get_result()->fetch_assoc();
+    $dq->close();
+    
+    if (!$debtor) { 
+        echo json_encode(['success'=>false,'message'=>'Debtor not found']); 
+        exit; 
+    }
+
+    $remaining = floatval($debtor['balance']);
+    if ($remaining <= 0) { 
+        echo json_encode(['success'=>false,'message'=>'Already settled']); 
+        exit; 
+    }
+    if ($pay_amt > $remaining) { 
+        $pay_amt = $remaining; 
+    }
+
+    $conn->begin_transaction();
+    $ok = true;
+
+    try { 
+        $rp4 = str_pad((string)random_int(0,9999), 4, '0', STR_PAD_LEFT); 
+    } catch (Throwable $e) { 
+        $rp4 = str_pad((string)mt_rand(0,9999), 4, '0', STR_PAD_LEFT); 
+    }
+    $receiptNo = 'RP-' . $rp4;
+    $now = date('Y-m-d H:i:s');
+    $cust_id = intval($debtor['customer_id'] ?? 0);
+    $pm_to_use = ($cust_id > 0) ? 'Customer File' : ($pm_in ?: 'Cash');
+
+    $insS = $conn->prepare("INSERT INTO sales (`product-id`,`branch-id`,quantity,amount,`sold-by`,`cost-price`,total_profits,`date`,payment_method,customer_id,receipt_no) VALUES (0, ?, 0, ?, ?, 0, 0, NOW(), ?, ?, ?)");
+    $insS->bind_param("idisis", $user_branch, $pay_amt, $uid, $pm_to_use, $cust_id, $receiptNo);
+    if (!$insS->execute()) { $ok = false; }
+    $insS->close();
+
+    if ($ok) {
+        $new_bal = max(0.0, $remaining - $pay_amt);
+        $is_paid = ($new_bal <= 0.00001) ? 1 : 0;
+        $ud = $conn->prepare("UPDATE debtors SET balance = ?, amount_paid = amount_paid + ?, is_paid = IF(?, 1, is_paid), receipt_no = ? WHERE id = ?");
+        $flag = $is_paid ? 1 : 0;
+        $ud->bind_param("ddisi", $new_bal, $pay_amt, $flag, $receiptNo, $debtor_id);
+        if (!$ud->execute()) { $ok = false; }
+        $ud->close();
+    }
+
+    if ($ok && $cust_id > 0) {
+        $invoice_no = $debtor['invoice_no'] ?? '';
+        $products_text = "Repayment of invoice no. " . $invoice_no;
+        $sold_by_name = $_SESSION['username'] ?? 'staff';
+        $status = 'credit repayment';
+        
+        $ct = $conn->prepare("INSERT INTO customer_transactions (customer_id, date_time, products_bought, amount_paid, amount_credited, sold_by, status, invoice_receipt_no) VALUES (?, ?, ?, ?, 0, ?, ?, ?)");
+        $ct->bind_param("issdsss", $cust_id, $now, $products_text, $pay_amt, $sold_by_name, $status, $receiptNo);
+        if (!$ct->execute()) { $ok = false; }
+        $ct->close();
+    }
+
+    if ($ok && $cust_id > 0) {
+        $uc = $conn->prepare("UPDATE customers SET amount_credited = GREATEST(0, amount_credited - ?) WHERE id = ?");
+        $uc->bind_param("di", $pay_amt, $cust_id);
+        if (!$uc->execute()) { $ok = false; }
+        $uc->close();
+    }
+
+    if ($ok) { 
+        $conn->commit(); 
+        echo json_encode(['success'=>true,'reload'=>true]); 
+    } else { 
+        $conn->rollback(); 
+        echo json_encode(['success'=>false,'message'=>'Failed to record repayment']); 
+    }
+    exit;
+}
+
+// AJAX: Customer Debtor Repayment
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pay_customer_debtor'])) {
+    header('Content-Type: application/json; charset=utf-8');
+    $transaction_id = intval($_POST['id'] ?? 0);
+    $pay_amt = max(0, floatval($_POST['amount'] ?? 0));
+    $uid = $_SESSION['user_id'] ?? 0;
+    $user_branch = $_SESSION['branch_id'] ?? null;
+
+    if ($transaction_id <= 0 || $pay_amt <= 0) { 
+        echo json_encode(['success'=>false,'message'=>'Invalid input']); 
+        exit; 
+    }
+
+    $tq = $conn->prepare("SELECT ct.*, c.id as customer_id FROM customer_transactions ct JOIN customers c ON ct.customer_id = c.id WHERE ct.id=? AND ct.status='debtor' LIMIT 1");
+    $tq->bind_param("i", $transaction_id);
+    $tq->execute();
+    $trans = $tq->get_result()->fetch_assoc();
+    $tq->close();
+    
+    if (!$trans) { 
+        echo json_encode(['success'=>false,'message'=>'Debtor transaction not found']); 
+        exit; 
+    }
+
+    $customer_id = intval($trans['customer_id']);
+    $amount_credited = floatval($trans['amount_credited'] ?? 0);
+    $original_invoice = $trans['invoice_receipt_no'] ?? '';
+    
+    if ($amount_credited <= 0) { 
+        echo json_encode(['success'=>false,'message'=>'Already settled']); 
+        exit; 
+    }
+    
+    if ($pay_amt > $amount_credited) { 
+        $pay_amt = $amount_credited; 
+    }
+
+    $conn->begin_transaction();
+    $ok = true;
+
+    try { 
+        $rp4 = str_pad((string)random_int(0,9999), 4, '0', STR_PAD_LEFT); 
+    } catch (Throwable $e) { 
+        $rp4 = str_pad((string)mt_rand(0,9999), 4, '0', STR_PAD_LEFT); 
+    }
+    $receiptNo = 'RP-' . $rp4;
+    $now = date('Y-m-d H:i:s');
+    $sold_by = $_SESSION['username'] ?? 'staff';
+
+    if ($pay_amt >= $amount_credited) {
+        $insS = $conn->prepare("INSERT INTO sales (`product-id`,`branch-id`,quantity,amount,`sold-by`,`cost-price`,total_profits,`date`,payment_method,customer_id,receipt_no) VALUES (0, ?, 0, ?, ?, 0, 0, NOW(), 'Customer File', ?, ?)");
+        $insS->bind_param("idiii", $user_branch, $pay_amt, $uid, $customer_id, $receiptNo);
+        if (!$insS->execute()) { $ok = false; }
+        $insS->close();
+
+        if ($ok) {
+            $products_text = "Payment for invoice number " . $original_invoice;
+            $ct = $conn->prepare("INSERT INTO customer_transactions (customer_id, date_time, products_bought, amount_paid, amount_credited, sold_by, status, invoice_receipt_no) VALUES (?, ?, ?, ?, 0, ?, 'paid', ?)");
+            $ct->bind_param("issdss", $customer_id, $now, $products_text, $pay_amt, $sold_by, $receiptNo);
+            if (!$ct->execute()) { $ok = false; }
+            $ct->close();
+        }
+
+        if ($ok) {
+            $uc = $conn->prepare("UPDATE customers SET amount_credited = GREATEST(0, amount_credited - ?) WHERE id = ?");
+            $uc->bind_param("di", $pay_amt, $customer_id);
+            if (!$uc->execute()) { $ok = false; }
+            $uc->close();
+        }
+
+        if ($ok) {
+            $ut = $conn->prepare("UPDATE customer_transactions SET status = 'paid' WHERE id = ?");
+            $ut->bind_param("i", $transaction_id);
+            if (!$ut->execute()) { $ok = false; }
+            $ut->close();
+        }
+    } else {
+        $new_credited = $amount_credited - $pay_amt;
+        $ut = $conn->prepare("UPDATE customer_transactions SET amount_credited = ? WHERE id = ?");
+        $ut->bind_param("di", $new_credited, $transaction_id);
+        if (!$ut->execute()) { $ok = false; }
+        $ut->close();
+
+        if ($ok) {
+            $uc = $conn->prepare("UPDATE customers SET amount_credited = GREATEST(0, amount_credited - ?) WHERE id = ?");
+            $uc->bind_param("di", $pay_amt, $customer_id);
+            if (!$uc->execute()) { $ok = false; }
+            $uc->close();
+        }
+    }
+
+    if ($ok) { 
+        $conn->commit(); 
+        echo json_encode(['success'=>true,'reload'=>true]); 
+    } else { 
+        $conn->rollback(); 
+        echo json_encode(['success'=>false,'message'=>'Failed to record payment']); 
+    }
+    exit;
+}
+
+// --- STEP 3: NOW include auth, sidebar, header (HTML output starts here) ---
 include '../includes/auth.php';
-include '../pages/handle_debtor_payment.php';
 require_role(["admin", "manager", "staff"]);
-// Fix: Always use the correct sidebar for staff
+
 if ($_SESSION['role'] === 'staff') {
     include '../pages/sidebar_staff.php';
 } else {
     include '../pages/sidebar.php';
 }
 include '../includes/header.php';
+include '../pages/handle_debtor_payment.php';
+
+// NEW: ensure required columns exist (invoice/receipt, customer link)
+$conn->query("ALTER TABLE sales ADD COLUMN IF NOT EXISTS invoice_no VARCHAR(32) NULL");
+if ($conn->errno) { @$conn->query("ALTER TABLE sales ADD COLUMN invoice_no VARCHAR(32) NULL"); }
+$conn->query("ALTER TABLE sales ADD COLUMN IF NOT EXISTS receipt_no VARCHAR(32) NULL");
+if ($conn->errno) { @$conn->query("ALTER TABLE sales ADD COLUMN receipt_no VARCHAR(32) NULL"); }
+$conn->query("ALTER TABLE debtors ADD COLUMN IF NOT EXISTS customer_id INT NULL");
+if ($conn->errno) { @$conn->query("ALTER TABLE debtors ADD COLUMN customer_id INT NULL"); }
+$conn->query("ALTER TABLE debtors ADD COLUMN IF NOT EXISTS invoice_no VARCHAR(32) NULL");
+if ($conn->errno) { @$conn->query("ALTER TABLE debtors ADD COLUMN invoice_no VARCHAR(32) NULL"); }
+$conn->query("ALTER TABLE debtors ADD COLUMN IF NOT EXISTS receipt_no VARCHAR(32) NULL");
+if ($conn->errno) { @$conn->query("ALTER TABLE debtors ADD COLUMN receipt_no VARCHAR(32) NULL"); }
+// NEW: ensure debtors.payment_method exists
+$conn->query("ALTER TABLE debtors ADD COLUMN IF NOT EXISTS payment_method VARCHAR(50) NULL");
+if ($conn->errno) { @$conn->query("ALTER TABLE debtors ADD COLUMN payment_method VARCHAR(50) NULL"); }
+$conn->query("ALTER TABLE customer_transactions ADD COLUMN IF NOT EXISTS invoice_receipt_no VARCHAR(32) NULL");
+if ($conn->errno) { @$conn->query("ALTER TABLE customer_transactions ADD COLUMN invoice_receipt_no VARCHAR(32) NULL"); }
 
 $message = "";
-
-// Logged-in user info
 $user_role   = $_SESSION['role'];
 $user_branch = $_SESSION['branch_id'] ?? null;
 
@@ -22,6 +235,10 @@ $selected_branch = $_GET['branch'] ?? '';
 $date_from = $_GET['date_from'] ?? '';
 $date_to = $_GET['date_to'] ?? '';
 
+// --- NEW: Initialize Product Summary filter variables ---
+$ps_date_from = $_GET['ps_date_from'] ?? '';
+$ps_date_to = $_GET['ps_date_to'] ?? '';
+$ps_branch = $_GET['ps_branch'] ?? '';
 
 // Build WHERE clause for filters
 $where = [];
@@ -43,8 +260,8 @@ $items_per_page = 60;
 $page = isset($_GET['page']) ? max(1, intval($_GET['page'])) : 1;
 $offset = ($page - 1) * $items_per_page;
 
-// Count total sales for pagination
-$count_query = "SELECT COUNT(*) as total FROM sales JOIN products ON sales.`product-id` = products.id $whereClause";
+// Count total sales for pagination (MUST use LEFT JOIN like the main query)
+$count_query = "SELECT COUNT(*) as total FROM sales LEFT JOIN products ON sales.`product-id` = products.id $whereClause";
 $total_result = $conn->query($count_query);
 $total_row = $total_result->fetch_assoc();
 $total_items = $total_row['total'];
@@ -52,9 +269,20 @@ $total_pages = ceil($total_items / $items_per_page);
 
 // Fetch sales for current page
 $sales_query = "
-    SELECT sales.id, products.name AS `product-name`, sales.quantity, sales.amount, sales.`sold-by`, sales.date, branch.name AS branch_name, sales.payment_method
+    SELECT sales.id, 
+           COALESCE(products.name, CASE 
+               WHEN sales.`product-id` = 0 THEN 'Debtor Repayment'
+               ELSE 'Unknown'
+           END) AS `product-name`, 
+           sales.quantity, 
+           sales.amount, 
+           sales.`sold-by`, 
+           sales.date, 
+           branch.name AS branch_name, 
+           sales.payment_method,
+           sales.receipt_no
     FROM sales
-    JOIN products ON sales.`product-id` = products.id
+    LEFT JOIN products ON sales.`product-id` = products.id
     JOIN branch ON sales.`branch-id` = branch.id
     $whereClause
     ORDER BY sales.id DESC
@@ -65,11 +293,11 @@ $sales = $conn->query($sales_query);
 // Fetch branches for admin/manager filter
 $branches = ($user_role !== 'staff') ? $conn->query("SELECT id, name FROM branch") : [];
 
-// Calculate total sum of sales (filtered)
+// Calculate total sum of sales (filtered) - MUST use LEFT JOIN
 $sum_query = "
     SELECT SUM(sales.amount) AS total_sales
     FROM sales
-    JOIN products ON sales.`product-id` = products.id
+    LEFT JOIN products ON sales.`product-id` = products.id
     $whereClause
 ";
 $sum_result = $conn->query($sum_query);
@@ -93,32 +321,49 @@ $debtorWhereClause = count($debtor_where) ? "WHERE " . implode(' AND ', $debtor_
 
 // Fetch debtors for the table
 $debtors_result = $conn->query("
-    SELECT id, debtor_name, debtor_email, item_taken, quantity_taken, amount_paid, balance, is_paid, created_at
+    SELECT id, debtor_name, debtor_email, item_taken, quantity_taken, payment_method, amount_paid, balance, is_paid, created_at
     FROM debtors
     $debtorWhereClause
     ORDER BY created_at DESC
     LIMIT 100
 ");
 
-// --- Product Summary Query ---
-$product_summary_where = $whereClause; // use same filters as sales
-$product_summary_sql = "
-    SELECT DATE(sales.date) AS sale_date, products.name AS product_name, SUM(sales.quantity) AS items_sold
-    FROM sales
-    JOIN products ON sales.`product-id` = products.id
-    $product_summary_where
-    GROUP BY sale_date, product_name
-    ORDER BY sale_date DESC, product_name ASC
-    LIMIT 200
-";
-$product_summary_res = $conn->query($product_summary_sql);
+// --- NEW: Fetch Customer Debtors (from customer_transactions with status='debtor') ---
+$customer_debtor_where = [];
+if ($user_role === 'staff') {
+    // Staff can only see their branch - need to join with sales/branch if available
+    // For now, we'll show all customer debtors (adjust if branch filtering needed)
+}
+if (!empty($_GET['cust_debtor_date_from'])) {
+    $customer_debtor_where[] = "DATE(ct.date_time) >= '" . $conn->real_escape_string($_GET['cust_debtor_date_from']) . "'";
+}
+if (!empty($_GET['cust_debtor_date_to'])) {
+    $customer_debtor_where[] = "DATE(ct.date_time) <= '" . $conn->real_escape_string($_GET['cust_debtor_date_to']) . "'";
+}
+$custDebtorWhereClause = count($customer_debtor_where) ? " AND " . implode(' AND ', $customer_debtor_where) : "";
 
-// --- Product Summary Filters ---
-$ps_date_from = $_GET['ps_date_from'] ?? '';
-$ps_date_to = $_GET['ps_date_to'] ?? '';
-$ps_branch = $_GET['ps_branch'] ?? '';
+$customer_debtors_result = $conn->query("
+    SELECT 
+        ct.id,
+        ct.date_time,
+        ct.invoice_receipt_no,
+        c.name AS debtor_name,
+        c.email AS debtor_email,
+        c.contact AS debtor_contact,
+        ct.products_bought,
+        ct.amount_paid,
+        ct.amount_credited AS balance,
+        ct.sold_by,
+        ct.status
+    FROM customer_transactions ct
+    JOIN customers c ON ct.customer_id = c.id
+    WHERE ct.status = 'debtor'
+    $custDebtorWhereClause
+    ORDER BY ct.date_time DESC
+    LIMIT 100
+");
 
-// --- Product Summary Query ---
+// --- NEW: Fetch Product Summary data ---
 $product_summary_where = [];
 if ($user_role === 'staff') {
     $product_summary_where[] = "sales.`branch-id` = $user_branch";
@@ -131,19 +376,22 @@ if ($ps_date_from) {
 if ($ps_date_to) {
     $product_summary_where[] = "DATE(sales.date) <= '" . $conn->real_escape_string($ps_date_to) . "'";
 }
-$product_summary_whereClause = count($product_summary_where) ? "WHERE " . implode(' AND ', $product_summary_where) : "";
+$productSummaryWhereClause = count($product_summary_where) ? "WHERE " . implode(' AND ', $product_summary_where) : "";
 
-$product_summary_sql = "
-    SELECT DATE(sales.date) AS sale_date, branch.name AS branch_name, products.name AS product_name, SUM(sales.quantity) AS items_sold
+$product_summary_result = $conn->query("
+    SELECT 
+        DATE(sales.date) AS sale_date,
+        branch.name AS branch_name,
+        COALESCE(products.name, 'Unknown Product') AS product_name,
+        SUM(sales.quantity) AS items_sold
     FROM sales
-    JOIN products ON sales.`product-id` = products.id
+    LEFT JOIN products ON sales.`product-id` = products.id
     JOIN branch ON sales.`branch-id` = branch.id
-    $product_summary_whereClause
-    GROUP BY sale_date, branch_name, product_name
-    ORDER BY sale_date DESC, branch_name ASC, product_name ASC
-    LIMIT 200
-";
-$product_summary_res = $conn->query($product_summary_sql);
+    $productSummaryWhereClause
+    GROUP BY sale_date, branch.name, products.name
+    ORDER BY sale_date DESC, branch.name ASC, product_name ASC
+    LIMIT 500
+");
 ?>
 
 <!-- Tabs for Sales and Debtors -->
@@ -580,58 +828,164 @@ $product_summary_res = $conn->query($product_summary_sql);
                         <i class="fa fa-file-pdf"></i> Generate Report
                     </button>
                 </div>
-                <div class="card-body table-responsive">
-                    <div class="transactions-table">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Date</th>
-                                    <th>Debtor Name</th>
-                                    <th>Debtor Email</th>
-                                    <th>Item Taken</th>
-                                    <th>Quantity Taken</th>
-                                    <th>Amount Paid</th>
-                                    <th>Balance</th>
-                                    <th>Paid Status</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php if ($debtors_result && $debtors_result->num_rows > 0): ?>
-                                    <?php while ($debtor = $debtors_result->fetch_assoc()): ?>
-                                        <tr>
-                                            <td><?= date("M d, Y H:i", strtotime($debtor['created_at'])); ?></td>
-                                            <td><?= htmlspecialchars($debtor['debtor_name']); ?></td>
-                                            <td><?= htmlspecialchars($debtor['debtor_email']); ?></td>
-                                            <td><?= htmlspecialchars($debtor['item_taken'] ?? '-'); ?></td>
-                                            <td><?= htmlspecialchars($debtor['quantity_taken'] ?? '-'); ?></td>
-                                            <td>UGX <?= number_format($debtor['amount_paid'] ?? 0, 2); ?></td>
-                                            <td>UGX <?= number_format($debtor['balance'] ?? 0, 2); ?></td>
-                                            <td>
-                                                <?php if (!empty($debtor['is_paid'])): ?>
-                                                    <span class="badge bg-success">Paid</span>
-                                                <?php else: ?>
-                                                    <span class="badge bg-warning">Unpaid</span>
-                                                <?php endif; ?>
-                                            </td>
-                                            <td>
-                                                <!-- Only show Pay button. Pass debtor metadata for the modal -->
-                                                <button class="btn btn-primary btn-sm btn-pay-debtor"
-                                                    data-id="<?= $debtor['id'] ?>"
-                                                    data-balance="<?= htmlspecialchars($debtor['balance'] ?? 0) ?>"
-                                                    data-name="<?= htmlspecialchars($debtor['debtor_name']) ?>">
-                                                    Pay
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    <?php endwhile; ?>
-                                <?php else: ?>
-                                    <tr>
-                                        <td colspan="9" class="text-center text-muted">No debtors recorded yet.</td>
-                                    </tr>
-                                <?php endif; ?>
-                            </tbody>
-                        </table>
+                <div class="card-body">
+                    <!-- NEW: Sub-tabs for Shop Debtors and Customer Debtors -->
+                    <ul class="nav nav-pills mb-3" id="debtorSubTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="shop-debtors-tab" data-bs-toggle="tab" data-bs-target="#shop-debtors" type="button" role="tab">
+                                Shop Debtors
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="customer-debtors-tab" data-bs-toggle="tab" data-bs-target="#customer-debtors" type="button" role="tab">
+                                Customer Debtors
+                            </button>
+                        </li>
+                    </ul>
+
+                    <div class="tab-content" id="debtorSubTabsContent">
+                        <!-- Shop Debtors Sub-tab -->
+                        <div class="tab-pane fade show active" id="shop-debtors" role="tabpanel">
+                            <div class="table-responsive">
+                                <div class="transactions-table">
+                                    <table>
+                                        <thead>
+                                            <tr>
+                                                <th>Date</th>
+                                                <th>Debtor Name</th>
+                                                <th>Debtor Email</th>
+                                                <th>Item Taken</th>
+                                                <th>Quantity Taken</th>
+                                                <th>Payment Method</th>
+                                                <th>Amount Paid</th>
+                                                <th>Balance</th>
+                                                <th>Paid Status</th>
+                                                <th>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <?php if ($debtors_result && $debtors_result->num_rows > 0): ?>
+                                                <?php while ($debtor = $debtors_result->fetch_assoc()): ?>
+                                                    <tr>
+                                                        <td><?= date("M d, Y H:i", strtotime($debtor['created_at'])); ?></td>
+                                                        <td><?= htmlspecialchars($debtor['debtor_name']); ?></td>
+                                                        <td><?= htmlspecialchars($debtor['debtor_email']); ?></td>
+                                                        <td><?= htmlspecialchars($debtor['item_taken'] ?? '-'); ?></td>
+                                                        <td><?= htmlspecialchars($debtor['quantity_taken'] ?? '-'); ?></td>
+                                                        <td><?= htmlspecialchars($debtor['payment_method'] ?? '-') ?></td>
+                                                        <td>UGX <?= number_format($debtor['amount_paid'] ?? 0, 2); ?></td>
+                                                        <td>UGX <?= number_format($debtor['balance'] ?? 0, 2); ?></td>
+                                                        <td>
+                                                            <?php if (!empty($debtor['is_paid'])): ?>
+                                                                <span class="badge bg-success">Paid</span>
+                                                            <?php else: ?>
+                                                                <span class="badge bg-warning">Unpaid</span>
+                                                            <?php endif; ?>
+                                                        </td>
+                                                        <td>
+                                                            <button class="btn btn-primary btn-sm btn-pay-debtor"
+                                                                data-id="<?= $debtor['id'] ?>"
+                                                                data-balance="<?= htmlspecialchars($debtor['balance'] ?? 0) ?>"
+                                                                data-name="<?= htmlspecialchars($debtor['debtor_name']) ?>"
+                                                                data-pm="<?= htmlspecialchars($debtor['payment_method'] ?? '') ?>">
+                                                                Pay
+                                                            </button>
+                                                        </td>
+                                                    </tr>
+                                                <?php endwhile; ?>
+                                            <?php else: ?>
+                                                <tr>
+                                                    <td colspan="10" class="text-center text-muted">No shop debtors recorded yet.</td>
+                                                </tr>
+                                            <?php endif; ?>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Customer Debtors Sub-tab -->
+                        <div class="tab-pane fade" id="customer-debtors" role="tabpanel">
+                            <div class="table-responsive">
+                                <div class="transactions-table">
+                                    <table>
+                                        <thead>
+                                            <tr>
+                                                <th>Date of Take</th>
+                                                <th>Time of Take</th>
+                                                <th>Invoice No.</th>
+                                                <th>Debtor Name</th>
+                                                <th>Email</th>
+                                                <th>Contact</th>
+                                                <th>Products Taken</th>
+                                                <th>Total Quantity</th>
+                                                <th>Unit Prices</th>
+                                                <th>Payment Method</th>
+                                                <th>Amount Paid</th>
+                                                <th>Balance</th>
+                                                <th>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <?php if ($customer_debtors_result && $customer_debtors_result->num_rows > 0): ?>
+                                                <?php while ($cd = $customer_debtors_result->fetch_assoc()): ?>
+                                                    <?php
+                                                    // Parse products_bought JSON
+                                                    $products_data = json_decode($cd['products_bought'] ?? '[]', true);
+                                                    $products_display = '';
+                                                    $total_qty = 0;
+                                                    $unit_prices = [];
+                                                    
+                                                    if (is_array($products_data)) {
+                                                        foreach ($products_data as $item) {
+                                                            $name = $item['name'] ?? $item['product'] ?? '';
+                                                            $qty = intval($item['quantity'] ?? $item['qty'] ?? 0);
+                                                            $price = floatval($item['price'] ?? 0);
+                                                            
+                                                            $products_display .= htmlspecialchars($name) . ' x' . $qty . '<br>';
+                                                            $total_qty += $qty;
+                                                            $unit_prices[] = 'UGX ' . number_format($price, 2);
+                                                        }
+                                                    } else {
+                                                        $products_display = htmlspecialchars($cd['products_bought'] ?? '-');
+                                                    }
+                                                
+                                                    $unit_prices_display = implode('<br>', $unit_prices);
+                                                    $date_obj = new DateTime($cd['date_time']);
+                                                    ?>
+                                                    <tr>
+                                                        <td><?= $date_obj->format('M d, Y'); ?></td>
+                                                        <td><?= $date_obj->format('H:i'); ?></td>
+                                                        <td><?= htmlspecialchars($cd['invoice_receipt_no'] ?? '-'); ?></td>
+                                                        <td><?= htmlspecialchars($cd['debtor_name']); ?></td>
+                                                        <td><?= htmlspecialchars($cd['debtor_email'] ?? '-'); ?></td>
+                                                        <td><?= htmlspecialchars($cd['debtor_contact'] ?? '-'); ?></td>
+                                                        <td><?= $products_display ?: '-'; ?></td>
+                                                        <td class="text-center"><?= $total_qty; ?></td>
+                                                        <td><?= $unit_prices_display ?: '-'; ?></td>
+                                                        <td><?= htmlspecialchars('Customer File'); ?></td>
+                                                        <td>UGX <?= number_format($cd['amount_paid'] ?? 0, 2); ?></td>
+                                                        <td>UGX <?= number_format($cd['balance'] ?? 0, 2); ?></td>
+                                                        <td>
+                                                            <button class="btn btn-primary btn-sm btn-pay-customer-debtor"
+                                                                data-id="<?= $cd['id'] ?>"
+                                                                data-balance="<?= htmlspecialchars($cd['balance'] ?? 0) ?>"
+                                                                data-name="<?= htmlspecialchars($cd['debtor_name']) ?>">
+                                                                Pay
+                                                            </button>
+                                                        </td>
+                                                    </tr>
+                                                <?php endwhile; ?>
+                                            <?php else: ?>
+                                                <tr>
+                                                    <td colspan="13" class="text-center text-muted">No customer debtors found.</td>
+                                                </tr>
+                                            <?php endif; ?>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -680,10 +1034,10 @@ $product_summary_res = $conn->query($product_summary_sql);
                             </thead>
                             <tbody>
                                 <?php
-                                if ($product_summary_res && $product_summary_res->num_rows > 0):
+                                if ($product_summary_result && $product_summary_result->num_rows > 0):
                                     $prev_date = null;
                                     $prev_branch = null;
-                                    while ($row = $product_summary_res->fetch_assoc()):
+                                    while ($row = $product_summary_result->fetch_assoc()):
                                         $show_date = ($prev_date !== $row['sale_date']);
                                         $show_branch = ($prev_branch !== $row['branch_name']) || $show_date;
                                 ?>
@@ -762,6 +1116,17 @@ $product_summary_res = $conn->query($product_summary_sql);
         <p id="pdDebtorLabel" class="mb-2 fw-semibold"></p>
         <p>Outstanding Balance: <strong id="pdBalanceText">UGX 0.00</strong></p>
         <input type="hidden" id="pdDebtorId" value="">
+        <!-- NEW: repayment method select -->
+        <div class="mb-3">
+          <label class="form-label">Payment Method</label>
+          <select id="pdMethod" class="form-select">
+            <option value="Cash">Cash</option>
+            <option value="MTN MoMo">MTN MoMo</option>
+            <option value="Airtel Money">Airtel Money</option>
+            <option value="Bank">Bank</option>
+            <option value="Customer File">Customer File</option>
+          </select>
+        </div>
         <div class="mb-3">
           <label class="form-label">Amount Paid (UGX)</label>
           <input type="number" id="pdAmount" class="form-control" min="0" step="0.01" placeholder="Enter amount">
@@ -805,6 +1170,7 @@ $product_summary_res = $conn->query($product_summary_sql);
     const pdBalanceText = document.getElementById('pdBalanceText');
     const pdDebtorId = document.getElementById('pdDebtorId');
     const pdAmount = document.getElementById('pdAmount');
+    const pdMethod = document.getElementById('pdMethod'); // NEW
     const pdMsg = document.getElementById('pdMsg');
     const pdConfirmBtn = document.getElementById('pdConfirmBtn');
 
@@ -813,12 +1179,20 @@ $product_summary_res = $conn->query($product_summary_sql);
         const id = btn.getAttribute('data-id');
         const balance = parseFloat(btn.getAttribute('data-balance') || 0);
         const name = btn.getAttribute('data-name') || 'Debtor';
+        const origPm = btn.getAttribute('data-pm') || ''; // NEW
         pdDebtorId.value = id;
         pdAmount.value = '';
         pdDebtorLabel.textContent = `Debtor: ${name}`;
         pdBalanceText.textContent = 'UGX ' + balance.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2});
         pdMsg.innerHTML = '';
         payModalEl.dataset.outstanding = String(balance);
+        if (String(origPm).toLowerCase() === 'customer file') {
+          pdMethod.value = 'Customer File';
+          pdMethod.disabled = true;
+        } else {
+          pdMethod.disabled = false;
+          pdMethod.value = 'Cash';
+        }
         payModal.show();
       });
     });
@@ -827,6 +1201,7 @@ $product_summary_res = $conn->query($product_summary_sql);
       const id = pdDebtorId.value;
       let amount = parseFloat(pdAmount.value || 0);
       const outstanding = parseFloat(payModalEl.dataset.outstanding || 0);
+      const pm = (pdMethod?.value || 'Cash'); // NEW
 
       pdMsg.innerHTML = '';
       if (!id) { pdMsg.innerHTML = '<div class="alert alert-warning">Invalid debtor selected.</div>'; return; }
@@ -836,18 +1211,15 @@ $product_summary_res = $conn->query($product_summary_sql);
       pdConfirmBtn.disabled = true;
       pdConfirmBtn.textContent = 'Processing...';
       try {
-        // POST to the dedicated handler that returns JSON (avoid HTML page responses)
-        const res = await fetch('handle_debtor_payment.php', {
+        const res = await fetch(location.pathname, {
           method: 'POST',
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: `pay_debtor=1&id=${encodeURIComponent(id)}&amount=${encodeURIComponent(amount)}`
+          body: `pay_debtor=1&id=${encodeURIComponent(id)}&amount=${encodeURIComponent(amount)}&pm=${encodeURIComponent(pm)}`
         });
 
         const text = await res.text();
         let data;
-        try {
-          data = JSON.parse(text);
-        } catch (parseErr) {
+        try { data = JSON.parse(text); } catch (parseErr) {
           console.error('Invalid JSON response from server:', text);
           pdMsg.innerHTML = '<div class="alert alert-danger">Server returned an invalid response. See console for details.</div>';
           pdConfirmBtn.disabled = false;
@@ -901,158 +1273,125 @@ document.getElementById('reportGenForm').addEventListener('submit', function(e) 
     window.open(url, '_blank');
     bootstrap.Modal.getInstance(document.getElementById('reportGenModal')).hide();
 });
+
+// NEW: Handle Customer Debtor payment button clicks
+document.querySelectorAll('.btn-pay-customer-debtor').forEach(btn => {
+    btn.addEventListener('click', () => {
+        const id = btn.getAttribute('data-id');
+        const balance = parseFloat(btn.getAttribute('data-balance') || 0);
+        const name = btn.getAttribute('data-name') || 'Customer';
+        
+        // Use same modal as shop debtors
+        const payModalEl = document.getElementById('payDebtorModal');
+        const payModal = new bootstrap.Modal(payModalEl);
+        
+        document.getElementById('pdDebtorLabel').textContent = `Customer: ${name}`;
+        document.getElementById('pdBalanceText').textContent = 'UGX ' + balance.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2});
+        document.getElementById('pdDebtorId').value = id;
+        document.getElementById('pdAmount').value = '';
+        document.getElementById('pdMsg').innerHTML = '';
+        payModalEl.dataset.outstanding = String(balance);
+        payModalEl.dataset.isCustomerDebtor = '1'; // flag to differentiate
+        
+        // Hide payment method select for customer debtors
+        document.getElementById('pdMethod').closest('.mb-3').style.display = 'none';
+        
+        payModal.show();
+    });
+});
+
+// Modify existing pay confirm button to handle both types
+document.getElementById('pdConfirmBtn').addEventListener('click', async () => {
+    const payModalEl = document.getElementById('payDebtorModal');
+    const isCustomerDebtor = payModalEl.dataset.isCustomerDebtor === '1';
+    const id = document.getElementById('pdDebtorId').value;
+    let amount = parseFloat(document.getElementById('pdAmount').value || 0);
+    const outstanding = parseFloat(payModalEl.dataset.outstanding || 0);
+    const pm = document.getElementById('pdMethod')?.value || 'Cash';
+
+    const pdMsg = document.getElementById('pdMsg');
+    const pdConfirmBtn = document.getElementById('pdConfirmBtn');
+
+    pdMsg.innerHTML = '';
+    if (!id) { pdMsg.innerHTML = '<div class="alert alert-warning">Invalid selection.</div>'; return; }
+    if (!amount || amount <= 0) { pdMsg.innerHTML = '<div class="alert alert-warning">Enter a valid amount.</div>'; return; }
+    if (amount > outstanding) { pdMsg.innerHTML = '<div class="alert alert-warning">Amount cannot exceed balance.</div>'; return; }
+
+    pdConfirmBtn.disabled = true;
+    pdConfirmBtn.textContent = 'Processing...';
+    
+    try {
+        const endpoint = isCustomerDebtor ? 'pay_customer_debtor' : 'pay_debtor';
+        const body = `${endpoint}=1&id=${encodeURIComponent(id)}&amount=${encodeURIComponent(amount)}${!isCustomerDebtor ? '&pm='+encodeURIComponent(pm) : ''}`;
+        
+        const res = await fetch(location.pathname, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: body
+        });
+
+        const text = await res.text();
+        let data;
+        try { data = JSON.parse(text); } catch (parseErr) {
+            console.error('Invalid JSON response:', text);
+            pdMsg.innerHTML = '<div class="alert alert-danger">Server error. See console.</div>';
+            pdConfirmBtn.disabled = false;
+            pdConfirmBtn.textContent = 'OK';
+            return;
+        }
+
+        pdConfirmBtn.disabled = false;
+        pdConfirmBtn.textContent = 'OK';
+
+        if (data && data.reload) {
+            bootstrap.Modal.getInstance(payModalEl).hide();
+            window.location.reload();
+        } else {
+            pdMsg.innerHTML = '<div class="alert alert-info">' + (data.message || 'Payment recorded') + '</div>';
+        }
+    } catch (err) {
+        console.error('Request error:', err);
+        pdConfirmBtn.disabled = false;
+        pdConfirmBtn.textContent = 'OK';
+        pdMsg.innerHTML = '<div class="alert alert-danger">Error processing payment.</div>';
+    }
+    
+    // Reset modal state
+    delete payModalEl.dataset.isCustomerDebtor;
+    document.getElementById('pdMethod').closest('.mb-3').style.display = '';
+});
 </script>
 
 <style>
 /* ...existing code... */
-.transactions-table table {
-    width: 100%;
-    border-collapse: collapse;
-    background: var(--card-bg);
-    border-radius: 12px;
-    overflow: hidden;
-    box-shadow: 0 4px 12px var(--card-shadow);
+
+/* Sub-tabs styling */
+#debtorSubTabs .nav-link {
+    border-radius: 8px;
+    padding: 0.5rem 1.2rem;
+    margin-right: 0.5rem;
+    border: 2px solid transparent;
+    color: var(--primary-color);
+    font-weight: 500;
+    transition: all 0.2s;
 }
-.transactions-table thead {
-    background: var(--primary-color);
+
+#debtorSubTabs .nav-link:hover {
+    background-color: rgba(26, 188, 156, 0.1);
+}
+
+#debtorSubTabs .nav-link.active {
+    background-color: var(--primary-color);
+    color: #fff;
+    border-color: var(--primary-color);
+}
+
+body.dark-mode #debtorSubTabs .nav-link {
+    color: #1abc9c;
+}
+
+body.dark-mode #debtorSubTabs .nav-link.active {
+    background-color: #1abc9c;
     color: #fff;
 }
-.transactions-table tbody td {
-    color: var(--text-color);
-    padding: 0.75rem 1rem;
-}
-.transactions-table tbody tr {
-    background-color: #fff;
-    transition: background 0.2s;
-}
-.transactions-table tbody tr:nth-child(even) {
-    background-color: #f4f6f9;
-}
-.transactions-table tbody tr:hover {
-    background-color: rgba(0,0,0,0.05);
-}
-body.dark-mode .transactions-table table {
-    background: var(--card-bg);
-}
-body.dark-mode .transactions-table thead {
-    background-color: #1abc9c;
-    color: #ffffff;
-}
-body.dark-mode .transactions-table tbody tr {
-    background-color: #2c2c3a !important;
-}
-body.dark-mode .transactions-table tbody tr:nth-child(even) {
-    background-color: #272734 !important;
-}
-body.dark-mode .transactions-table tbody td {
-    color: #ffffff !important;
-}
-body.dark-mode .transactions-table tbody td small.text-muted {
-    color: #ffffff !important;
-}
-body.dark-mode .card .card-header.bg-light {
-    background-color: #2c3e50 !important;
-    color: #fff !important;
-    border-bottom: none;
-}
-body.dark-mode .card .card-header.bg-light label,
-body.dark-mode .card .card-header.bg-light select,
-body.dark-mode .card .card-header.bg-light span {
-    color: #fff !important;
-}
-body.dark-mode .card .card-header.bg-light .form-select {
-    background-color: #23243a !important;
-    color: #fff !important;
-    border: 1px solid #444 !important;
-}
-body.dark-mode .card .card-header.bg-light .form-select:focus {
-    background-color: #23243a !important;
-    color: #fff !important;
-}
-body.dark-mode .card .card-header.bg-light input[type="date"]::-webkit-input-placeholder {
-    color: #fff !important;
-}
-body.dark-mode .card .card-header.bg-light input[type="date"] {
-    background-color: #23243a !important;
-    color: #fff !important;
-    border: 1px solid #444 !important;
-}
-body.dark-mode .card .card-header.bg-light input[type="date"]::-webkit-calendar-picker-indicator {
-    filter: invert(1);
-}
-body.dark-mode .card .card-header.bg-light input[type="date"]::-moz-calendar-picker-indicator {
-    filter: invert(1);
-}
-body.dark-mode .card .card-header.bg-light input[type="date"]::-ms-input-placeholder {
-    color: #fff !important;
-}
-.title-card {
-    color: var(--primary-color);
-    font-weight: 600;
-    font-size: 1.1rem;
-    margin-bottom: 0;
-    text-align: left;
-}
-
-/* Payment Analysis filter bar styles */
-.pa-filter-bar {
-    background-color: #ffffff;
-    border-radius: 12px;
-    padding: 0.75rem 1rem;
-    box-shadow: 0 2px 8px var(--card-shadow);
-}
-body.dark-mode .pa-filter-bar {
-    background-color: #23243a !important;
-    color: #ffffff !important;
-    border: 1px solid #444 !important;
-}
-body.dark-mode .pa-filter-bar label {
-    color: #ffffff !important;
-}
-body.dark-mode .pa-filter-bar .form-select,
-body.dark-mode .pa-filter-bar input[type="date"] {
-    background-color: #23243a !important;
-    color: #ffffff !important;
-    border: 1px solid #444 !important;
-}
-
-/* Product Summary filter form label/input colors */
-.product-summary-filter label {
-    color: #222 !important;
-    font-weight: 600;
-}
-.product-summary-filter .form-select,
-.product-summary-filter input[type="date"] {
-    color: #222 !important;
-    background-color: #fff !important;
-    border: 1px solid #dee2e6 !important;
-}
-.product-summary-filter .form-select:focus,
-.product-summary-filter input[type="date"]:focus {
-    color: #222 !important;
-    background-color: #fff !important;
-    border-color: var(--primary-color, #1abc9c);
-}
-
-/* Dark mode overrides for Product Summary filter */
-body.dark-mode .product-summary-filter label {
-    color: #ffd200 !important;
-}
-body.dark-mode .product-summary-filter .form-select,
-body.dark-mode .product-summary-filter input[type="date"] {
-    background-color: #23243a !important;
-    color: #fff !important;
-    border: 1px solid #444 !important;
-}
-body.dark-mode .product-summary-filter .form-select:focus,
-body.dark-mode .product-summary-filter input[type="date"]:focus {
-    background-color: #23243a !important;
-    color: #fff !important;
-    border-color: #ffd200 !important;
-}
 </style>
-
-<!-- Bootstrap JS for tabs (if not already included) -->
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-
-<?php include '../includes/footer.php'; ?>

@@ -144,16 +144,7 @@ include '../includes/header.php';
 
 <?php
 // Load customers list for page render
-$customers_res = $conn->query("
-    SELECT c.*,
-           COALESCE((
-               SELECT SUM(ct.amount_credited)
-               FROM customer_transactions ct
-               WHERE ct.customer_id = c.id
-           ), 0) AS credited_sum
-    FROM customers c
-    ORDER BY c.id DESC
-");
+$customers_res = $conn->query("SELECT * FROM customers ORDER BY id DESC");
 $customers = $customers_res ? $customers_res->fetch_all(MYSQLI_ASSOC) : [];
 ?>
   <div class="container-fluid mt-4">
@@ -344,8 +335,7 @@ $customers = $customers_res ? $customers_res->fetch_all(MYSQLI_ASSOC) : [];
                               <td><?= htmlspecialchars($c['name']) ?></td>
                               <td><?= htmlspecialchars($c['contact']) ?></td>
                               <td class="text-end">
-                                <?php $showCred = isset($c['credited_sum']) ? $c['credited_sum'] : ($c['amount_credited'] ?? 0); ?>
-                                <span class="fw-bold text-danger">UGX <?= number_format(floatval($showCred), 2) ?></span>
+                                <span class="fw-bold text-danger">UGX <?= number_format(floatval($c['amount_credited'] ?? 0), 2) ?></span>
                               </td>
                               <td class="text-end">
                                 <span class="fw-bold text-success">UGX <?= number_format(floatval($c['account_balance'] ?? 0), 2) ?></span>
@@ -386,8 +376,7 @@ $customers = $customers_res ? $customers_res->fetch_all(MYSQLI_ASSOC) : [];
                       <td><?= htmlspecialchars($c['name']) ?></td>
                       <td><?= htmlspecialchars($c['contact']) ?></td>
                       <td class="text-end">
-                        <?php $showCred = isset($c['credited_sum']) ? $c['credited_sum'] : ($c['amount_credited'] ?? 0); ?>
-                        <span class="fw-bold text-danger">UGX <?= number_format(floatval($showCred), 2) ?></span>
+                        <span class="fw-bold text-danger">UGX <?= number_format(floatval($c['amount_credited'] ?? 0), 2) ?></span>
                       </td>
                       <td class="text-end">
                         <span class="fw-bold text-success">UGX <?= number_format(floatval($c['account_balance'] ?? 0), 2) ?></span>
@@ -425,9 +414,8 @@ $customers = $customers_res ? $customers_res->fetch_all(MYSQLI_ASSOC) : [];
                             <div class="accordion-item mb-2" style="border-left: 4px solid teal;">
                               <h2 class="accordion-header" id="heading<?= $c['id'] ?>m">
                                 <div class="d-flex align-items-center w-100">
-                                  <?php $showCred = isset($c['credited_sum']) ? $c['credited_sum'] : ($c['amount_credited'] ?? 0); ?>
                                   <button class="accordion-button collapsed flex-grow-1" type="button" data-bs-toggle="collapse" data-bs-target="#collapse<?= $c['id'] ?>m" aria-expanded="false" aria-controls="collapse<?= $c['id'] ?>m" style="white-space: nowrap;">
-                                    <?= htmlspecialchars($c['name']) ?> — Balance: UGX <?= number_format(floatval($c['account_balance'] ?? 0), 2) ?> — Credited: UGX <?= number_format(floatval($showCred), 2) ?>
+                                    <?= htmlspecialchars($c['name']) ?> — Balance: UGX <?= number_format(floatval($c['account_balance'] ?? 0), 2) ?> — Credited: UGX <?= number_format(floatval($c['amount_credited'] ?? 0), 2) ?>
                                   </button>
                                   <button type="button" class="btn btn-sm btn-outline-secondary ms-2 cust-report-btn" title="Generate Report" data-id="<?= $c['id'] ?>" data-name="<?= htmlspecialchars($c['name']) ?>">
                                     <i class="fa fa-file-alt"></i>
@@ -469,8 +457,8 @@ $customers = $customers_res ? $customers_res->fetch_all(MYSQLI_ASSOC) : [];
                             if (!data.success) { container.innerHTML = '<div class="text-muted">No transactions.</div>'; return; }
                             if (!data.rows.length) { container.innerHTML = '<div class="text-muted">No transactions.</div>'; container.dataset.loaded = '1'; return; }
 
-                            // Add Payment Method column
-                            let html = '<table><thead><tr><th>Date & Time</th><th>Products</th><th class="text-center">Quantity</th><th class="text-end">Amount Paid</th><th class="text-end">Amount Credited</th><th>Payment Method</th><th>Sold By</th></tr></thead><tbody>';
+                            // Add Invoice/Receipt No. column after Date & Time
+                            let html = '<table><thead><tr><th>Date & Time</th><th>Invoice/Receipt No.</th><th>Products</th><th class="text-center">Quantity</th><th class="text-end">Amount Paid</th><th class="text-end">Amount Credited</th><th>Payment Method</th><th>Sold By</th></tr></thead><tbody>';
                             data.rows.forEach(r=>{
                               let prodDisplay = '';
                               let totalQty = 0;
@@ -494,8 +482,13 @@ $customers = $customers_res ? $customers_res->fetch_all(MYSQLI_ASSOC) : [];
                               const paid = parseFloat(r.amount_paid || 0).toFixed(2);
                               const credited = parseFloat(r.amount_credited || 0).toFixed(2);
                               const soldBy = escapeHtml(r.sold_by || '');
+                              
+                              // Determine Invoice or Receipt number based on amount_credited
+                              const invoiceReceiptNo = escapeHtml(r.invoice_receipt_no || '-');
+                              
                               html += `<tr>
                                          <td>${escapeHtml(r.date_time)}</td>
+                                         <td>${invoiceReceiptNo}</td>
                                          <td>${prodDisplay || '-'}</td>
                                          <td class="text-center">${totalQty}</td>
                                          <td class="text-end">UGX ${paid}</td>
@@ -524,9 +517,8 @@ $customers = $customers_res ? $customers_res->fetch_all(MYSQLI_ASSOC) : [];
                 <div class="accordion-item mb-2"  style="border-left: 4px solid teal;">
                   <h2 class="accordion-header" id="heading<?= $c['id'] ?>">
                     <div class="d-flex align-items-center w-100">
-                      <?php $showCred = isset($c['credited_sum']) ? $c['credited_sum'] : ($c['amount_credited'] ?? 0); ?>
                       <button class="accordion-button collapsed flex-grow-1" type="button" data-bs-toggle="collapse" data-bs-target="#collapse<?= $c['id'] ?>" aria-expanded="false" aria-controls="collapse<?= $c['id'] ?>" style="white-space: nowrap;">
-                        <?= htmlspecialchars($c['name']) ?> — Balance: UGX <?= number_format(floatval($c['account_balance'] ?? 0), 2) ?> — Credited: UGX <?= number_format(floatval($showCred), 2) ?>
+                        <?= htmlspecialchars($c['name']) ?> — Balance: UGX <?= number_format(floatval($c['account_balance'] ?? 0), 2) ?> — Credited: UGX <?= number_format(floatval($c['amount_credited'] ?? 0), 2) ?>
                       </button>
                       <button type="button" class="btn btn-sm btn-outline-secondary ms-2 cust-report-btn" title="Generate Report" data-id="<?= $c['id'] ?>" data-name="<?= htmlspecialchars($c['name']) ?>">
                         <i class="fa fa-file-alt"></i>
@@ -743,8 +735,8 @@ document.querySelectorAll('#customersAccordion .accordion-button').forEach(btn=>
     if (!data.success) { container.innerHTML = '<div class="text-muted">No transactions.</div>'; return; }
     if (!data.rows.length) { container.innerHTML = '<div class="text-muted">No transactions.</div>'; container.dataset.loaded = '1'; return; }
 
-    // Add Payment Method column
-    let html = '<div class="transactions-table"><table><thead><tr><th>Date & Time</th><th>Products</th><th class="text-center">Quantity</th><th class="text-end">Amount Paid</th><th class="text-end">Amount Credited</th><th>Payment Method</th><th>Sold By</th></tr></thead><tbody>';
+    // Add Invoice/Receipt No. column after Date & Time
+    let html = '<div class="transactions-table"><table><thead><tr><th>Date & Time</th><th>Invoice/Receipt No.</th><th>Products</th><th class="text-center">Quantity</th><th class="text-end">Amount Paid</th><th class="text-end">Amount Credited</th><th>Payment Method</th><th>Sold By</th></tr></thead><tbody>';
     data.rows.forEach(r=>{
       let prodDisplay = '';
       let totalQty = 0;
@@ -768,8 +760,13 @@ document.querySelectorAll('#customersAccordion .accordion-button').forEach(btn=>
       const paid = parseFloat(r.amount_paid || 0).toFixed(2);
       const credited = parseFloat(r.amount_credited || 0).toFixed(2);
       const soldBy = escapeHtml(r.sold_by || '');
+      
+      // Determine Invoice or Receipt number based on amount_credited
+      const invoiceReceiptNo = escapeHtml(r.invoice_receipt_no || '-');
+      
       html += `<tr>
                  <td>${escapeHtml(r.date_time)}</td>
+                 <td>${invoiceReceiptNo}</td>
                  <td>${prodDisplay || '-'}</td>
                  <td class="text-center">${totalQty}</td>
                  <td class="text-end">UGX ${paid}</td>
@@ -825,13 +822,15 @@ async function generateCustomerReport(customerId, customerName){
     } catch { prodDisplay = escapeHtml(String(r.products_bought || '')); }
     const paid = parseFloat(r.amount_paid || 0); totalPaid += paid;
     const credited = parseFloat(r.amount_credited || 0); totalCredited += credited;
+    const invoiceReceiptNo = escapeHtml(r.invoice_receipt_no || '-');
     return `<tr>
       <td>${escapeHtml(r.date_time||'')}</td>
+      <td>${invoiceReceiptNo}</td>
       <td>${prodDisplay||'-'}</td>
       <td class="text-center">${totalQty}</td>
       <td class="text-end">UGX ${paid.toFixed(2)}</td>
       <td class="text-end">UGX ${credited.toFixed(2)}</td>
-      <td>${escapeHtml(r.payment_method||'')}</td>           <!-- NEW -->
+      <td>${escapeHtml(r.payment_method||'')}</td>
       <td>${escapeHtml(r.sold_by||'')}</td>
     </tr>`;
   }).join('');
@@ -871,18 +870,19 @@ async function generateCustomerReport(customerId, customerName){
       <thead>
         <tr>
           <th>Date & Time</th>
+          <th>Invoice/Receipt No.</th>
           <th>Products</th>
           <th class="text-center">Quantity</th>
           <th class="text-end">Amount Paid</th>
           <th class="text-end">Amount Credited</th>
-          <th>Payment Method</th>                            <!-- NEW -->
+          <th>Payment Method</th>
           <th>Sold By</th>
         </tr>
       </thead>
       <tbody>${rowsHtml}</tbody>
       <tfoot>
         <tr>
-          <td colspan="4">Totals</td>                        <!-- ADJ colspan for new column -->
+          <td colspan="5">Totals</td>
           <td class="text-end">UGX ${totalCredited.toFixed(2)}</td>
           <td></td>
           <td></td>
@@ -907,7 +907,7 @@ async function exportCustomerTransactions(customerId, customerName){
   const data = await res.json();
   if (!data.success || !data.rows.length) { alert('No transactions found for '+customerName); return; }
 
-  const header = ['Date & Time','Products','Quantity','Amount Paid','Amount Credited','Payment Method','Sold By']; // NEW
+  const header = ['Date & Time','Invoice/Receipt No.','Products','Quantity','Amount Paid','Amount Credited','Payment Method','Sold By'];
   const csvRows = [header.join(',')];
 
   data.rows.forEach(r => {
@@ -926,11 +926,12 @@ async function exportCustomerTransactions(customerId, customerName){
 
     const row = [
       csvEscape(r.date_time||''),
+      csvEscape(r.invoice_receipt_no||''),
       csvEscape(prodDisplay||''),
       String(totalQty),
       String(parseFloat(r.amount_paid||0)),
       String(parseFloat(r.amount_credited||0)),
-      csvEscape(r.payment_method||''),                       // NEW
+      csvEscape(r.payment_method||''),
       csvEscape(r.sold_by||'')
     ];
     csvRows.push(row.join(','));
@@ -944,12 +945,6 @@ async function exportCustomerTransactions(customerId, customerName){
   document.body.appendChild(a); a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
-}
-
-function csvEscape(v) {
-  const s = String(v ?? '');
-  if (/[",\n]/.test(s)) return '"' + s.replace(/"/g,'""') + '"';
-  return s;
 }
 
 // ...existing code...

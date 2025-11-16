@@ -88,7 +88,19 @@ if ($type === 'expenses') {
     if ($date_to) $where[] = "DATE(sales.date) <= '" . $conn->real_escape_string($date_to) . "'";
     $whereClause = count($where) ? "WHERE " . implode(' AND ', $where) : "";
     $sql = "
-        SELECT DATE(sales.date) AS day, COALESCE(sales.payment_method,'Cash') AS pm, SUM(sales.amount) AS total
+        SELECT
+            DATE(sales.date) AS day,
+            COALESCE(
+                NULLIF(sales.payment_method, ''),
+                CASE
+                    WHEN sales.customer_id IS NOT NULL
+                      OR sales.receipt_no LIKE 'RP-%'
+                      OR sales.invoice_no LIKE 'INV-%'
+                    THEN 'Customer File'
+                    ELSE 'Cash'
+                END
+            ) AS pm,
+            SUM(sales.amount) AS total
         FROM sales
         $whereClause
         GROUP BY day, pm
