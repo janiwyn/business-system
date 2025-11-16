@@ -270,7 +270,9 @@ document.addEventListener('DOMContentLoaded', function() {
             if (customerBalance >= total) {
                 showReceiptConfirmModal(function(action) {
                     if (action === 'ok') {
-                        submitSaleAndShowReceipt(); // submit and show receipt preview
+                        // Open preview FIRST, then submit after delay
+                        openReceiptPreview(cart, total, paymentMethod, 0);
+                        setTimeout(() => submitSaleOnly(), 300);
                     } else if (action === 'record') {
                         submitSaleOnly(); // submit only, no preview
                     }
@@ -280,7 +282,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Customer doesn't have enough balance: show INVOICE modal
                 showInvoiceConfirmModal(function(action) {
                     if (action === 'ok') {
-                        submitSaleAndShowInvoice(); // submit and show invoice preview
+                        // Open invoice preview FIRST, then submit after delay
+                        const custId = document.getElementById('customer_select').value;
+                        openInvoicePreview(cart, total, paymentMethod, custId);
+                        setTimeout(() => submitSaleOnly(), 300);
                     } else if (action === 'record') {
                         submitSaleOnly(); // submit only, no invoice preview
                     }
@@ -292,7 +297,9 @@ document.addEventListener('DOMContentLoaded', function() {
             if (amountPaid >= total) {
                 showReceiptConfirmModal(function(action) {
                     if (action === 'ok') {
-                        submitSaleAndShowReceipt(); // submit and show preview
+                        // Open preview FIRST, then submit
+                        openReceiptPreview(cart, total, paymentMethod, amountPaid);
+                        setTimeout(() => submitSaleOnly(), 300);
                     } else if (action === 'record') {
                         submitSaleOnly(); // submit only, no preview
                     }
