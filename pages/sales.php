@@ -123,6 +123,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pay_customer_debtor']
     $customer_id = intval($trans['customer_id']);
     $amount_credited = floatval($trans['amount_credited'] ?? 0);
     $original_invoice = $trans['invoice_receipt_no'] ?? '';
+    $products_bought = $trans['products_bought'] ?? '[]';
     
     if ($amount_credited <= 0) { 
         echo json_encode(['success'=>false,'message'=>'Already settled']); 
@@ -146,10 +147,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pay_customer_debtor']
     $sold_by = $_SESSION['username'] ?? 'staff';
 
     if ($pay_amt >= $amount_credited) {
-        $insS = $conn->prepare("INSERT INTO sales (`product-id`,`branch-id`,quantity,amount,`sold-by`,`cost-price`,total_profits,`date`,payment_method,customer_id,receipt_no) VALUES (0, ?, 0, ?, ?, 0, 0, NOW(), 'Customer File', ?, ?)");
-        $insS->bind_param("idiii", $user_branch, $pay_amt, $uid, $customer_id, $receiptNo);
-        if (!$insS->execute()) { $ok = false; }
-        $insS->close();
+        // Parse products from original transaction
+        $products_data = json_decode($products_bought, true);
+        
+        if (is_array($products_data) && count($products_data) > 0) {
+            // Insert each product as a separate sale record
+            foreach ($products_data as $item) {
+                $product_name = $item['name'] ?? $item['product'] ?? 'Unknown Product';
+                $qty = intval($item['quantity'] ?? $item['qty'] ?? 0);
+                $price = floatval($item['price'] ?? 0);
+                $item_total = $price * $qty;
+                
+                // Find product ID by name and branch
+                $pstmt = $conn->prepare("SELECT id FROM products WHERE name = ? AND `branch-id` = ? LIMIT 1");
+                $pstmt->bind_param("si", $product_name, $user_branch);
+                $pstmt->execute();
+                $prod_res = $pstmt->get_result()->fetch_assoc();
+                $pstmt->close();
+                
+                $product_id = $prod_res ? intval($prod_res['id']) : 0;
+                
+                // Insert sale record with actual product info
+                $insS = $conn->prepare("INSERT INTO sales (`product-id`,`branch-id`,quantity,amount,`sold-by`,`cost-price`,total_profits,`date`,payment_method,customer_id,receipt_no) VALUES (?, ?, ?, ?, ?, 0, 0, NOW(), 'Customer File', ?, ?)");
+                $insS->bind_param("iiidiis", $product_id, $user_branch, $qty, $item_total, $uid, $customer_id, $receiptNo);
+                if (!$insS->execute()) { $ok = false; }
+                $insS->close();
+            }
+        } else {
+            // Fallback: single sale record with product-id = 0
+            $insS = $conn->prepare("INSERT INTO sales (`product-id`,`branch-id`,quantity,amount,`sold-by`,`cost-price`,total_profits,`date`,payment_method,customer_id,receipt_no) VALUES (0, ?, 0, ?, ?, 0, 0, NOW(), 'Customer File', ?, ?)");
+            $insS->bind_param("idiii", $user_branch, $pay_amt, $uid, $customer_id, $receiptNo);
+            if (!$insS->execute()) { $ok = false; }
+            $insS->close();
+        }
 
         if ($ok) {
             $products_text = "Payment for invoice number " . $original_invoice;
@@ -173,6 +203,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pay_customer_debtor']
             $ut->close();
         }
     } else {
+        // Partial payment: just update the amount_credited in the debtor record
         $new_credited = $amount_credited - $pay_amt;
         $ut = $conn->prepare("UPDATE customer_transactions SET amount_credited = ? WHERE id = ?");
         $ut->bind_param("di", $new_credited, $transaction_id);
