@@ -75,6 +75,40 @@ document.addEventListener('DOMContentLoaded', function() {
         };
     }
 
+    // --- Invoice Confirmation Modal (for insufficient balance) ---
+    const invoiceConfirmModal = document.createElement('div');
+    invoiceConfirmModal.id = 'invoiceConfirmModal';
+    invoiceConfirmModal.style.display = 'none';
+    invoiceConfirmModal.innerHTML = `
+  <div style="position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.25);z-index:9999;display:flex;align-items:center;justify-content:center;">
+    <div style="background:#fff;padding:2rem 2.5rem;border-radius:10px;box-shadow:0 2px 16px #0002;max-width:95vw;">
+      <div style="font-size:1.2rem;margin-bottom:1rem;">Print invoice for this sale?</div>
+      <div class="d-flex flex-wrap gap-2 justify-content-end" style="flex-wrap:wrap;">
+        <button id="invoiceConfirmCancel" class="btn btn-secondary">Cancel</button>
+        <button id="invoiceConfirmRecord" class="btn btn-warning">Record</button>
+        <button id="invoiceConfirmOk" class="btn btn-primary">OK</button>
+      </div>
+    </div>
+  </div>
+`;
+    document.body.appendChild(invoiceConfirmModal);
+
+    function showInvoiceConfirmModal(cb) {
+        invoiceConfirmModal.style.display = '';
+        document.getElementById('invoiceConfirmOk').onclick = function() {
+            invoiceConfirmModal.style.display = 'none';
+            cb('ok');
+        };
+        document.getElementById('invoiceConfirmCancel').onclick = function() {
+            invoiceConfirmModal.style.display = 'none';
+            cb('cancel');
+        };
+        document.getElementById('invoiceConfirmRecord').onclick = function() {
+            invoiceConfirmModal.style.display = 'none';
+            cb('record');
+        };
+    }
+
     // --- Cart Receipt Print Function (Supermarket Style) ---
     function printCartReceipt(cart, total, paymentMethod, amountPaid) {
         // --- Supermarket style receipt ---
@@ -215,7 +249,23 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
-        // Helper to submit sale and print receipt
+        // Helper to submit sale and maybe show invoice
+        function submitAndMaybeShowInvoice(showInvoice) {
+            const custId = document.getElementById('customer_select').value;
+            if (!custId) { alert('Please select a customer for Customer File payment.'); return; }
+            document.getElementById('cart_data').value = JSON.stringify(cart);
+            document.getElementById('cart_amount_paid').value = 0;
+            document.getElementById('hidden_payment_method').value = paymentMethod;
+            document.getElementById('hidden_customer_id').value = custId;
+            hiddenSaleForm.submit();
+            
+            if (showInvoice) {
+                // Open invoice preview in new window
+                openInvoicePreview(cart, total, paymentMethod, custId);
+            }
+        }
+
+        // Helper to submit sale and maybe print receipt
         function submitAndMaybePrint(showPreview) {
             if (paymentMethod === 'Customer File') {
                 const custId = document.getElementById('customer_select').value;
@@ -250,26 +300,95 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
 
-        // Only show receipt modal for non-debtor sales
-        if (
-            (paymentMethod === 'Customer File') ||
-            (amountPaid >= total)
-        ) {
-            showReceiptConfirmModal(function(action) {
-                if (action === 'ok') {
-                    submitAndMaybePrint(true); // submit and show preview
-                } else if (action === 'record') {
-                    submitAndMaybePrint(false); // submit only, no preview
-                }
-                // cancel does nothing
-            });
+        // Check customer balance for Customer File payment
+        if (paymentMethod === 'Customer File') {
+            const custId = document.getElementById('customer_select').value;
+            if (!custId) {
+                alert('Please select a customer for Customer File payment.');
+                return;
+            }
+            
+            // Find customer's balance from the customers array
+            const customer = window.customers.find(c => c.id == custId);
+            if (!customer) {
+                alert('Customer not found.');
+                return;
+            }
+            
+            const customerBalance = parseFloat(customer.account_balance || 0);
+            
+            // If customer has enough balance: show RECEIPT modal
+            if (customerBalance >= total) {
+                showReceiptConfirmModal(function(action) {
+                    if (action === 'ok') {
+                        submitAndMaybePrint(true); // submit and show receipt preview
+                    } else if (action === 'record') {
+                        submitAndMaybePrint(false); // submit only, no preview
+                    }
+                    // cancel does nothing
+                });
+            } else {
+                // Customer doesn't have enough balance: show INVOICE modal
+                showInvoiceConfirmModal(function(action) {
+                    if (action === 'ok') {
+                        submitAndMaybeShowInvoice(true); // submit and show invoice preview
+                    } else if (action === 'record') {
+                        submitAndMaybeShowInvoice(false); // submit only, no invoice preview
+                    }
+                    // cancel does nothing
+                });
+            }
         } else {
-            // For debtors, proceed as before (no receipt)
-            submitAndMaybePrint(false);
+            // Only show receipt modal for non-debtor sales (other payment methods)
+            if (amountPaid >= total) {
+                showReceiptConfirmModal(function(action) {
+                    if (action === 'ok') {
+                        submitAndMaybePrint(true); // submit and show preview
+                    } else if (action === 'record') {
+                        submitAndMaybePrint(false); // submit only, no preview
+                    }
+                    // cancel does nothing
+                });
+            } else {
+                // For debtors, proceed as before (no receipt)
+                submitAndMaybePrint(false);
+            }
         }
     };
 
-    // --- NEW: Open Receipt Preview Page ---
+    // --- NEW: Open Invoice Preview Page ---
+    function openInvoicePreview(cart, total, paymentMethod, customerId) {
+        // Find customer details
+        const customer = window.customers.find(c => c.id == customerId);
+        const customerName = customer ? customer.name : 'Unknown Customer';
+        
+        // Send data via POST using a temporary form
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = 'invoice_preview.php';
+        form.target = '_blank';
+        form.style.display = 'none';
+
+        const addField = (name, value) => {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = name;
+            input.value = typeof value === 'string' ? value : JSON.stringify(value);
+            form.appendChild(input);
+        };
+
+        addField('cart', cart);
+        addField('total', total);
+        addField('payment_method', paymentMethod);
+        addField('customer_id', customerId);
+        addField('customer_name', customerName);
+
+        document.body.appendChild(form);
+        form.submit();
+        setTimeout(() => document.body.removeChild(form), 1000);
+    }
+
+    // --- Receipt Preview Page ---
     function openReceiptPreview(cart, total, paymentMethod, amountPaid) {
         // Send data via POST using a temporary form (to avoid URL length limits)
         const form = document.createElement('form');
