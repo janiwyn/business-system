@@ -249,57 +249,6 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
-        // Helper to submit sale and maybe show invoice
-        function submitAndMaybeShowInvoice(showInvoice) {
-            const custId = document.getElementById('customer_select').value;
-            if (!custId) { alert('Please select a customer for Customer File payment.'); return; }
-            document.getElementById('cart_data').value = JSON.stringify(cart);
-            document.getElementById('cart_amount_paid').value = 0;
-            document.getElementById('hidden_payment_method').value = paymentMethod;
-            document.getElementById('hidden_customer_id').value = custId;
-            hiddenSaleForm.submit();
-            
-            if (showInvoice) {
-                // Open invoice preview in new window
-                openInvoicePreview(cart, total, paymentMethod, custId);
-            }
-        }
-
-        // Helper to submit sale and maybe print receipt
-        function submitAndMaybePrint(showPreview) {
-            if (paymentMethod === 'Customer File') {
-                const custId = document.getElementById('customer_select').value;
-                if (!custId) { alert('Please select a customer for Customer File payment.'); return; }
-                document.getElementById('cart_data').value = JSON.stringify(cart);
-                document.getElementById('cart_amount_paid').value = 0;
-                document.getElementById('hidden_payment_method').value = paymentMethod;
-                document.getElementById('hidden_customer_id').value = custId;
-                hiddenSaleForm.submit();
-                if (showPreview) openReceiptPreview(cart, total, paymentMethod, 0);
-                return;
-            }
-
-            if (amountPaid >= total) {
-                const balance = amountPaid - total;
-                if (balance > 0) {
-                    alert(`Balance is UGX ${balance.toLocaleString()}`);
-                }
-                document.getElementById('cart_data').value = JSON.stringify(cart);
-                document.getElementById('cart_amount_paid').value = amountPaid;
-                document.getElementById('hidden_payment_method').value = paymentMethod;
-                document.getElementById('hidden_customer_id').value = '';
-                hiddenSaleForm.submit();
-                if (showPreview) openReceiptPreview(cart, total, paymentMethod, amountPaid);
-            } else {
-                // Underpayment: Show debtor form
-                const debtorForm = document.getElementById('debtorsFormCard');
-                document.getElementById('debtor_cart_data').value = JSON.stringify(cart);
-                document.getElementById('debtor_amount_paid').value = amountPaid;
-                debtorForm.style.display = 'block';
-                window.scrollTo({ top: debtorForm.offsetTop, behavior: 'smooth' });
-            }
-        }
-
         // Check customer balance for Customer File payment
         if (paymentMethod === 'Customer File') {
             const custId = document.getElementById('customer_select').value;
@@ -321,9 +270,9 @@ document.addEventListener('DOMContentLoaded', function() {
             if (customerBalance >= total) {
                 showReceiptConfirmModal(function(action) {
                     if (action === 'ok') {
-                        submitAndMaybePrint(true); // submit and show receipt preview
+                        submitSaleAndShowReceipt(); // submit and show receipt preview
                     } else if (action === 'record') {
-                        submitAndMaybePrint(false); // submit only, no preview
+                        submitSaleOnly(); // submit only, no preview
                     }
                     // cancel does nothing
                 });
@@ -331,9 +280,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Customer doesn't have enough balance: show INVOICE modal
                 showInvoiceConfirmModal(function(action) {
                     if (action === 'ok') {
-                        submitAndMaybeShowInvoice(true); // submit and show invoice preview
+                        submitSaleAndShowInvoice(); // submit and show invoice preview
                     } else if (action === 'record') {
-                        submitAndMaybeShowInvoice(false); // submit only, no invoice preview
+                        submitSaleOnly(); // submit only, no invoice preview
                     }
                     // cancel does nothing
                 });
@@ -343,16 +292,66 @@ document.addEventListener('DOMContentLoaded', function() {
             if (amountPaid >= total) {
                 showReceiptConfirmModal(function(action) {
                     if (action === 'ok') {
-                        submitAndMaybePrint(true); // submit and show preview
+                        submitSaleAndShowReceipt(); // submit and show preview
                     } else if (action === 'record') {
-                        submitAndMaybePrint(false); // submit only, no preview
+                        submitSaleOnly(); // submit only, no preview
                     }
                     // cancel does nothing
                 });
             } else {
                 // For debtors, proceed as before (no receipt)
-                submitAndMaybePrint(false);
+                submitSaleOnly();
             }
+        }
+
+        // Helper functions
+        function submitSaleOnly() {
+            if (paymentMethod === 'Customer File') {
+                const custId = document.getElementById('customer_select').value;
+                if (!custId) { alert('Please select a customer for Customer File payment.'); return; }
+                document.getElementById('cart_data').value = JSON.stringify(cart);
+                document.getElementById('cart_amount_paid').value = 0;
+                document.getElementById('hidden_payment_method').value = paymentMethod;
+                document.getElementById('hidden_customer_id').value = custId;
+                hiddenSaleForm.submit();
+            } else {
+                // Other payment methods
+                if (amountPaid >= total) {
+                    const balance = amountPaid - total;
+                    if (balance > 0) {
+                        alert(`Balance is UGX ${balance.toLocaleString()}`);
+                    }
+                    document.getElementById('cart_data').value = JSON.stringify(cart);
+                    document.getElementById('cart_amount_paid').value = amountPaid;
+                    document.getElementById('hidden_payment_method').value = paymentMethod;
+                    document.getElementById('hidden_customer_id').value = '';
+                    hiddenSaleForm.submit();
+                } else {
+                    // Underpayment: Show debtor form
+                    const debtorForm = document.getElementById('debtorsFormCard');
+                    document.getElementById('debtor_cart_data').value = JSON.stringify(cart);
+                    document.getElementById('debtor_amount_paid').value = amountPaid;
+                    debtorForm.style.display = 'block';
+                    window.scrollTo({ top: debtorForm.offsetTop, behavior: 'smooth' });
+                }
+            }
+        }
+
+        function submitSaleAndShowReceipt() {
+            submitSaleOnly();
+            // Open receipt preview (will open in new tab after form submit)
+            setTimeout(() => {
+                openReceiptPreview(cart, total, paymentMethod, amountPaid > 0 ? amountPaid : 0);
+            }, 200);
+        }
+
+        function submitSaleAndShowInvoice() {
+            submitSaleOnly();
+            // Open invoice preview (will open in new tab after form submit)
+            const custId = document.getElementById('customer_select').value;
+            setTimeout(() => {
+                openInvoicePreview(cart, total, paymentMethod, custId);
+            }, 200);
         }
     };
 

@@ -4,7 +4,7 @@ include '../includes/db.php';
 
 $user_id   = $_SESSION['user_id'];
 $username  = $_SESSION['username'];
-$branch_id = $_SESSION['branch_id']; // ✅ fixed
+$branch_id = $_SESSION['branch_id'];
 
 // Handle cart sale submission
 if (isset($_POST['submit_cart']) && !empty($_POST['cart_data'])) {
@@ -21,32 +21,24 @@ if (isset($_POST['submit_cart']) && !empty($_POST['cart_data'])) {
     // Track products for customer_transactions
     $products_json = json_encode($cart);
 
-    // Generate receipt/invoice number for Customer File transactions
-    $receipt_invoice_no = null;
+    // Calculate total first
+    foreach ($cart as $item) {
+        $total += floatval($item['price']) * intval($item['quantity']);
+    }
+
+    // --- NEW: Check if Customer File payment with insufficient balance ---
     if ($payment_method === 'Customer File' && $customer_id > 0) {
-        // Fetch customer balance to determine if invoice or receipt
+        // Fetch customer balance
         $cust_stmt = $conn->prepare("SELECT account_balance FROM customers WHERE id = ?");
         $cust_stmt->bind_param("i", $customer_id);
         $cust_stmt->execute();
         $cust_res = $cust_stmt->get_result()->fetch_assoc();
         $cust_stmt->close();
         
-        // Calculate total first
-        foreach ($cart as $item) {
-            $total += floatval($item['price']) * intval($item['quantity']);
-        }
-        
         $customer_balance = floatval($cust_res['account_balance'] ?? 0);
         
-        if ($customer_balance >= $total) {
-            // Generate RECEIPT number
-            try {
-                $rp4 = str_pad((string)random_int(0, 9999), 4, '0', STR_PAD_LEFT);
-            } catch (Throwable $e) {
-                $rp4 = str_pad((string)mt_rand(0, 9999), 4, '0', STR_PAD_LEFT);
-            }
-            $receipt_invoice_no = 'RP-' . $rp4;
-        } else {
+        // If insufficient balance: ONLY record customer debtor, DO NOT record sales
+        if ($customer_balance < $total) {
             // Generate INVOICE number
             try {
                 $inv4 = str_pad((string)random_int(0, 9999), 4, '0', STR_PAD_LEFT);
@@ -54,31 +46,80 @@ if (isset($_POST['submit_cart']) && !empty($_POST['cart_data'])) {
                 $inv4 = str_pad((string)mt_rand(0, 9999), 4, '0', STR_PAD_LEFT);
             }
             $receipt_invoice_no = 'INV-' . $inv4;
+
+            $now = date('Y-m-d H:i:s');
+            $sold_by = $_SESSION['username'];
+            
+            // Record ONLY in customer_transactions (debtor)
+            $amount_paid_val = $customer_balance; // They can pay whatever balance they have
+            $amount_credited = $total - $customer_balance; // Remaining debt
+            $status = 'debtor';
+
+            // Deduct customer's available balance (if any)
+            if ($customer_balance > 0) {
+                $stmt = $conn->prepare("UPDATE customers SET account_balance = 0, amount_credited = amount_credited + ? WHERE id = ?");
+                $stmt->bind_param("di", $amount_credited, $customer_id);
+                $stmt->execute();
+                $stmt->close();
+            } else {
+                // No balance at all, just add to credited
+                $stmt = $conn->prepare("UPDATE customers SET amount_credited = amount_credited + ? WHERE id = ?");
+                $stmt->bind_param("di", $amount_credited, $customer_id);
+                $stmt->execute();
+                $stmt->close();
+            }
+
+            // Record customer transaction (debtor record)
+            $ct = $conn->prepare("INSERT INTO customer_transactions (customer_id, date_time, products_bought, amount_paid, amount_credited, sold_by, status, invoice_receipt_no) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+            $ct->bind_param("issddsss", $customer_id, $now, $products_json, $amount_paid_val, $amount_credited, $sold_by, $status, $receipt_invoice_no);
+            $ct->execute();
+            $ct->close();
+
+            $conn->commit();
+            $_SESSION['cart_sale_message'] = '✅ Customer debtor recorded successfully! Invoice: ' . $receipt_invoice_no;
+            echo "<script>window.location='staff_dashboard.php';</script>";
+            exit;
         }
     }
 
+    // --- If we reach here: either sufficient balance OR other payment method ---
+    // Generate receipt/invoice number for Customer File transactions (sufficient balance case)
+    $receipt_invoice_no = null;
+    if ($payment_method === 'Customer File' && $customer_id > 0) {
+        // Generate RECEIPT number (sufficient balance)
+        try {
+            $rp4 = str_pad((string)random_int(0, 9999), 4, '0', STR_PAD_LEFT);
+        } catch (Throwable $e) {
+            $rp4 = str_pad((string)mt_rand(0, 9999), 4, '0', STR_PAD_LEFT);
+        }
+        $receipt_invoice_no = 'RP-' . $rp4;
+    }
+
+    // Record sales in sales table (only for sufficient balance or other payment methods)
     foreach ($cart as $item) {
         $product_id = (int)$item['id'];
         $quantity = (int)$item['quantity'];
+        
         // Get product info
         $stmt = $conn->prepare("SELECT name, `selling-price`, `buying-price`, stock FROM products WHERE id = ? AND `branch-id` = ?");
         $stmt->bind_param("ii", $product_id, $branch_id);
         $stmt->execute();
         $product = $stmt->get_result()->fetch_assoc();
         $stmt->close();
+        
         if (!$product || $product['stock'] < $quantity) {
             $success = false;
             $messages[] = "Product not found or not enough stock for " . htmlspecialchars($item['name']);
             break;
         }
+        
         $total_price  = $product['selling-price'] * $quantity;
         $cost_price   = $product['buying-price'] * $quantity;
         $total_profit = $total_price - $cost_price;
-        $total += $total_price;
 
         $date = date('Y-m-d');
 
-        // Insert sale row, include payment_method, customer_id, and receipt_no for Customer File
+        // Insert sale row
         if ($payment_method === 'Customer File' && $customer_id > 0) {
             $stmt = $conn->prepare("INSERT INTO sales (`product-id`, `branch-id`, quantity, amount, `sold-by`, `cost-price`, total_profits, date, payment_method, customer_id, receipt_no) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
             $stmt->bind_param("iiiidddssis", $product_id, $branch_id, $quantity, $total_price, $user_id, $cost_price, $total_profit, $date, $payment_method, $customer_id, $receipt_invoice_no);
@@ -94,7 +135,7 @@ if (isset($_POST['submit_cart']) && !empty($_POST['cart_data'])) {
         }
         $stmt->close();
 
-        // Only update stock/profits if sale insert succeeded
+        // Update stock
         $new_stock = $product['stock'] - $quantity;
         $update = $conn->prepare("UPDATE products SET stock = ? WHERE id = ?");
         $update->bind_param("ii", $new_stock, $product_id);
@@ -126,44 +167,23 @@ if (isset($_POST['submit_cart']) && !empty($_POST['cart_data'])) {
         }
     }
 
-    // Record customer transaction if payment method is Customer File
+    // Record customer transaction if payment method is Customer File (sufficient balance case)
     if ($success && $payment_method === 'Customer File' && $customer_id > 0) {
         $now = date('Y-m-d H:i:s');
         $sold_by = $_SESSION['username'];
-
-        // Fetch current customer balance
-        $stmt = $conn->prepare("SELECT account_balance FROM customers WHERE id = ?");
-        $stmt->bind_param("i", $customer_id);
+        $amount_paid_val = $total; // Full payment
+        $amount_credited = 0;
+        $status = 'paid';
+        
+        // Deduct from balance
+        $stmt = $conn->prepare("UPDATE customers SET account_balance = account_balance - ? WHERE id = ?");
+        $stmt->bind_param("di", $total, $customer_id);
         $stmt->execute();
-        $cust = $stmt->get_result()->fetch_assoc();
         $stmt->close();
-        $current_balance = floatval($cust['account_balance'] ?? 0);
 
-        if ($current_balance >= $total) {
-            // Full payment from account balance
-            $amount_paid = $total;
-            $amount_credited = 0;
-            $status = 'paid';
-            // Deduct from balance
-            $stmt = $conn->prepare("UPDATE customers SET account_balance = account_balance - ? WHERE id = ?");
-            $stmt->bind_param("di", $total, $customer_id);
-            $stmt->execute();
-            $stmt->close();
-        } else {
-            // Partial payment: deduct all balance, record remaining as credited
-            $amount_paid = $current_balance;
-            $amount_credited = $total - $current_balance;
-            $status = 'debtor';
-            // Set balance to zero, increase amount_credited
-            $stmt = $conn->prepare("UPDATE customers SET account_balance = 0, amount_credited = amount_credited + ? WHERE id = ?");
-            $stmt->bind_param("di", $amount_credited, $customer_id);
-            $stmt->execute();
-            $stmt->close();
-        }
-
-        // Record customer transaction with receipt/invoice number
+        // Record customer transaction (paid)
         $ct = $conn->prepare("INSERT INTO customer_transactions (customer_id, date_time, products_bought, amount_paid, amount_credited, sold_by, status, invoice_receipt_no) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
-        $ct->bind_param("issddsss", $customer_id, $now, $products_json, $amount_paid, $amount_credited, $sold_by, $status, $receipt_invoice_no);
+        $ct->bind_param("issddsss", $customer_id, $now, $products_json, $amount_paid_val, $amount_credited, $sold_by, $status, $receipt_invoice_no);
         $ct->execute();
         $ct->close();
     }
@@ -175,7 +195,7 @@ if (isset($_POST['submit_cart']) && !empty($_POST['cart_data'])) {
         $conn->rollback();
         $_SESSION['cart_sale_message'] = '❌ ' . implode(' ', $messages);
     }
-    // Redirect to avoid resubmission and show message
+    
     echo "<script>window.location='staff_dashboard.php';</script>";
     exit;
 }
