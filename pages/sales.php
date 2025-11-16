@@ -19,7 +19,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pay_debtor'])) {
         exit; 
     }
 
-    $dq = $conn->prepare("SELECT id, customer_id, invoice_no, balance, amount_paid, payment_method FROM debtors WHERE id=? LIMIT 1");
+    $dq = $conn->prepare("SELECT id, customer_id, invoice_no, balance, amount_paid, payment_method, item_taken, quantity_taken FROM debtors WHERE id=? LIMIT 1");
     $dq->bind_param("i", $debtor_id);
     $dq->execute();
     $debtor = $dq->get_result()->fetch_assoc();
@@ -50,12 +50,67 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pay_debtor'])) {
     $receiptNo = 'RP-' . $rp4;
     $now = date('Y-m-d H:i:s');
     $cust_id = intval($debtor['customer_id'] ?? 0);
-    $pm_to_use = ($cust_id > 0) ? 'Customer File' : ($pm_in ?: 'Cash');
+    $pm_to_use = $pm_in ?: 'Cash';
 
-    $insS = $conn->prepare("INSERT INTO sales (`product-id`,`branch-id`,quantity,amount,`sold-by`,`cost-price`,total_profits,`date`,payment_method,customer_id,receipt_no) VALUES (0, ?, 0, ?, ?, 0, 0, NOW(), ?, ?, ?)");
-    $insS->bind_param("idisis", $user_branch, $pay_amt, $uid, $pm_to_use, $cust_id, $receiptNo);
-    if (!$insS->execute()) { $ok = false; }
-    $insS->close();
+    // Check if this is FULL payment (balance will be zero after this payment)
+    $is_full_payment = ($pay_amt >= $remaining);
+
+    if ($is_full_payment) {
+        // Parse item_taken to get individual products
+        $item_taken = $debtor['item_taken'] ?? '';
+        $quantity_taken = intval($debtor['quantity_taken'] ?? 0);
+        $items = array_filter(array_map('trim', explode(',', $item_taken)));
+
+        if (count($items) > 0 && $quantity_taken > 0) {
+            // Distribute quantity across items
+            $qty_per_item = ($quantity_taken > 0 && count($items) > 1) ? 1 : $quantity_taken;
+
+            // Insert sale record for EACH product
+            foreach ($items as $item_name) {
+                // Find product by name and branch
+                $pstmt = $conn->prepare("SELECT id, `selling-price`, `buying-price` FROM products WHERE name = ? AND `branch-id` = ? LIMIT 1");
+                $pstmt->bind_param("si", $item_name, $user_branch);
+                $pstmt->execute();
+                $prod = $pstmt->get_result()->fetch_assoc();
+                $pstmt->close();
+
+                if ($prod) {
+                    $product_id = intval($prod['id']);
+                    $selling_price = floatval($prod['selling-price']);
+                    $buying_price = floatval($prod['buying-price']);
+                    $item_qty = max(1, $qty_per_item);
+                    $item_amount = $selling_price * $item_qty;
+                    $cost = $buying_price * $item_qty;
+                    $profit = $item_amount - $cost;
+
+                    $insS = $conn->prepare("INSERT INTO sales (`product-id`,`branch-id`,quantity,amount,`sold-by`,`cost-price`,total_profits,`date`,payment_method,customer_id,receipt_no) VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), ?, ?, ?)");
+                    $insS->bind_param("iiididisis", $product_id, $user_branch, $item_qty, $item_amount, $uid, $cost, $profit, $pm_to_use, $cust_id, $receiptNo);
+                    if (!$insS->execute()) { $ok = false; }
+                    $insS->close();
+                } else {
+                    // Product not found, insert with product-id = 0 as fallback
+                    $insS = $conn->prepare("INSERT INTO sales (`product-id`,`branch-id`,quantity,amount,`sold-by`,`cost-price`,total_profits,`date`,payment_method,customer_id,receipt_no) VALUES (0, ?, ?, ?, ?, 0, 0, NOW(), ?, ?, ?)");
+                    $item_amount = $pay_amt / count($items); // distribute amount
+                    $item_qty = max(1, $qty_per_item);
+                    $insS->bind_param("ididisis", $user_branch, $item_qty, $item_amount, $uid, $pm_to_use, $cust_id, $receiptNo);
+                    if (!$insS->execute()) { $ok = false; }
+                    $insS->close();
+                }
+            }
+        } else {
+            // No items found, fallback to generic "Debtor Repayment"
+            $insS = $conn->prepare("INSERT INTO sales (`product-id`,`branch-id`,quantity,amount,`sold-by`,`cost-price`,total_profits,`date`,payment_method,customer_id,receipt_no) VALUES (0, ?, 0, ?, ?, 0, 0, NOW(), ?, ?, ?)");
+            $insS->bind_param("idisis", $user_branch, $pay_amt, $uid, $pm_to_use, $cust_id, $receiptNo);
+            if (!$insS->execute()) { $ok = false; }
+            $insS->close();
+        }
+    } else {
+        // Partial payment: insert generic repayment record
+        $insS = $conn->prepare("INSERT INTO sales (`product-id`,`branch-id`,quantity,amount,`sold-by`,`cost-price`,total_profits,`date`,payment_method,customer_id,receipt_no) VALUES (0, ?, 0, ?, ?, 0, 0, NOW(), ?, ?, ?)");
+        $insS->bind_param("idisis", $user_branch, $pay_amt, $uid, $pm_to_use, $cust_id, $receiptNo);
+        if (!$insS->execute()) { $ok = false; }
+        $insS->close();
+    }
 
     if ($ok) {
         $new_bal = max(0.0, $remaining - $pay_amt);
@@ -1147,15 +1202,14 @@ $product_summary_result = $conn->query("
         <p id="pdDebtorLabel" class="mb-2 fw-semibold"></p>
         <p>Outstanding Balance: <strong id="pdBalanceText">UGX 0.00</strong></p>
         <input type="hidden" id="pdDebtorId" value="">
-        <!-- NEW: repayment method select -->
-        <div class="mb-3">
+        <!-- Payment Method dropdown (ALREADY EXISTS - keep it visible for shop debtors) -->
+        <div class="mb-3" id="pdMethodWrap">
           <label class="form-label">Payment Method</label>
           <select id="pdMethod" class="form-select">
             <option value="Cash">Cash</option>
             <option value="MTN MoMo">MTN MoMo</option>
             <option value="Airtel Money">Airtel Money</option>
             <option value="Bank">Bank</option>
-            <option value="Customer File">Customer File</option>
           </select>
         </div>
         <div class="mb-3">
@@ -1201,7 +1255,7 @@ $product_summary_result = $conn->query("
     const pdBalanceText = document.getElementById('pdBalanceText');
     const pdDebtorId = document.getElementById('pdDebtorId');
     const pdAmount = document.getElementById('pdAmount');
-    const pdMethod = document.getElementById('pdMethod'); // NEW
+    const pdMethod = document.getElementById('pdMethod');
     const pdMsg = document.getElementById('pdMsg');
     const pdConfirmBtn = document.getElementById('pdConfirmBtn');
 
@@ -1210,20 +1264,18 @@ $product_summary_result = $conn->query("
         const id = btn.getAttribute('data-id');
         const balance = parseFloat(btn.getAttribute('data-balance') || 0);
         const name = btn.getAttribute('data-name') || 'Debtor';
-        const origPm = btn.getAttribute('data-pm') || ''; // NEW
         pdDebtorId.value = id;
         pdAmount.value = '';
         pdDebtorLabel.textContent = `Debtor: ${name}`;
         pdBalanceText.textContent = 'UGX ' + balance.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2});
         pdMsg.innerHTML = '';
         payModalEl.dataset.outstanding = String(balance);
-        if (String(origPm).toLowerCase() === 'customer file') {
-          pdMethod.value = 'Customer File';
-          pdMethod.disabled = true;
-        } else {
-          pdMethod.disabled = false;
-          pdMethod.value = 'Cash';
-        }
+        
+        // Reset payment method to Cash and enable it
+        pdMethod.value = 'Cash';
+        pdMethod.disabled = false;
+        document.getElementById('pdMethodWrap').style.display = '';
+        
         payModal.show();
       });
     });
@@ -1232,7 +1284,7 @@ $product_summary_result = $conn->query("
       const id = pdDebtorId.value;
       let amount = parseFloat(pdAmount.value || 0);
       const outstanding = parseFloat(payModalEl.dataset.outstanding || 0);
-      const pm = (pdMethod?.value || 'Cash'); // NEW
+      const pm = (pdMethod?.value || 'Cash');
 
       pdMsg.innerHTML = '';
       if (!id) { pdMsg.innerHTML = '<div class="alert alert-warning">Invalid debtor selected.</div>'; return; }
@@ -1312,7 +1364,6 @@ document.querySelectorAll('.btn-pay-customer-debtor').forEach(btn => {
         const balance = parseFloat(btn.getAttribute('data-balance') || 0);
         const name = btn.getAttribute('data-name') || 'Customer';
         
-        // Use same modal as shop debtors
         const payModalEl = document.getElementById('payDebtorModal');
         const payModal = new bootstrap.Modal(payModalEl);
         
@@ -1322,10 +1373,10 @@ document.querySelectorAll('.btn-pay-customer-debtor').forEach(btn => {
         document.getElementById('pdAmount').value = '';
         document.getElementById('pdMsg').innerHTML = '';
         payModalEl.dataset.outstanding = String(balance);
-        payModalEl.dataset.isCustomerDebtor = '1'; // flag to differentiate
+        payModalEl.dataset.isCustomerDebtor = '1';
         
-        // Hide payment method select for customer debtors
-        document.getElementById('pdMethod').closest('.mb-3').style.display = 'none';
+        // Hide payment method for customer debtors (always 'Customer File')
+        document.getElementById('pdMethodWrap').style.display = 'none';
         
         payModal.show();
     });
@@ -1389,7 +1440,7 @@ document.getElementById('pdConfirmBtn').addEventListener('click', async () => {
     
     // Reset modal state
     delete payModalEl.dataset.isCustomerDebtor;
-    document.getElementById('pdMethod').closest('.mb-3').style.display = '';
+    document.getElementById('pdMethodWrap').style.display = '';
 });
 </script>
 
