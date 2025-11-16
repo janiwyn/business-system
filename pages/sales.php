@@ -104,22 +104,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pay_debtor'])) {
             if (!$insS->execute()) { $ok = false; }
             $insS->close();
         }
+
+        // DELETE debtor record (full payment clears debt)
+        if ($ok) {
+            $delStmt = $conn->prepare("DELETE FROM debtors WHERE id = ?");
+            $delStmt->bind_param("i", $debtor_id);
+            if (!$delStmt->execute()) { $ok = false; }
+            $delStmt->close();
+        }
+
     } else {
-        // Partial payment: insert generic repayment record
+        // Partial payment: insert generic repayment record and UPDATE debtor balance
         $insS = $conn->prepare("INSERT INTO sales (`product-id`,`branch-id`,quantity,amount,`sold-by`,`cost-price`,total_profits,`date`,payment_method,customer_id,receipt_no) VALUES (0, ?, 0, ?, ?, 0, 0, NOW(), ?, ?, ?)");
         $insS->bind_param("idisis", $user_branch, $pay_amt, $uid, $pm_to_use, $cust_id, $receiptNo);
         if (!$insS->execute()) { $ok = false; }
         $insS->close();
-    }
 
-    if ($ok) {
-        $new_bal = max(0.0, $remaining - $pay_amt);
-        $is_paid = ($new_bal <= 0.00001) ? 1 : 0;
-        $ud = $conn->prepare("UPDATE debtors SET balance = ?, amount_paid = amount_paid + ?, is_paid = IF(?, 1, is_paid), receipt_no = ? WHERE id = ?");
-        $flag = $is_paid ? 1 : 0;
-        $ud->bind_param("ddisi", $new_bal, $pay_amt, $flag, $receiptNo, $debtor_id);
-        if (!$ud->execute()) { $ok = false; }
-        $ud->close();
+        if ($ok) {
+            $new_bal = max(0.0, $remaining - $pay_amt);
+            $ud = $conn->prepare("UPDATE debtors SET balance = ?, amount_paid = amount_paid + ?, receipt_no = ? WHERE id = ?");
+            $ud->bind_param("ddsi", $new_bal, $pay_amt, $receiptNo, $debtor_id);
+            if (!$ud->execute()) { $ok = false; }
+            $ud->close();
+        }
     }
 
     if ($ok && $cust_id > 0) {
