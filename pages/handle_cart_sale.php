@@ -145,14 +145,16 @@ if (isset($_POST['submit_cart']) && !empty($_POST['cart_data'])) {
         
         // Insert ONE sales record for the entire cart (WITH RECEIPT NUMBER)
         if ($payment_method === 'Customer File' && $customer_id > 0) {
-            // FIX: Correct type string - 11 parameters
+            // FIX: Correct type string - 11 parameters (was missing one 's')
             $stmt = $conn->prepare("INSERT INTO sales (`product-id`, `branch-id`, quantity, amount, `sold-by`, `cost-price`, total_profits, date, payment_method, customer_id, receipt_no, products_json) VALUES (0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
             // Type string: i(branch), i(qty), d(amount), i(sold_by), d(cost), d(profit), s(date), s(pm), i(customer_id), s(receipt_no), s(products_json)
-            $stmt->bind_param("iididdsiss", $branch_id, $total_quantity, $total, $user_id, $total_cost, $total_profit, $date, $payment_method, $customer_id, $receipt_invoice_no, $products_json);
+            // COUNT: i i d i d d s s i s s = 11 characters
+            $stmt->bind_param("iididdssiss", $branch_id, $total_quantity, $total, $user_id, $total_cost, $total_profit, $date, $payment_method, $customer_id, $receipt_invoice_no, $products_json);
         } else {
-            // FIX: Correct type string - 10 parameters
+            // FIX: Correct type string - 10 parameters (already correct)
             $stmt = $conn->prepare("INSERT INTO sales (`product-id`, `branch-id`, quantity, amount, `sold-by`, `cost-price`, total_profits, date, payment_method, receipt_no, products_json) VALUES (0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
             // Type string: i(branch), i(qty), d(amount), i(sold_by), d(cost), d(profit), s(date), s(pm), s(receipt_no), s(products_json)
+            // COUNT: i i d i d d s s s s = 10 characters
             $stmt->bind_param("iididdssss", $branch_id, $total_quantity, $total, $user_id, $total_cost, $total_profit, $date, $payment_method, $receipt_invoice_no, $products_json);
         }
         
@@ -203,8 +205,9 @@ if (isset($_POST['submit_cart']) && !empty($_POST['cart_data'])) {
         $stmt->execute();
         $stmt->close();
 
+        // FIX: Store the SAME receipt number from sales table
         $ct = $conn->prepare("INSERT INTO customer_transactions (customer_id, date_time, products_bought, amount_paid, amount_credited, sold_by, status, invoice_receipt_no) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
-        $ct->bind_param("issddsss", $customer_id, $now, $products_json, $amount_paid_val, $amount_credited, $sold_by, $status, $receipt_invoice_no);
+        $ct->bind_param("issddsss", $customer_id, $now, $products_json, $amount_paid_val, $amount_credited, $sold_by, $status, $receipt_invoice_no); // <-- SAME receipt_invoice_no
         $ct->execute();
         $ct->close();
     }

@@ -36,6 +36,7 @@ if (isset($_POST['pay_debtor']) && isset($_POST['id']) && isset($_POST['amount']
     $debtor_quantity = intval($debtor['quantity_taken'] ?? 0);
     $debtor_branch_id = intval($debtor['branch_id'] ?? $debtor['branch-id'] ?? 0);
     $debtor_created_by = intval($debtor['created_by'] ?? $debtor['created-by'] ?? $current_user_id);
+    $cust_id = intval($debtor['customer_id'] ?? 0); // <-- NEW: customer_id
 
     $new_paid = $debtor_amount_paid + $amount;
     $new_balance = $debtor_balance - $amount;
@@ -57,7 +58,7 @@ if (isset($_POST['pay_debtor']) && isset($_POST['id']) && isset($_POST['amount']
     // Full payment: record sales and remove debtor
     $conn->begin_transaction();
     try {
-        // CHANGED: Use sequential receipt number instead of random
+        // CHANGED: Use sequential receipt number
         $receiptNo = generateReceiptNumber($conn, 'RP');
         
         // --- FIX: Use products_json for grouped sale (like customer debtors) ---
@@ -207,6 +208,20 @@ if (isset($_POST['pay_debtor']) && isset($_POST['id']) && isset($_POST['amount']
                     $ins->close();
                 }
             }
+        }
+
+        // FIX: If this debtor was originally created by a customer (customer_id exists),
+        // record payment in customer_transactions with the SAME receipt number
+        if ($cust_id > 0) {
+            $now_ct = date('Y-m-d H:i:s');
+            $sold_by_ct = $_SESSION['username'] ?? 'staff';
+            $products_text = "Debtor payment for items: " . ($debtor_item_taken ?: 'Unknown');
+            
+            // Insert into customer_transactions with the SAME receipt number
+            $ct_stmt = $conn->prepare("INSERT INTO customer_transactions (customer_id, date_time, products_bought, amount_paid, amount_credited, sold_by, status, invoice_receipt_no) VALUES (?, ?, ?, ?, 0, ?, 'paid', ?)");
+            $ct_stmt->bind_param("issdss", $cust_id, $now_ct, $products_text, $pay_amt, $sold_by_ct, $receiptNo);
+            $ct_stmt->execute();
+            $ct_stmt->close();
         }
 
         // Delete debtor record
