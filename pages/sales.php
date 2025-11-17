@@ -1753,6 +1753,85 @@ document.getElementById('pdConfirmBtn').addEventListener('click', async () => {
     document.getElementById('pdMethodWrap').style.display = '';
 });
 
+// NEW: Set Due Date button handler
+document.body.addEventListener('click', function(e) {
+    const btn = e.target.closest('.set-due-date-btn');
+    if (!btn) return;
+
+    const type = btn.getAttribute('data-type'); // 'shop' or 'customer'
+    const id = btn.getAttribute('data-id');
+    const name = btn.getAttribute('data-name');
+
+    const dueDateModal = new bootstrap.Modal(document.getElementById('setDueDateModal'));
+    document.getElementById('ddDebtorLabel').textContent = `Debtor: ${name}`;
+    document.getElementById('ddDebtorId').value = id;
+    document.getElementById('ddDebtorType').value = type;
+    document.getElementById('ddDueDate').value = '';
+    document.getElementById('ddMsg').innerHTML = '';
+
+    dueDateModal.show();
+});
+
+// NEW: Confirm due date setting
+document.getElementById('ddConfirmBtn')?.addEventListener('click', async function() {
+    const id = document.getElementById('ddDebtorId').value;
+    const type = document.getElementById('ddDebtorType').value;
+    const dueDate = document.getElementById('ddDueDate').value;
+    const ddMsg = document.getElementById('ddMsg');
+    const ddConfirmBtn = this;
+
+    if (!dueDate) {
+        ddMsg.innerHTML = '<div class="alert alert-warning">Please select a date.</div>';
+        return;
+    }
+
+    ddConfirmBtn.disabled = true;
+    ddConfirmBtn.textContent = 'Saving...';
+
+    try {
+        const formData = new FormData();
+        let action = '';
+        let id_field = '';
+
+        if (type === 'shop') {
+            action = 'set_due_date';
+            id_field = 'debtor_id';
+        } else { // customer
+            action = 'set_customer_due_date';
+            id_field = 'transaction_id';
+        }
+        
+        formData.append(action, '1');
+        formData.append(id_field, id);
+        formData.append('due_date', dueDate);
+
+        const res = await fetch(location.pathname, {
+            method: 'POST',
+            body: formData
+        });
+
+        const data = await res.json();
+
+        ddConfirmBtn.disabled = false;
+        ddConfirmBtn.textContent = 'OK';
+
+        if (data.success) {
+            ddMsg.innerHTML = '<div class="alert alert-success">Due date set successfully!</div>';
+            setTimeout(() => {
+                bootstrap.Modal.getInstance(document.getElementById('setDueDateModal')).hide();
+                location.reload();
+            }, 800);
+        } else {
+            ddMsg.innerHTML = '<div class="alert alert-danger">' + (data.message || 'Error setting due date') + '</div>';
+        }
+    } catch (err) {
+        console.error('Error:', err);
+        ddConfirmBtn.disabled = false;
+        ddConfirmBtn.textContent = 'OK';
+        ddMsg.innerHTML = '<div class="alert alert-danger">A client-side error occurred. Check console.</div>';
+    }
+});
+
 // Wait for DOM to be fully loaded
 document.addEventListener('DOMContentLoaded', function() {
     console.log('Invoice script loaded'); // DEBUG

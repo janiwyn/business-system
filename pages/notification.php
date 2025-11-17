@@ -227,19 +227,21 @@ document.querySelectorAll('.snooze-btn').forEach(btn => {
         if (!confirm('Snooze this notification for 1 day?')) return;
         
         const formData = new FormData();
-        if (type === 'shop') {
-            formData.append('set_due_date', '1');
-            formData.append('debtor_id', id);
-        } else {
-            formData.append('set_customer_due_date', '1');
-            formData.append('transaction_id', id);
-        }
         
-        // Extend due date by 1 day
+        // Tomorrow's date
         const tomorrow = new Date();
         tomorrow.setDate(tomorrow.getDate() + 1);
         const dueDate = tomorrow.toISOString().split('T')[0];
-        formData.append('due_date', dueDate);
+        
+        if (type === 'shop') {
+            formData.append('set_due_date', '1');
+            formData.append('debtor_id', id);
+            formData.append('due_date', dueDate);
+        } else {
+            formData.append('set_customer_due_date', '1');
+            formData.append('transaction_id', id);
+            formData.append('due_date', dueDate);
+        }
         
         try {
             const res = await fetch('sales.php', { method: 'POST', body: formData });
