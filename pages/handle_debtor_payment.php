@@ -3,6 +3,7 @@
 if (session_status() === PHP_SESSION_NONE) session_start();
 
 include_once __DIR__ . '/../includes/db.php';
+include_once __DIR__ . '/../includes/receipt_helper.php'; // <-- NEW: Include helper
 
 // Handle debtor payment (AJAX)
 if (isset($_POST['pay_debtor']) && isset($_POST['id']) && isset($_POST['amount'])) {
@@ -56,6 +57,9 @@ if (isset($_POST['pay_debtor']) && isset($_POST['id']) && isset($_POST['amount']
     // Full payment: record sales and remove debtor
     $conn->begin_transaction();
     try {
+        // CHANGED: Use sequential receipt number instead of random
+        $receiptNo = generateReceiptNumber($conn, 'RP');
+        
         // --- FIX: Use products_json for grouped sale (like customer debtors) ---
         $products_json = $debtor['products_json'] ?? null;
         
@@ -96,8 +100,8 @@ if (isset($_POST['pay_debtor']) && isset($_POST['id']) && isset($_POST['amount']
                 // Insert SINGLE grouped sales record (product-id = 0 indicates grouped sale)
                 $sold_by = $current_user_id ?? $debtor_created_by;
                 $payment_method = $pm ?? 'Debtor Repayment';
-                $sstmt = $conn->prepare("INSERT INTO sales (`product-id`,`branch-id`,quantity,amount,`sold-by`,`cost-price`,total_profits,date,payment_method,products_json) VALUES (0, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-                $sstmt->bind_param("iididdss", $debtor_branch_id, $total_quantity, $total_amount, $sold_by, $total_cost, $total_profit, $now, $payment_method, $products_json);
+                $sstmt = $conn->prepare("INSERT INTO sales (`product-id`,`branch-id`,quantity,amount,`sold-by`,`cost-price`,total_profits,date,payment_method,products_json, receipt_no) VALUES (0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                $sstmt->bind_param("iididdsss", $debtor_branch_id, $total_quantity, $total_amount, $sold_by, $total_cost, $total_profit, $now, $payment_method, $products_json, $receiptNo);
                 $sstmt->execute();
                 $sstmt->close();
 

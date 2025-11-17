@@ -193,6 +193,7 @@ $sales_stmt = $conn->prepare("
            s.date, 
            b.name AS branch_name, 
            s.payment_method,
+           s.receipt_no,
            s.products_json
     FROM sales s
     LEFT JOIN products p ON s.`product-id` = p.id
@@ -494,6 +495,7 @@ $cust_stmt->close();
                             <thead>
                                 <tr>
                                     <th>#</th>
+                                    <th>Receipt No.</th>
                                     <th>Product(s)</th>
                                     <th>Quantity</th>
                                     <th>Total Price</th>
@@ -523,7 +525,8 @@ $cust_stmt->close();
                                 ?>
                                     <tr>
                                         <td><?= $i++ ?></td>
-                                        <td><span class="badge bg-primary"><?= $products_display ?></td>
+                                        <td><?= htmlspecialchars($row['receipt_no'] ?? '-') ?></td>
+                                        <td><span class="badge bg-primary"><?= $products_display ?></span></td>
                                         <td><?= $row['quantity'] ?></td>
                                         <td><span class="fw-bold text-success">UGX <?= number_format($row['amount'], 2) ?></span></td>
                                         <td><?= htmlspecialchars($row['payment_method']) ?></td>

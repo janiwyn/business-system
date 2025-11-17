@@ -1,6 +1,7 @@
 <?php
  
 include '../includes/db.php';
+include_once '../includes/receipt_helper.php'; // <-- Include helper
 
 // --- NEW: Ensure products_json column exists in sales table ---
 $check_col = $conn->query("
@@ -98,17 +99,8 @@ if (isset($_POST['submit_cart']) && !empty($_POST['cart_data'])) {
         }
     }
 
-    // --- Generate receipt number for sufficient balance or other payment methods ---
-    $receipt_invoice_no = null;
-    if ($payment_method === 'Customer File' && $customer_id > 0) {
-        // Generate RECEIPT number (sufficient balance)
-        try {
-            $rp4 = str_pad((string)random_int(0, 9999), 4, '0', STR_PAD_LEFT);
-        } catch (Throwable $e) {
-            $rp4 = str_pad((string)mt_rand(0, 9999), 4, '0', STR_PAD_LEFT);
-        }
-        $receipt_invoice_no = 'RP-' . $rp4;
-    }
+    // --- Generate receipt number for ALL sales (not just Customer File) ---
+    $receipt_invoice_no = generateReceiptNumber($conn, 'RP'); // <-- SEQUENTIAL RECEIPT NUMBER
 
     // --- NEW: Validate stock and update stock for all items FIRST ---
     $total_quantity = 0;
@@ -147,18 +139,21 @@ if (isset($_POST['submit_cart']) && !empty($_POST['cart_data'])) {
         $update->close();
     }
 
-    // --- NEW: Insert SINGLE grouped sales record with products JSON ---
+    // --- NEW: Insert SINGLE grouped sales record with receipt number ---
     if ($success) {
         $date = date('Y-m-d');
         
-        // Insert ONE sales record for the entire cart
+        // Insert ONE sales record for the entire cart (WITH RECEIPT NUMBER)
         if ($payment_method === 'Customer File' && $customer_id > 0) {
-            // Add products_json column to store cart details
+            // FIX: Correct type string - 11 parameters
             $stmt = $conn->prepare("INSERT INTO sales (`product-id`, `branch-id`, quantity, amount, `sold-by`, `cost-price`, total_profits, date, payment_method, customer_id, receipt_no, products_json) VALUES (0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-            $stmt->bind_param("iididdssiss", $branch_id, $total_quantity, $total, $user_id, $total_cost, $total_profit, $date, $payment_method, $customer_id, $receipt_invoice_no, $products_json);
+            // Type string: i(branch), i(qty), d(amount), i(sold_by), d(cost), d(profit), s(date), s(pm), i(customer_id), s(receipt_no), s(products_json)
+            $stmt->bind_param("iididdsiss", $branch_id, $total_quantity, $total, $user_id, $total_cost, $total_profit, $date, $payment_method, $customer_id, $receipt_invoice_no, $products_json);
         } else {
-            $stmt = $conn->prepare("INSERT INTO sales (`product-id`, `branch-id`, quantity, amount, `sold-by`, `cost-price`, total_profits, date, payment_method, products_json) VALUES (0, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-            $stmt->bind_param("iididdsss", $branch_id, $total_quantity, $total, $user_id, $total_cost, $total_profit, $date, $payment_method, $products_json);
+            // FIX: Correct type string - 10 parameters
+            $stmt = $conn->prepare("INSERT INTO sales (`product-id`, `branch-id`, quantity, amount, `sold-by`, `cost-price`, total_profits, date, payment_method, receipt_no, products_json) VALUES (0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+            // Type string: i(branch), i(qty), d(amount), i(sold_by), d(cost), d(profit), s(date), s(pm), s(receipt_no), s(products_json)
+            $stmt->bind_param("iididdssss", $branch_id, $total_quantity, $total, $user_id, $total_cost, $total_profit, $date, $payment_method, $receipt_invoice_no, $products_json);
         }
         
         if (!$stmt->execute()) {

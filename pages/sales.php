@@ -2,6 +2,7 @@
 // --- STEP 1: Start session and include ONLY db.php (NO HTML OUTPUT) ---
 session_start();
 include '../includes/db.php';
+include_once __DIR__ . '/../includes/receipt_helper.php'; // <-- Include helper
 
 // --- STEP 2: HANDLE ALL AJAX REQUESTS FIRST (before any HTML/includes) ---
 
@@ -45,11 +46,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pay_debtor'])) {
     $ok = true;
 
     try { 
-        $rp4 = str_pad((string)random_int(0,9999), 4, '0', STR_PAD_LEFT); 
+        // CHANGED: Use sequential receipt number
+        $receiptNo = generateReceiptNumber($conn, 'RP');
     } catch (Throwable $e) { 
-        $rp4 = str_pad((string)mt_rand(0,9999), 4, '0', STR_PAD_LEFT); 
+        $receiptNo = 'RP-' . date('YmdHis');
     }
-    $receiptNo = 'RP-' . $rp4;
     $now = date('Y-m-d H:i:s');
     $cust_id = intval($debtor['customer_id'] ?? 0);
     $pm_to_use = $pm_in ?: 'Cash';
@@ -59,11 +60,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pay_debtor'])) {
 
     try {
         if ($is_full_payment) {
-            // --- Check if products_json exists (grouped products) ---
             $products_json = $debtor['products_json'] ?? null;
             
             if ($products_json) {
-                // Use products_json for grouped sale (like customer debtors)
                 $products_data = json_decode($products_json, true);
                 
                 if (is_array($products_data) && count($products_data) > 0) {
@@ -98,9 +97,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pay_debtor'])) {
 
                     // Insert SINGLE grouped sales record (9 columns = 9 bind params)
                     // Columns: product-id, branch-id, quantity, amount, sold-by, cost-price, total_profits, date, payment_method, products_json
-                    $sstmt = $conn->prepare("INSERT INTO sales (`product-id`,`branch-id`,quantity,amount,`sold-by`,`cost-price`,total_profits,date,payment_method,products_json) VALUES (0, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-                    // Type string: i(branch), i(qty), d(amount), i(sold_by), d(cost), d(profit), s(date), s(pm), s(json)
-                    $sstmt->bind_param("iididdsss", $debtor_branch_id, $total_quantity, $total_amount, $uid, $total_cost, $total_profit, $now, $pm_to_use, $products_json);
+                    $sstmt = $conn->prepare("INSERT INTO sales (`product-id`,`branch-id`,quantity,amount,`sold-by`,`cost-price`,total_profits,date,payment_method,receipt_no,products_json) VALUES (0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                    // Type string: i(branch), i(qty), d(amount), i(sold_by), d(cost), d(profit), s(date), s(pm), s(receipt), s(json)
+                    $sstmt->bind_param("iididdsss", $debtor_branch_id, $total_quantity, $total_amount, $uid, $total_cost, $total_profit, $now, $pm_to_use, $receiptNo, $products_json);
                     if (!$sstmt->execute()) { $ok = false; }
                     $sstmt->close();
 
@@ -133,9 +132,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pay_debtor'])) {
                     }
                 } else {
                     // Fallback: single generic sale (5 columns after VALUES)
-                    $sstmt = $conn->prepare("INSERT INTO sales (`product-id`,`branch-id`,quantity,amount,`sold-by`,`cost-price`,total_profits,date,payment_method) VALUES (0, ?, 0, ?, ?, 0, 0, ?, ?)");
-                    // Type string: i(branch), d(amount), i(sold_by), s(date), s(pm)
-                    $sstmt->bind_param("idiss", $debtor_branch_id, $pay_amt, $uid, $now, $pm_to_use);
+                    $sstmt = $conn->prepare("INSERT INTO sales (`product-id`,`branch-id`,quantity,amount,`sold-by`,`cost-price`,total_profits,date,payment_method,receipt_no) VALUES (0, ?, 0, ?, ?, 0, 0, ?, ?, ?)");
+                    // Type string: i(branch), d(amount), i(sold_by), s(date), s(pm), s(receipt)
+                    $sstmt->bind_param("idisss", $debtor_branch_id, $pay_amt, $uid, $now, $pm_to_use, $receiptNo);
                     if (!$sstmt->execute()) { $ok = false; }
                     $sstmt->close();
                 }
@@ -169,24 +168,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pay_debtor'])) {
                             $cost = $buying_price * $item_qty;
                             $profit = $item_amount - $cost;
 
-                            $insS = $conn->prepare("INSERT INTO sales (`product-id`,`branch-id`,quantity,amount,`sold-by`,`cost-price`,total_profits,date,payment_method) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
-                            $insS->bind_param("iiididdss", $product_id, $debtor_branch_id, $item_qty, $item_amount, $uid, $cost, $profit, $now, $pm_to_use);
+                            $insS = $conn->prepare("INSERT INTO sales (`product-id`,`branch-id`,quantity,amount,`sold-by`,`cost-price`,total_profits,date,payment_method,receipt_no) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                            $insS->bind_param("iiididdss", $product_id, $debtor_branch_id, $item_qty, $item_amount, $uid, $cost, $profit, $now, $pm_to_use, $receiptNo);
                             if (!$insS->execute()) { $ok = false; }
                             $insS->close();
                         } else {
                             // Product not found, insert with product-id = 0 as fallback
                             $item_amount = $pay_amt / count($items); // distribute amount
                             $item_qty = max(1, $qty_per_item);
-                            $insS = $conn->prepare("INSERT INTO sales (`product-id`,`branch-id`,quantity,amount,`sold-by`,`cost-price`,total_profits,date,payment_method) VALUES (0, ?, ?, ?, ?, 0, 0, ?, ?)");
-                            $insS->bind_param("ididss", $debtor_branch_id, $item_qty, $item_amount, $uid, $now, $pm_to_use);
+                            $insS = $conn->prepare("INSERT INTO sales (`product-id`,`branch-id`,quantity,amount,`sold-by`,`cost-price`,total_profits,date,payment_method,receipt_no) VALUES (0, ?, ?, ?, ?, 0, 0, ?, ?, ?)");
+                            $insS->bind_param("ididss", $debtor_branch_id, $item_qty, $item_amount, $uid, $now, $pm_to_use, $receiptNo);
                             if (!$insS->execute()) { $ok = false; }
                             $insS->close();
                         }
                     }
                 } else {
                     // No items found, fallback to generic "Debtor Repayment"
-                    $insS = $conn->prepare("INSERT INTO sales (`product-id`,`branch-id`,quantity,amount,`sold-by`,`cost-price`,total_profits,date,payment_method) VALUES (0, ?, 0, ?, ?, 0, 0, ?, ?)");
-                    $insS->bind_param("idiss", $debtor_branch_id, $pay_amt, $uid, $now, $pm_to_use);
+                    $insS = $conn->prepare("INSERT INTO sales (`product-id`,`branch-id`,quantity,amount,`sold-by`,`cost-price`,total_profits,date,payment_method,receipt_no) VALUES (0, ?, 0, ?, ?, 0, 0, ?, ?)");
+                    $insS->bind_param("idisss", $debtor_branch_id, $pay_amt, $uid, $now, $pm_to_use, $receiptNo);
                     if (!$insS->execute()) { $ok = false; }
                     $insS->close();
                 }
@@ -265,11 +264,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pay_customer_debtor']
     $ok = true;
 
     try { 
-        $rp4 = str_pad((string)random_int(0,9999), 4, '0', STR_PAD_LEFT); 
+        // CHANGED: Use sequential receipt number
+        $receiptNo = generateReceiptNumber($conn, 'RP');
     } catch (Throwable $e) { 
-        $rp4 = str_pad((string)mt_rand(0,9999), 4, '0', STR_PAD_LEFT); 
+        $receiptNo = 'RP-' . date('YmdHis');
     }
-    $receiptNo = 'RP-' . $rp4;
     $now = date('Y-m-d H:i:s');
     $sold_by = $_SESSION['username'] ?? 'staff';
 
@@ -925,6 +924,7 @@ $product_summary_result = $conn->query("
                                 <tr>
                                     <th>#</th>
                                     <?php if ($user_role !== 'staff' && empty($selected_branch)) echo "<th>Branch</th>"; ?>
+                                    <th>Receipt No.</th>
                                     <th>Product(s)</th>
                                     <th>Quantity</th>
                                     <th>Total Price</th>
@@ -955,6 +955,7 @@ $product_summary_result = $conn->query("
                                     <tr>
                                         <td><?= $i++ ?></td>
                                         <?php if ($user_role !== 'staff' && empty($selected_branch)) echo "<td>" . htmlspecialchars($row['branch_name']) . "</td>"; ?>
+                                        <td><?= htmlspecialchars($row['receipt_no'] ?? '-') ?></td>
                                         <td><span class="badge bg-primary"><?= $products_display ?></span></td>
                                         <td><?= $row['quantity'] ?></td>
                                         <td><span class="fw-bold text-success">UGX<?= number_format($row['amount'], 2) ?></span></td>
@@ -964,7 +965,7 @@ $product_summary_result = $conn->query("
                                     </tr>
                                 <?php endwhile; ?>
                                 <?php if ($sales->num_rows === 0): ?>
-                                    <tr><td colspan="<?= ($user_role !== 'staff' && empty($selected_branch)) ? 8 : 7 ?>" class="text-center text-muted">No sales found.</td></tr>
+                                    <tr><td colspan="<?= ($user_role !== 'staff' && empty($selected_branch)) ? 9 : 8 ?>" class="text-center text-muted">No sales found.</td></tr>
                                 <?php endif; ?>
                             </tbody>
                         </table>
