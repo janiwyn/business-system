@@ -520,6 +520,7 @@ $cust_stmt->close();
                                     <th>Payment Method</th>
                                     <th>Sold At</th>
                                     <th>Sold By</th>
+                                    <th>Actions</th> <!-- NEW COLUMN -->
                                 </tr>
                             </thead>
                             <tbody>
@@ -550,6 +551,18 @@ $cust_stmt->close();
                                         <td><?= htmlspecialchars($row['payment_method']) ?></td>
                                         <td><small class="text-muted"><?= date("M d, Y H:i", strtotime($row['date'])) ?></small></td>
                                         <td><?= htmlspecialchars($row['sold-by']) ?></td>
+                                        <td>
+                                            <!-- NEW: Receipt button -->
+                                            <button class="btn btn-info btn-sm print-receipt-btn" 
+                                                    data-sale-id="<?= $row['id'] ?>"
+                                                    data-products='<?= htmlspecialchars($row['products_json'] ?: '[]') ?>'
+                                                    data-total="<?= $row['amount'] ?>"
+                                                    data-payment="<?= htmlspecialchars($row['payment_method']) ?>"
+                                                    data-receipt="<?= htmlspecialchars($row['receipt_no'] ?? '') ?>"
+                                                    title="Print Receipt">
+                                                <i class="fa fa-print"></i> Receipt
+                                            </button>
+                                        </td>
                                     </tr>
                                 <?php endwhile; ?>
                             </tbody>
@@ -653,6 +666,172 @@ $cust_stmt->close();
     window.customers = <?php echo json_encode($customers_list); ?>;
 </script>
 <script src="staff_dashboard.js"></script>
+
+<!-- NEW: Receipt printing script -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Handle Receipt button clicks
+    document.querySelectorAll('.print-receipt-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const productsJson = btn.getAttribute('data-products');
+            const total = parseFloat(btn.getAttribute('data-total') || 0);
+            const paymentMethod = btn.getAttribute('data-payment');
+            const receiptNo = btn.getAttribute('data-receipt');
+            
+            // Parse products
+            let cart = [];
+            try {
+                cart = JSON.parse(productsJson);
+                if (!Array.isArray(cart)) cart = [];
+            } catch(e) {
+                console.error('Failed to parse products:', e);
+                cart = [];
+            }
+            
+            // Open receipt preview window
+            printReceiptFromSale(cart, total, paymentMethod, receiptNo);
+        });
+    });
+    
+    // Function to print receipt (same styling as receipt_preview.php)
+    function printReceiptFromSale(cart, total, paymentMethod, receiptNo) {
+        const now = new Date();
+        const dateStr = now.toLocaleString();
+        const company = "CYINIBEL SUPERMARKET LIMITED";
+        const till = "2";
+        const tillSales = receiptNo || "N/A";
+        const tin = "1017004561";
+        
+        // Build items HTML
+        let itemsHtml = '';
+        if (cart && cart.length > 0) {
+            cart.forEach(item => {
+                const qty = parseInt(item.quantity || 0);
+                const price = parseFloat(item.price || 0);
+                const subtotal = qty * price;
+                itemsHtml += `
+                <tr>
+                    <td style="text-align:left;">${qty}</td>
+                    <td style="text-align:left;">${escapeHtml(item.name)}</td>
+                    <td style="text-align:right;">UGX ${subtotal.toLocaleString()}</td>
+                </tr>`;
+            });
+        } else {
+            itemsHtml = `<tr><td colspan="3" style="text-align:center;">No items</td></tr>`;
+        }
+        
+        // Receipt HTML (same as receipt_preview.php)
+        const receiptHtml = `
+<div id="receiptToPrint" style="width:320px;max-width:100vw;padding:0;font-family:'Courier New',monospace;">
+    <div style="text-align:center;margin-top:10px;">
+        <img src="https://i.ibb.co/6w1yQnQ/cyinibel-logo.png" alt="Logo" style="width:80px;height:80px;object-fit:contain;margin-bottom:8px;">
+    </div>
+    <div style="text-align:center;font-weight:bold;font-size:15px;margin-bottom:2px;">${company}</div>
+    <div style="text-align:center;font-size:12px;margin-bottom:2px;">----------------------------------------------------</div>
+    <div style="text-align:center;font-size:13px;margin-bottom:2px;">${dateStr}</div>
+    <div style="font-size:12px;margin-bottom:2px;">TILL: ${till} &nbsp; Till Sales: ${tillSales}</div>
+    <div style="font-size:12px;margin-bottom:2px;">TIN: ${tin}</div>
+    <div style="font-size:12px;margin-bottom:2px;">----------------------------------------------------</div>
+    <table style="width:100%;font-size:13px;margin-bottom:2px;border-collapse:collapse;">
+        <tbody>${itemsHtml}</tbody>
+    </table>
+    <div style="font-size:12px;margin-bottom:2px;">----------------------------------------------------</div>
+    <table style="width:100%;font-size:13px;">
+        <tr>
+            <td style="text-align:left;">Subtotal</td>
+            <td style="text-align:right;">UGX ${Number(total).toLocaleString()}</td>
+        </tr>
+        <tr>
+            <td style="text-align:left;">Total</td>
+            <td style="text-align:right;">UGX ${Number(total).toLocaleString()}</td>
+        </tr>
+    </table>
+    <div style="font-size:12px;margin-bottom:2px;">----------------------------------------------------</div>
+    <table style="width:100%;font-size:13px;">
+        <tr>
+            <td style="text-align:left;">Payment Method</td>
+            <td style="text-align:right;">${escapeHtml(paymentMethod)}</td>
+        </tr>
+    </table>
+    <div style="font-size:12px;margin-bottom:2px;">----------------------------------------------------</div>
+    <div style="text-align:center;font-size:13px;margin:10px 0 2px 0;">THANK YOU</div>
+    <div style="text-align:center;font-size:13px;margin-bottom:8px;">HAVE A NICE DAY</div>
+    <div style="text-align:center;margin-top:8px;">
+        <svg id="barcodeSvg" style="width:180px;height:40px;"></svg>
+    </div>
+</div>
+        `;
+        
+        // Open print window
+        const win = window.open('', '_blank', 'width=400,height=600');
+        win.document.write(`<html><head><title>Receipt - ${receiptNo}</title>
+<style>
+@media print {
+  body * { visibility: hidden !important; }
+  #receiptToPrint, #receiptToPrint * {
+    visibility: visible !important;
+  }
+  #receiptToPrint {
+    position: absolute;
+    left: 0; top: 0;
+    width: 58mm;
+    min-width: 0;
+    max-width: 100vw;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 13px;
+    background: #fff !important;
+    color: #000 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  #receiptToPrint table { width:100%; }
+  #receiptToPrint tr, #receiptToPrint td { font-size:13px; }
+}
+</style>
+</head><body>${receiptHtml}
+<script>
+function escapeHtml(s){return s?String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])):'';}
+(function() {
+    var svg = document.getElementById('barcodeSvg');
+    if (svg) {
+        var code = "${tillSales}";
+        var bars = '';
+        var x = 0;
+        for (var i = 0; i < code.length; i++) {
+            var val = code.charCodeAt(i) % 7 + 1;
+            for (var j = 0; j < val; j++) {
+                bars += '<rect x="'+x+'" y="0" width="2" height="40" fill="#000"/>';
+                x += 3;
+            }
+            x += 2;
+        }
+        svg.innerHTML = bars;
+    }
+    setTimeout(function() { window.print(); setTimeout(function(){window.close();}, 400); }, 200);
+})();
+<\/script>
+</body></html>`);
+        win.document.close();
+        win.focus();
+    }
+    
+    // Helper function for HTML escaping
+    function escapeHtml(str) {
+        if (!str) return '';
+        return String(str).replace(/[&<>"']/g, function(match) {
+            const escapeMap = {
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#39;'
+            };
+            return escapeMap[match];
+        });
+    }
+});
+</script>
+
 <?php include '../includes/footer.php'; ?>
 
 

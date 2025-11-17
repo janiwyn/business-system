@@ -208,8 +208,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pay_debtor'])) {
                     $insS = $conn->prepare("INSERT INTO sales (`product-id`,`branch-id`,quantity,amount,`sold-by`,`cost-price`,total_profits,date,payment_method,receipt_no) VALUES (0, ?, 0, ?, ?, 0, 0, ?, ?)");
                     // TYPE STRING: i d i s s = 6 characters
                     $insS->bind_param("idiss", $debtor_branch_id, $pay_amt, $uid, $now, $pm_to_use, $receiptNo);
-                    if (!$insS->execute()) { $ok = false; }
-                    $insS->close();
+                    if (!$sstmt->execute()) { $ok = false; }
+                    $sstmt->close();
                 }
             }
 
@@ -1048,7 +1048,7 @@ $product_summary_result = $conn->query("
                                         <thead>
                                             <tr>
                                                 <th>Date</th>
-                                                <th>Invoice No.</th> <!-- NEW COLUMN -->
+                                                <th>Invoice No.</th>
                                                 <th>Debtor Name</th>
                                                 <th>Debtor Email</th>
                                                 <th>Item Taken</th>
@@ -1065,7 +1065,7 @@ $product_summary_result = $conn->query("
                                                 <?php while ($debtor = $debtors_result->fetch_assoc()): ?>
                                                     <tr>
                                                         <td><?= date("M d, Y H:i", strtotime($debtor['created_at'])); ?></td>
-                                                        <td><?= htmlspecialchars($debtor['invoice_no'] ?? '-'); ?></td> <!-- NEW -->
+                                                        <td><?= htmlspecialchars($debtor['invoice_no'] ?? '-'); ?></td>
                                                         <td><?= htmlspecialchars($debtor['debtor_name']); ?></td>
                                                         <td><?= htmlspecialchars($debtor['debtor_email']); ?></td>
                                                         <td><?= htmlspecialchars($debtor['item_taken'] ?? '-'); ?></td>
@@ -1088,12 +1088,26 @@ $product_summary_result = $conn->query("
                                                                 data-pm="<?= htmlspecialchars($debtor['payment_method'] ?? '') ?>">
                                                                 Pay
                                                             </button>
+                                                            <!-- NEW: Invoice button -->
+                                                            <button class="btn btn-warning btn-sm btn-view-invoice"
+                                                                data-type="shop"
+                                                                data-id="<?= $debtor['id'] ?>"
+                                                                data-invoice="<?= htmlspecialchars($debtor['invoice_no'] ?? '') ?>"
+                                                                data-name="<?= htmlspecialchars($debtor['debtor_name']) ?>"
+                                                                data-email="<?= htmlspecialchars($debtor['debtor_email']) ?>"
+                                                                data-contact="<?= htmlspecialchars($debtor['debtor_contact'] ?? '') ?>"
+                                                                data-products='<?= htmlspecialchars($debtor['products_json'] ?? '[]') ?>'
+                                                                data-balance="<?= $debtor['balance'] ?? 0 ?>"
+                                                                data-paid="<?= $debtor['amount_paid'] ?? 0 ?>"
+                                                                title="View Invoice">
+                                                                <i class="fa fa-file-invoice"></i> Invoice
+                                                            </button>
                                                         </td>
                                                     </tr>
                                                 <?php endwhile; ?>
                                             <?php else: ?>
                                                 <tr>
-                                                    <td colspan="11" class="text-center text-muted">No shop debtors recorded yet.</td> <!-- UPDATED COLSPAN -->
+                                                    <td colspan="11" class="text-center text-muted">No shop debtors recorded yet.</td>
                                                 </tr>
                                             <?php endif; ?>
                                         </tbody>
@@ -1170,6 +1184,20 @@ $product_summary_result = $conn->query("
                                                                 data-balance="<?= htmlspecialchars($cd['balance'] ?? 0) ?>"
                                                                 data-name="<?= htmlspecialchars($cd['debtor_name']) ?>">
                                                                 Pay
+                                                            </button>
+                                                            <!-- NEW: Invoice button -->
+                                                            <button class="btn btn-warning btn-sm btn-view-invoice"
+                                                                data-type="customer"
+                                                                data-id="<?= $cd['id'] ?>"
+                                                                data-invoice="<?= htmlspecialchars($cd['invoice_receipt_no'] ?? '') ?>"
+                                                                data-name="<?= htmlspecialchars($cd['debtor_name']) ?>"
+                                                                data-email="<?= htmlspecialchars($cd['debtor_email'] ?? '') ?>"
+                                                                data-contact="<?= htmlspecialchars($cd['debtor_contact'] ?? '') ?>"
+                                                                data-products='<?= htmlspecialchars($cd['products_bought'] ?? '[]') ?>'
+                                                                data-balance="<?= $cd['balance'] ?? 0 ?>"
+                                                                data-paid="<?= $cd['amount_paid'] ?? 0 ?>"
+                                                                title="View Invoice">
+                                                                <i class="fa fa-file-invoice"></i> Invoice
                                                             </button>
                                                         </td>
                                                     </tr>
@@ -1554,39 +1582,87 @@ document.getElementById('pdConfirmBtn').addEventListener('click', async () => {
     delete payModalEl.dataset.isCustomerDebtor;
     document.getElementById('pdMethodWrap').style.display = '';
 });
+
+// Wait for DOM to be fully loaded
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Invoice script loaded'); // DEBUG
+    
+    // Use event delegation on the parent container (works even if buttons are in hidden tabs)
+    document.body.addEventListener('click', function(e) {
+        // Check if clicked element or its parent is the invoice button
+        const btn = e.target.closest('.btn-view-invoice');
+        if (!btn) return;
+        
+        console.log('Invoice button clicked!', btn.dataset); // DEBUG
+        
+        e.preventDefault();
+        e.stopPropagation();
+        
+        const type = btn.getAttribute('data-type'); // 'shop' or 'customer'
+        const invoiceNo = btn.getAttribute('data-invoice');
+        const debtorName = btn.getAttribute('data-name');
+        const debtorEmail = btn.getAttribute('data-email');
+        const debtorContact = btn.getAttribute('data-contact');
+        const productsJson = btn.getAttribute('data-products');
+        const balance = parseFloat(btn.getAttribute('data-balance') || 0);
+        const amountPaid = parseFloat(btn.getAttribute('data-paid') || 0);
+        
+        console.log('Parsed data:', { type, invoiceNo, debtorName, balance, amountPaid }); // DEBUG
+        
+        // Parse products
+        let cart = [];
+        try {
+            cart = JSON.parse(productsJson);
+            if (!Array.isArray(cart)) cart = [];
+        } catch(e) {
+            console.error('Failed to parse products:', e);
+            cart = [];
+        }
+        
+        // Calculate total
+        let total = balance + amountPaid;
+        
+        console.log('Opening invoice with cart:', cart, 'total:', total); // DEBUG
+        
+        // Open invoice preview
+        openDebtorInvoice(cart, total, invoiceNo, debtorName, debtorEmail, debtorContact, amountPaid, balance);
+    });
+    
+    // Function to open invoice preview
+    function openDebtorInvoice(cart, total, invoiceNo, debtorName, debtorEmail, debtorContact, amountPaid, balance) {
+        console.log('openDebtorInvoice called'); // DEBUG
+        
+        // Send data via POST using a temporary form
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = 'invoice_preview.php';
+        form.target = '_blank';
+        form.style.display = 'none';
+
+        const addField = (name, value) => {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = name;
+            input.value = typeof value === 'string' ? value : JSON.stringify(value);
+            form.appendChild(input);
+        };
+
+        addField('cart', cart);
+        addField('total', total);
+        addField('invoice_no', invoiceNo);
+        addField('customer_name', debtorName);
+        addField('customer_email', debtorEmail);
+        addField('customer_contact', debtorContact);
+        addField('amount_paid', amountPaid);
+        addField('balance', balance);
+        addField('is_debtor', '1'); // Flag to indicate this is a debtor invoice
+
+        document.body.appendChild(form);
+        console.log('Form created, submitting...'); // DEBUG
+        form.submit();
+        setTimeout(() => document.body.removeChild(form), 1000);
+    }
+});
 </script>
 
-<style>
-/* ...existing code... */
-
-/* Sub-tabs styling */
-
-#debtorSubTabs .nav-link {
-    border-radius: 8px;
-    padding: 0.5rem 1.2rem;
-    margin-right: 0.5rem;
-    border: 2px solid transparent;
-    color: var(--primary-color);
-    font-weight: 500;
-    transition: all 0.2s;
-}
-
-#debtorSubTabs .nav-link:hover {
-    background-color: rgba(26, 188, 156, 0.1);
-}
-
-#debtorSubTabs .nav-link.active {
-    background-color: var(--primary-color);
-    color: #fff;
-    border-color: var(--primary-color);
-}
-
-body.dark-mode #debtorSubTabs .nav-link {
-    color: #1abc9c;
-}
-
-body.dark-mode #debtorSubTabs .nav-link.active {
-    background-color: #1abc9c;
-    color: #fff;
-}
-</style>
+<?php include '../includes/footer.php'; ?>
