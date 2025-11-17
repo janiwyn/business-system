@@ -1152,7 +1152,7 @@ $product_summary_result = $conn->query("
                                                         $products_json = json_encode($products_data);
                                                     }
                                                     ?>
-                                                    <tr>
+                                                    <tr id="shop-debtor-<?= $debtor['id'] ?>">
                                                         <td><?= date("M d, Y H:i", strtotime($debtor['created_at'])); ?></td>
                                                         <td><?= htmlspecialchars($debtor['invoice_no'] ?? '-'); ?></td>
                                                         <td><?= htmlspecialchars($debtor['debtor_name']); ?></td>
@@ -1282,7 +1282,7 @@ $product_summary_result = $conn->query("
                                                     $unit_prices_display = implode('<br>', $unit_prices);
                                                     $date_obj = new DateTime($cd['date_time']);
                                                     ?>
-                                                    <tr>
+                                                    <tr id="customer-debtor-<?= $cd['id'] ?>">
                                                         <td><?= $date_obj->format('M d, Y'); ?></td>
                                                         <td><?= $date_obj->format('H:i'); ?></td>
                                                         <td><?= htmlspecialchars($cd['invoice_receipt_no'] ?? '-') ?></td>
@@ -1836,99 +1836,33 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
-// NEW: Set Due Date button handler (FIXED - use event delegation)
+// NEW: Scroll to highlighted debtor if anchor is present
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('Due date script initialized'); // DEBUG
-    
-    // Use event delegation on document.body to catch clicks on dynamically loaded buttons
-    document.body.addEventListener('click', function(e) {
-        const btn = e.target.closest('.set-due-date-btn');
-        if (!btn) return;
-        
-        e.preventDefault();
-        e.stopPropagation();
-        
-        const type = btn.getAttribute('data-type');
-        const id = btn.getAttribute('data-id');
-        const name = btn.getAttribute('data-name');
-        
-        console.log('Set due date clicked:', { type, id, name }); // DEBUG
-        
-        if (!window.bootstrap) {
-            console.error('Bootstrap not loaded!');
-            alert('System error: Bootstrap not loaded. Please refresh the page.');
-            return;
+    const hash = window.location.hash;
+    if (hash && (hash.startsWith('#shop-debtor-') || hash.startsWith('#customer-debtor-'))) {
+        const el = document.querySelector(hash);
+        if (el) {
+            // Switch to Debtors tab
+            const debtorsTab = document.getElementById('debtors-tab');
+            if (debtorsTab) {
+                debtorsTab.click();
+            }
+            
+            // Wait for tab to load, then scroll
+            setTimeout(() => {
+                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                el.style.animation = 'highlight 2s';
+            }, 300);
         }
-        
-        const dueDateModal = new bootstrap.Modal(document.getElementById('setDueDateModal'));
-        document.getElementById('ddDebtorLabel').textContent = `Debtor: ${name}`;
-        document.getElementById('ddDebtorId').value = id;
-        document.getElementById('ddDebtorType').value = type;
-        document.getElementById('ddDueDate').value = '';
-        document.getElementById('ddMsg').innerHTML = '';
-        
-        dueDateModal.show();
-    });
-    
-    // Confirm due date setting
-    const confirmBtn = document.getElementById('ddConfirmBtn');
-    if (confirmBtn) {
-        confirmBtn.addEventListener('click', async function() {
-            const id = document.getElementById('ddDebtorId').value;
-            const type = document.getElementById('ddDebtorType').value;
-            const dueDate = document.getElementById('ddDueDate').value;
-            const ddMsg = document.getElementById('ddMsg');
-            const ddConfirmBtn = this;
-            
-            console.log('Confirm clicked:', { id, type, dueDate }); // DEBUG
-            
-            if (!dueDate) {
-                ddMsg.innerHTML = '<div class="alert alert-warning">Please select a date.</div>';
-                return;
-            }
-            
-            ddConfirmBtn.disabled = true;
-            ddConfirmBtn.textContent = 'Saving...';
-            
-            try {
-                const formData = new FormData();
-                if (type === 'shop') {
-                    formData.append('set_due_date', '1');
-                    formData.append('debtor_id', id);
-                } else {
-                    formData.append('set_customer_due_date', '1');
-                    formData.append('transaction_id', id);
-                }
-                formData.append('due_date', dueDate);
-                
-                const res = await fetch(location.pathname, {
-                    method: 'POST',
-                    body: formData
-                });
-                
-                const data = await res.json();
-                
-                ddConfirmBtn.disabled = false;
-                ddConfirmBtn.textContent = 'OK';
-                
-                if (data.success) {
-                    ddMsg.innerHTML = '<div class="alert alert-success">Due date set successfully!</div>';
-                    setTimeout(() => {
-                        bootstrap.Modal.getInstance(document.getElementById('setDueDateModal')).hide();
-                        location.reload();
-                    }, 800);
-                } else {
-                    ddMsg.innerHTML = '<div class="alert alert-danger">' + (data.message || 'Error setting due date') + '</div>';
-                }
-            } catch (err) {
-                console.error('Error:', err);
-                ddConfirmBtn.disabled = false;
-                ddConfirmBtn.textContent = 'OK';
-                ddMsg.innerHTML = '<div class="alert alert-danger">Error setting due date. Check console.</div>';
-            }
-        });
     }
 });
 </script>
+
+<style>
+@keyframes highlight {
+    0%, 100% { background-color: transparent; }
+    50% { background-color: #ffeb3b; }
+}
+</style>
 
 <?php include '../includes/footer.php'; ?>
