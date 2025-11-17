@@ -422,7 +422,6 @@ if ($result && $result->num_rows > 0) {
     <!-- Card wrapper for small devices -->
     <div class="d-block d-md-none mb-4">
       <div class="card transactions-card"  style="border-left: 4px solid teal;">
-        <!-- Add title and search bar for small devices -->
         <div class="card-header d-flex justify-content-between align-items-center title-card">
             <span>📋 Product List</span>
             <input type="text" id="productSearchInputMobile" class="form-control" placeholder="Search by product name..." style="width: 170px;">
@@ -440,6 +439,9 @@ if ($result && $result->num_rows > 0) {
                     <th>Selling Price</th>
                     <th>Buying Price</th>
                     <th>Stock</th>
+                    <th>Expected Amount</th> <!-- NEW -->
+                    <th>Profit/Unit</th> <!-- NEW -->
+                    <th>Expected Profits</th> <!-- NEW -->
                     <th>Expiry Date</th>
                     <th>Actions</th>
                   </tr>
@@ -464,42 +466,53 @@ if (abs($daysLeft) <= 7 && !$row['sms_sent']) {
 }
 
 
-        // Highlight expiring products
-        $highlight = "";
-        foreach($expiring_products as $exp){
-            if($row['id'] == $exp['id']){
-                $highlight = "style='background-color: #ffcccc;'"; // light red
-                break;
-            }
-        }
+                          // NEW: Calculate columns
+                          $sellingPrice = floatval($row['selling-price']);
+                          $buyingPrice = floatval($row['buying-price']);
+                          $stock = intval($row['stock']);
+                          $expectedAmount = $sellingPrice * $stock;
+                          $profitPerUnit = $sellingPrice - $buyingPrice;
+                          $expectedProfits = $profitPerUnit * $stock;
 
-        echo "<tr $highlight>
-            <td>{$i}</td>";
-        if (empty($selected_branch) && $user_role !== 'staff') {
-            echo "<td>" . htmlspecialchars($row['branch_name']) . "</td>";
-        }
-        echo "<td>" . htmlspecialchars($row['name']) . "</td>
-            <td>" . htmlspecialchars($row['barcode']) . "</td>
-            <td>UGX " . number_format($row['selling-price'], 2) . "</td>
-            <td>UGX " . number_format($row['buying-price'], 2) . "</td>
-            <td>{$row['stock']}</td>
-            <td>{$row['expiry_date']}</td>
-            <td>
-                <a href='edit_product.php?id={$row['id']}' class='btn btn-sm btn-warning me-1' title='Edit'>
-                  <i class='fa fa-edit'></i>
-                </a>
-                <a href='delete_product.php?id={$row['id']}' class='btn btn-sm btn-danger' title='Delete' onclick='return confirm(\"Are you sure you want to delete this product?\")'>
-                  <i class='fa fa-trash'></i>
-                </a>
-            </td>
-        </tr>";
-        $i++;
-    }
-} else {
-    $colspan = (empty($selected_branch) && $user_role !== 'staff') ? 9 : 8;
-    echo "<tr><td colspan='$colspan' class='text-center text-muted'>No products found.</td></tr>";
-}
-?>
+                          // Highlight expiring products
+                          $highlight = "";
+                          foreach($expiring_products as $exp){
+                              if($row['id'] == $exp['id']){
+                                  $highlight = "style='background-color: #ffcccc;'"; // light red
+                                  break;
+                              }
+                          }
+
+                          echo "<tr $highlight>
+                              <td>{$i}</td>";
+                          if (empty($selected_branch) && $user_role !== 'staff') {
+                              echo "<td>" . htmlspecialchars($row['branch_name']) . "</td>";
+                          }
+                          echo "<td>" . htmlspecialchars($row['name']) . "</td>
+                              <td>" . htmlspecialchars($row['barcode']) . "</td>
+                              <td>UGX " . number_format($sellingPrice, 2) . "</td>
+                              <td>UGX " . number_format($buyingPrice, 2) . "</td>
+                              <td>{$stock}</td>
+                              <td><span class='fw-bold text-primary'>UGX " . number_format($expectedAmount, 2) . "</span></td>
+                              <td><span class='fw-bold text-success'>UGX " . number_format($profitPerUnit, 2) . "</span></td>
+                              <td><span class='fw-bold text-info'>UGX " . number_format($expectedProfits, 2) . "</span></td>
+                              <td>{$row['expiry_date']}</td>
+                              <td>
+                                  <a href='edit_product.php?id={$row['id']}' class='btn btn-sm btn-warning me-1' title='Edit'>
+                                    <i class='fa fa-edit'></i>
+                                  </a>
+                                  <a href='delete_product.php?id={$row['id']}' class='btn btn-sm btn-danger' title='Delete' onclick='return confirm(\"Are you sure you want to delete this product?\")'>
+                                    <i class='fa fa-trash'></i>
+                                  </a>
+                              </td>
+                          </tr>";
+                          $i++;
+                      }
+                  } else {
+                      $colspan = (empty($selected_branch) && $user_role !== 'staff') ? 12 : 11; // Updated colspan
+                      echo "<tr><td colspan='$colspan' class='text-center text-muted'>No products found.</td></tr>";
+                  }
+                  ?>
                 </tbody>
               </table>
             </div>
@@ -513,7 +526,6 @@ if (abs($daysLeft) <= 7 && !$row['sms_sent']) {
         <div class="card-header d-flex justify-content-between align-items-center title-card">
             <span>📋 Product List</span>
             <div class="d-flex align-items-center gap-2">
-                <!-- Search box -->
                 <input type="text" id="productSearchInput" class="form-control" placeholder="Search by product name..." style="width:220px;">
                 <?php if ($user_role !== 'staff'): ?>
                 <form method="GET" class="d-flex align-items-center ms-2">
@@ -544,6 +556,9 @@ if (abs($daysLeft) <= 7 && !$row['sms_sent']) {
                             <th>Selling Price</th>
                             <th>Buying Price</th>
                             <th>Stock</th>
+                            <th>Expected Amount</th> <!-- NEW -->
+                            <th>Profit/Unit</th> <!-- NEW -->
+                            <th>Expected Profits</th> <!-- NEW -->
                             <th>Expiry Date</th>
                             <th>Actions</th>
                         </tr>
@@ -568,6 +583,14 @@ if (abs($daysLeft) <= 7 && !$row['sms_sent']) {
 }
 
 
+                                // NEW: Calculate columns
+                                $sellingPrice = floatval($row['selling-price']);
+                                $buyingPrice = floatval($row['buying-price']);
+                                $stock = intval($row['stock']);
+                                $expectedAmount = $sellingPrice * $stock;
+                                $profitPerUnit = $sellingPrice - $buyingPrice;
+                                $expectedProfits = $profitPerUnit * $stock;
+
                                 // Highlight expiring products
                                 $highlight = "";
                                 foreach($expiring_products as $exp){
@@ -584,9 +607,12 @@ if (abs($daysLeft) <= 7 && !$row['sms_sent']) {
                                 }
                                 echo "<td>" . htmlspecialchars($row['name']) . "</td>
                                     <td>" . htmlspecialchars($row['barcode']) . "</td>
-                                    <td>UGX " . number_format($row['selling-price'], 2) . "</td>
-                                    <td>UGX " . number_format($row['buying-price'], 2) . "</td>
-                                    <td>{$row['stock']}</td>
+                                    <td>UGX " . number_format($sellingPrice, 2) . "</td>
+                                    <td>UGX " . number_format($buyingPrice, 2) . "</td>
+                                    <td>{$stock}</td>
+                                    <td><span class='fw-bold text-primary'>UGX " . number_format($expectedAmount, 2) . "</span></td>
+                                    <td><span class='fw-bold text-success'>UGX " . number_format($profitPerUnit, 2) . "</span></td>
+                                    <td><span class='fw-bold text-info'>UGX " . number_format($expectedProfits, 2) . "</span></td>
                                     <td>{$row['expiry_date']}</td>
                                     <td>
                                         <a href='edit_product.php?id={$row['id']}' class='btn btn-sm btn-warning me-1'>✏️ Edit</a>
@@ -596,7 +622,7 @@ if (abs($daysLeft) <= 7 && !$row['sms_sent']) {
                                 $i++;
                             }
                         } else {
-                            $colspan = (empty($selected_branch) && $user_role !== 'staff') ? 9 : 8;
+                            $colspan = (empty($selected_branch) && $user_role !== 'staff') ? 12 : 11; // Updated colspan
                             echo "<tr><td colspan='$colspan' class='text-center text-muted'>No products found.</td></tr>";
                         }
                         ?>
