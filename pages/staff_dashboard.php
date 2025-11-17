@@ -62,6 +62,21 @@ if (!$checkCTCol || $checkCTCol->num_rows === 0) {
     }
 }
 
+// Ensure debtors.products_json column exists
+$checkDebtorCol = $conn->query("
+    SELECT COLUMN_NAME 
+    FROM INFORMATION_SCHEMA.COLUMNS 
+    WHERE TABLE_SCHEMA = DATABASE() 
+      AND TABLE_NAME = 'debtors' 
+      AND COLUMN_NAME = 'products_json'
+");
+if (!$checkDebtorCol || $checkDebtorCol->num_rows === 0) {
+    $conn->query("ALTER TABLE debtors ADD COLUMN products_json TEXT NULL");
+    if ($conn->errno) {
+        @$conn->query("ALTER TABLE debtors ADD COLUMN products_json TEXT NULL");
+    }
+}
+
 // if ($_SESSION['role'] !== 'staff') {
 //     header("Location: ../auth/login.php");
 //     exit();
@@ -167,11 +182,20 @@ $stmt->execute();
 $low_stock_query = $stmt->get_result();
 $stmt->close();
 
-// Fetch recent sales (match sales.php columns/aliases)
+// Fetch recent sales (match sales.php columns/aliases) - NEW: include products_json
 $sales_stmt = $conn->prepare("
-    SELECT s.id, p.name AS `product-name`, s.quantity, s.amount, s.`sold-by`, s.date, b.name AS branch_name, s.payment_method
+    SELECT s.id, 
+           s.`product-id`,
+           p.name AS `product-name`, 
+           s.quantity, 
+           s.amount, 
+           s.`sold-by`, 
+           s.date, 
+           b.name AS branch_name, 
+           s.payment_method,
+           s.products_json
     FROM sales s
-    JOIN products p ON s.`product-id` = p.id
+    LEFT JOIN products p ON s.`product-id` = p.id
     JOIN branch b ON s.`branch-id` = b.id
     WHERE s.`branch-id` = ?
     ORDER BY s.id DESC
@@ -208,14 +232,18 @@ if (isset($_POST['record_debtor'])) {
     $cart = json_decode($_POST['cart_data'] ?? '[]', true);
     $amount_paid = floatval($_POST['amount_paid'] ?? 0);
 
-    // Calculate item_taken, quantity_taken, total_amount
+    // --- NEW: Store full cart as JSON for proper reconstruction ---
+    $products_json = $_POST['cart_data'] ?? '[]'; // Keep raw JSON string
+    
+    // Calculate item_taken (WITH QUANTITIES like customer debtors), quantity_taken, total_amount
     $item_taken = '';
     $quantity_taken = 0;
     $total_amount = 0;
     if ($cart && is_array($cart)) {
         $item_names = [];
         foreach ($cart as $item) {
-            $item_names[] = $item['name'];
+            // FIX: Include quantity in item_taken display
+            $item_names[] = $item['name'] . ' x' . intval($item['quantity']);
             $quantity_taken += intval($item['quantity']);
             $total_amount += floatval($item['price']) * intval($item['quantity']);
         }
@@ -225,8 +253,9 @@ if (isset($_POST['record_debtor'])) {
 
     // Only insert if all required fields are present
     if ($debtor_name && $quantity_taken > 0 && $balance > 0 && !empty($item_taken)) {
-        $stmt = $conn->prepare("INSERT INTO debtors (debtor_name, debtor_contact, debtor_email, item_taken, quantity_taken, amount_paid, balance, branch_id, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-        $stmt->bind_param("ssssiddiss", $debtor_name, $debtor_contact, $debtor_email, $item_taken, $quantity_taken, $amount_paid, $balance, $branch, $created_by, $date);
+        // Add products_json column to debtors table
+        $stmt = $conn->prepare("INSERT INTO debtors (debtor_name, debtor_contact, debtor_email, item_taken, quantity_taken, amount_paid, balance, branch_id, created_by, created_at, products_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+        $stmt->bind_param("ssssiddiiss", $debtor_name, $debtor_contact, $debtor_email, $item_taken, $quantity_taken, $amount_paid, $balance, $branch, $created_by, $date, $products_json);
         if ($stmt->execute()) {
             $message = "✅ Debtor recorded successfully!";
         } else {
@@ -245,7 +274,6 @@ $customers_res = $cust_stmt->get_result();
 $customers_list = $customers_res ? $customers_res->fetch_all(MYSQLI_ASSOC) : [];
 $cust_stmt->close();
 ?>
-
 
 <!-- Main Content -->
 
@@ -371,29 +399,27 @@ $cust_stmt->close();
             </div>
             <div class="barcode-scan-body">
                 <div class="barcode-scan-view-area">
+                    <label class="me-2">Scan Mode:</label>
                     <video id="barcodeScanVideo" autoplay muted playsinline></video>
+                    <select id="barcodeScanMode" class="form-select d-inline-block" style="width:auto;">
+                        <option value="camera">Camera</option>
+                        <option value="hardware">Barcode Hardware</option>
+                    </select>
                     <canvas id="barcodeScanCanvas" style="display:none;"></canvas>
                     <button type="button" id="rotateCameraBtn" class="btn btn-secondary barcode-rotate-btn" title="Switch Camera">
                         <i class="fa-solid fa-camera-rotate"></i>
                     </button>
                 </div>
+                <div id="barcodeScanStatus" class="barcode-scan-status text-center"></div>
                 <div class="barcode-scan-text mt-3 mb-2 text-center">
                     <span>Scan item to add to cart.</span>
                 </div>
-                <div class="barcode-scan-mode mb-3 text-center">
-                    <label class="me-2">Scan Mode:</label>
-                    <select id="barcodeScanMode" class="form-select d-inline-block" style="width:auto;">
-                        <option value="camera">Camera</option>
-                        <option value="hardware">Barcode Hardware</option>
-                    </select>
-                </div>
-                <div id="barcodeScanStatus" class="barcode-scan-status text-center"></div>
             </div>
         </div>
     </div>
 
     <!-- Debtors Entry Form (hidden, shown by JS if needed) -->
-    <div id="debtorsFormCard" class="card mb-4" style="display:none;" style="border-left: 4px solid teal;">
+    <div id="debtorsFormCard" class="card mb-4" style="display:none; border-left: 4px solid teal;">
         <div class="card-header">Record Debtor</div>
         <div class="card-body">
             <form method="POST" action="" class="row g-3">
@@ -441,7 +467,6 @@ $cust_stmt->close();
         </div>
     </div>
 
-
     <!-- Tabs for Sales and Debtors -->
     <ul class="nav nav-tabs mb-4" id="salesTabs" role="tablist">
         <li class="nav-item" role="presentation">
@@ -455,6 +480,7 @@ $cust_stmt->close();
             </button>
         </li>
     </ul>
+    
     <div class="tab-content" id="salesTabsContent">
         <!-- Recent Sales Table Tab (copied from sales.php, last 10 only, no pagination/filter) -->
         <div class="tab-pane fade show active" id="sales-table" role="tabpanel" aria-labelledby="sales-tab">
@@ -468,7 +494,7 @@ $cust_stmt->close();
                             <thead>
                                 <tr>
                                     <th>#</th>
-                                    <th>Product</th>
+                                    <th>Product(s)</th>
                                     <th>Quantity</th>
                                     <th>Total Price</th>
                                     <th>Payment Method</th>
@@ -480,10 +506,24 @@ $cust_stmt->close();
                                 <?php
                                 $i = 1;
                                 while ($row = $sales_result->fetch_assoc()):
+                                    // Parse products_json if available (SAME LOGIC AS sales.php)
+                                    $products_display = '';
+                                    if ($row['products_json']) {
+                                        $products_data = json_decode($row['products_json'], true);
+                                        if (is_array($products_data)) {
+                                            $products_display = implode(', ', array_map(function($p) {
+                                                return htmlspecialchars($p['name']) . ' x' . $p['quantity'];
+                                            }, $products_data));
+                                        } else {
+                                            $products_display = htmlspecialchars($row['product-name'] ?? 'Unknown');
+                                        }
+                                    } else {
+                                        $products_display = htmlspecialchars($row['product-name'] ?? 'Unknown');
+                                    }
                                 ?>
                                     <tr>
                                         <td><?= $i++ ?></td>
-                                        <td><span class="badge bg-primary"><?= htmlspecialchars($row['product-name']) ?></span></td>
+                                        <td><span class="badge bg-primary"><?= $products_display ?></td>
                                         <td><?= $row['quantity'] ?></td>
                                         <td><span class="fw-bold text-success">UGX <?= number_format($row['amount'], 2) ?></span></td>
                                         <td><?= htmlspecialchars($row['payment_method']) ?></td>
@@ -491,9 +531,6 @@ $cust_stmt->close();
                                         <td><?= htmlspecialchars($row['sold-by']) ?></td>
                                     </tr>
                                 <?php endwhile; ?>
-                                <?php if ($i === 1): ?>
-                                    <tr><td colspan="7" class="text-center text-muted">No recent sales found.</td></tr>
-                                <?php endif; ?>
                             </tbody>
                         </table>
                     </div>
@@ -507,7 +544,7 @@ $cust_stmt->close();
                     <span><i class="fa-solid fa-user-clock"></i> Debtors</span>
                 </div>
                 <div class="card-body table-responsive">
-                    <div class="transactions-table">
+                    <div class="transactions-table"> 
                         <table>
                             <thead>
                                 <tr>
@@ -543,9 +580,9 @@ $cust_stmt->close();
                                             <td>
                                                 <!-- Only show Pay button. Pass debtor metadata for the modal -->
                                                 <button class="btn btn-primary btn-sm btn-pay-debtor"
-                                                    data-id="<?= $debtor['id'] ?>"
-                                                    data-balance="<?= htmlspecialchars($debtor['balance'] ?? 0) ?>"
-                                                    data-name="<?= htmlspecialchars($debtor['debtor_name']) ?>">
+                                                        data-id="<?= $debtor['id'] ?>"
+                                                        data-balance="<?= htmlspecialchars($debtor['balance'] ?? 0) ?>"
+                                                        data-name="<?= htmlspecialchars($debtor['debtor_name']) ?>">
                                                     Pay
                                                 </button>
                                             </td>
@@ -563,7 +600,7 @@ $cust_stmt->close();
             </div>
         </div>
     </div>
-
+</div>
 
 <!-- Debtor Pay Modal (copied from sales.php) -->
 <div class="modal fade" id="payDebtorModal" tabindex="-1" aria-hidden="true">
@@ -575,13 +612,11 @@ $cust_stmt->close();
       </div>
       <div class="modal-body">
         <p id="pdDebtorLabel" class="mb-2 fw-semibold"></p>
-        <p>Outstanding Balance: <strong id="pdBalanceText">UGX 0.00</strong></p>
-        <input type="hidden" id="pdDebtorId" value="">
         <div class="mb-3">
           <label class="form-label">Amount Paid (UGX)</label>
           <input type="number" id="pdAmount" class="form-control" min="0" step="0.01" placeholder="Enter amount">
         </div>
-        <div id="pdMsg"></div>
+        <p>Outstanding Balance: <strong id="pdBalanceText">UGX 0.00</strong></p>
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>

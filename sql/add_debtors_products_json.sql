@@ -1,0 +1,1 @@
+ALTER TABLE debtors ADD COLUMN IF NOT EXISTS products_json TEXT NULL;

@@ -19,7 +19,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pay_debtor'])) {
         exit; 
     }
 
-    $dq = $conn->prepare("SELECT id, customer_id, invoice_no, balance, amount_paid, payment_method, item_taken, quantity_taken FROM debtors WHERE id=? LIMIT 1");
+    $dq = $conn->prepare("SELECT id, customer_id, invoice_no, balance, amount_paid, payment_method, item_taken, quantity_taken, products_json, branch_id FROM debtors WHERE id=? LIMIT 1");
     $dq->bind_param("i", $debtor_id);
     $dq->execute();
     $debtor = $dq->get_result()->fetch_assoc();
@@ -31,6 +31,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pay_debtor'])) {
     }
 
     $remaining = floatval($debtor['balance']);
+    $debtor_branch_id = intval($debtor['branch_id'] ?? $user_branch);
+    
     if ($remaining <= 0) { 
         echo json_encode(['success'=>false,'message'=>'Already settled']); 
         exit; 
@@ -55,105 +57,168 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pay_debtor'])) {
     // Check if this is FULL payment (balance will be zero after this payment)
     $is_full_payment = ($pay_amt >= $remaining);
 
-    if ($is_full_payment) {
-        // Parse item_taken to get individual products
-        $item_taken = $debtor['item_taken'] ?? '';
-        $quantity_taken = intval($debtor['quantity_taken'] ?? 0);
-        $items = array_filter(array_map('trim', explode(',', $item_taken)));
+    try {
+        if ($is_full_payment) {
+            // --- Check if products_json exists (grouped products) ---
+            $products_json = $debtor['products_json'] ?? null;
+            
+            if ($products_json) {
+                // Use products_json for grouped sale (like customer debtors)
+                $products_data = json_decode($products_json, true);
+                
+                if (is_array($products_data) && count($products_data) > 0) {
+                    // Calculate totals for grouped sale
+                    $total_quantity = 0;
+                    $total_amount = 0;
+                    $total_cost = 0;
+                    $total_profit = 0;
 
-        if (count($items) > 0 && $quantity_taken > 0) {
-            // Distribute quantity across items
-            $qty_per_item = ($quantity_taken > 0 && count($items) > 1) ? 1 : $quantity_taken;
+                    foreach ($products_data as $item) {
+                        $product_id = intval($item['id']);
+                        $qty = intval($item['quantity']);
+                        $price = floatval($item['price']);
+                        
+                        // Fetch product details for cost/profit calculation
+                        $pstmt = $conn->prepare("SELECT `buying-price` FROM products WHERE id = ? AND `branch-id` = ? LIMIT 1");
+                        $pstmt->bind_param("ii", $product_id, $debtor_branch_id);
+                        $pstmt->execute();
+                        $prod = $pstmt->get_result()->fetch_assoc();
+                        $pstmt->close();
+                        
+                        $buying_price = $prod ? floatval($prod['buying-price']) : 0;
+                        
+                        $item_total = $price * $qty;
+                        $item_cost = $buying_price * $qty;
+                        
+                        $total_quantity += $qty;
+                        $total_amount += $item_total;
+                        $total_cost += $item_cost;
+                        $total_profit += ($item_total - $item_cost);
+                    }
 
-            // Insert sale record for EACH product
-            foreach ($items as $item_name) {
-                // Find product by name and branch
-                $pstmt = $conn->prepare("SELECT id, `selling-price`, `buying-price` FROM products WHERE name = ? AND `branch-id` = ? LIMIT 1");
-                $pstmt->bind_param("si", $item_name, $user_branch);
-                $pstmt->execute();
-                $prod = $pstmt->get_result()->fetch_assoc();
-                $pstmt->close();
+                    // Insert SINGLE grouped sales record (9 columns = 9 bind params)
+                    // Columns: product-id, branch-id, quantity, amount, sold-by, cost-price, total_profits, date, payment_method, products_json
+                    $sstmt = $conn->prepare("INSERT INTO sales (`product-id`,`branch-id`,quantity,amount,`sold-by`,`cost-price`,total_profits,date,payment_method,products_json) VALUES (0, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                    // Type string: i(branch), i(qty), d(amount), i(sold_by), d(cost), d(profit), s(date), s(pm), s(json)
+                    $sstmt->bind_param("iididdsss", $debtor_branch_id, $total_quantity, $total_amount, $uid, $total_cost, $total_profit, $now, $pm_to_use, $products_json);
+                    if (!$sstmt->execute()) { $ok = false; }
+                    $sstmt->close();
 
-                if ($prod) {
-                    $product_id = intval($prod['id']);
-                    $selling_price = floatval($prod['selling-price']);
-                    $buying_price = floatval($prod['buying-price']);
-                    $item_qty = max(1, $qty_per_item);
-                    $item_amount = $selling_price * $item_qty;
-                    $cost = $buying_price * $item_qty;
-                    $profit = $item_amount - $cost;
-
-                    $insS = $conn->prepare("INSERT INTO sales (`product-id`,`branch-id`,quantity,amount,`sold-by`,`cost-price`,total_profits,`date`,payment_method,customer_id,receipt_no) VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), ?, ?, ?)");
-                    $insS->bind_param("iiididisis", $product_id, $user_branch, $item_qty, $item_amount, $uid, $cost, $profit, $pm_to_use, $cust_id, $receiptNo);
-                    if (!$insS->execute()) { $ok = false; }
-                    $insS->close();
+                    // Update profits (once for grouped sale)
+                    if ($ok) {
+                        $today = date('Y-m-d');
+                        $pf = $conn->prepare("SELECT total, expenses FROM profits WHERE date = ? AND `branch-id` = ?");
+                        $pf->bind_param("si", $today, $debtor_branch_id);
+                        $pf->execute();
+                        $pr = $pf->get_result()->fetch_assoc();
+                        $pf->close();
+                        
+                        if ($pr) {
+                            $new_total = ($pr['total'] ?? 0) + $total_profit;
+                            $expenses = $pr['expenses'] ?? 0;
+                            $net = $new_total - $expenses;
+                            $up = $conn->prepare("UPDATE profits SET total = ?, `net-profits` = ? WHERE date = ? AND `branch-id` = ?");
+                            $up->bind_param("ddsi", $new_total, $net, $today, $debtor_branch_id);
+                            $up->execute();
+                            $up->close();
+                        } else {
+                            $expenses = 0;
+                            $new_total = $total_profit;
+                            $net = $total_profit;
+                            $ins = $conn->prepare("INSERT INTO profits (`branch-id`, total, `net-profits`, expenses, date) VALUES (?, ?, ?, ?, ?)");
+                            $ins->bind_param("iddis", $debtor_branch_id, $new_total, $net, $expenses, $today);
+                            $ins->execute();
+                            $ins->close();
+                        }
+                    }
                 } else {
-                    // Product not found, insert with product-id = 0 as fallback
-                    $insS = $conn->prepare("INSERT INTO sales (`product-id`,`branch-id`,quantity,amount,`sold-by`,`cost-price`,total_profits,`date`,payment_method,customer_id,receipt_no) VALUES (0, ?, ?, ?, ?, 0, 0, NOW(), ?, ?, ?)");
-                    $item_amount = $pay_amt / count($items); // distribute amount
-                    $item_qty = max(1, $qty_per_item);
-                    $insS->bind_param("ididisis", $user_branch, $item_qty, $item_amount, $uid, $pm_to_use, $cust_id, $receiptNo);
+                    // Fallback: single generic sale (5 columns after VALUES)
+                    $sstmt = $conn->prepare("INSERT INTO sales (`product-id`,`branch-id`,quantity,amount,`sold-by`,`cost-price`,total_profits,date,payment_method) VALUES (0, ?, 0, ?, ?, 0, 0, ?, ?)");
+                    // Type string: i(branch), d(amount), i(sold_by), s(date), s(pm)
+                    $sstmt->bind_param("idiss", $debtor_branch_id, $pay_amt, $uid, $now, $pm_to_use);
+                    if (!$sstmt->execute()) { $ok = false; }
+                    $sstmt->close();
+                }
+            } else {
+                // OLD LOGIC: Parse item_taken string (fallback for old debtors without products_json)
+                $items = array_filter(array_map('trim', explode(',', $debtor['item_taken'] ?? '')));
+                $debtor_quantity = intval($debtor['quantity_taken'] ?? 0);
+
+                if (count($items) > 0 && $debtor_quantity > 0) {
+                    // Distribute quantity across items
+                    $qty_per_item = (count($items) > 1) ? 1 : $debtor_quantity;
+
+                    // Insert sale record for EACH product
+                    foreach ($items as $item_name) {
+                        // Remove quantity suffix if present (e.g., "maize x2" -> "maize")
+                        $item_name_clean = preg_replace('/\s*x\d+$/i', '', $item_name);
+                        
+                        // Find product by name and branch
+                        $pstmt = $conn->prepare("SELECT id, `selling-price`, `buying-price` FROM products WHERE name = ? AND `branch-id` = ? LIMIT 1");
+                        $pstmt->bind_param("si", $item_name_clean, $debtor_branch_id);
+                        $pstmt->execute();
+                        $prod = $pstmt->get_result()->fetch_assoc();
+                        $pstmt->close();
+
+                        if ($prod) {
+                            $product_id = intval($prod['id']);
+                            $selling_price = floatval($prod['selling-price']);
+                            $buying_price = floatval($prod['buying-price']);
+                            $item_qty = max(1, $qty_per_item);
+                            $item_amount = $selling_price * $item_qty;
+                            $cost = $buying_price * $item_qty;
+                            $profit = $item_amount - $cost;
+
+                            $insS = $conn->prepare("INSERT INTO sales (`product-id`,`branch-id`,quantity,amount,`sold-by`,`cost-price`,total_profits,date,payment_method) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                            $insS->bind_param("iiididdss", $product_id, $debtor_branch_id, $item_qty, $item_amount, $uid, $cost, $profit, $now, $pm_to_use);
+                            if (!$insS->execute()) { $ok = false; }
+                            $insS->close();
+                        } else {
+                            // Product not found, insert with product-id = 0 as fallback
+                            $item_amount = $pay_amt / count($items); // distribute amount
+                            $item_qty = max(1, $qty_per_item);
+                            $insS = $conn->prepare("INSERT INTO sales (`product-id`,`branch-id`,quantity,amount,`sold-by`,`cost-price`,total_profits,date,payment_method) VALUES (0, ?, ?, ?, ?, 0, 0, ?, ?)");
+                            $insS->bind_param("ididss", $debtor_branch_id, $item_qty, $item_amount, $uid, $now, $pm_to_use);
+                            if (!$insS->execute()) { $ok = false; }
+                            $insS->close();
+                        }
+                    }
+                } else {
+                    // No items found, fallback to generic "Debtor Repayment"
+                    $insS = $conn->prepare("INSERT INTO sales (`product-id`,`branch-id`,quantity,amount,`sold-by`,`cost-price`,total_profits,date,payment_method) VALUES (0, ?, 0, ?, ?, 0, 0, ?, ?)");
+                    $insS->bind_param("idiss", $debtor_branch_id, $pay_amt, $uid, $now, $pm_to_use);
                     if (!$insS->execute()) { $ok = false; }
                     $insS->close();
                 }
             }
+
+            // Delete debtor record (full payment)
+            if ($ok) {
+                $dstmt = $conn->prepare("DELETE FROM debtors WHERE id = ?");
+                $dstmt->bind_param("i", $debtor_id);
+                if (!$dstmt->execute()) { $ok = false; }
+                $dstmt->close();
+            }
         } else {
-            // No items found, fallback to generic "Debtor Repayment"
-            $insS = $conn->prepare("INSERT INTO sales (`product-id`,`branch-id`,quantity,amount,`sold-by`,`cost-price`,total_profits,`date`,payment_method,customer_id,receipt_no) VALUES (0, ?, 0, ?, ?, 0, 0, NOW(), ?, ?, ?)");
-            $insS->bind_param("idisis", $user_branch, $pay_amt, $uid, $pm_to_use, $cust_id, $receiptNo);
-            if (!$insS->execute()) { $ok = false; }
-            $insS->close();
+            // Partial payment: update debtor balance
+            $new_balance = $remaining - $pay_amt;
+            $new_paid = floatval($debtor['amount_paid']) + $pay_amt;
+            $ustmt = $conn->prepare("UPDATE debtors SET balance = ?, amount_paid = ? WHERE id = ?");
+            $ustmt->bind_param("ddi", $new_balance, $new_paid, $debtor_id);
+            if (!$ustmt->execute()) { $ok = false; }
+            $ustmt->close();
         }
 
-        // DELETE debtor record (full payment clears debt)
-        if ($ok) {
-            $delStmt = $conn->prepare("DELETE FROM debtors WHERE id = ?");
-            $delStmt->bind_param("i", $debtor_id);
-            if (!$delStmt->execute()) { $ok = false; }
-            $delStmt->close();
+        if ($ok) { 
+            $conn->commit(); 
+            echo json_encode(['success'=>true,'reload'=>true]); 
+        } else {
+            $conn->rollback();
+            echo json_encode(['success'=>false,'message'=>'Failed to process payment']);
         }
-
-    } else {
-        // Partial payment: insert generic repayment record and UPDATE debtor balance
-        $insS = $conn->prepare("INSERT INTO sales (`product-id`,`branch-id`,quantity,amount,`sold-by`,`cost-price`,total_profits,`date`,payment_method,customer_id,receipt_no) VALUES (0, ?, 0, ?, ?, 0, 0, NOW(), ?, ?, ?)");
-        $insS->bind_param("idisis", $user_branch, $pay_amt, $uid, $pm_to_use, $cust_id, $receiptNo);
-        if (!$insS->execute()) { $ok = false; }
-        $insS->close();
-
-        if ($ok) {
-            $new_bal = max(0.0, $remaining - $pay_amt);
-            $ud = $conn->prepare("UPDATE debtors SET balance = ?, amount_paid = amount_paid + ?, receipt_no = ? WHERE id = ?");
-            $ud->bind_param("ddsi", $new_bal, $pay_amt, $receiptNo, $debtor_id);
-            if (!$ud->execute()) { $ok = false; }
-            $ud->close();
-        }
-    }
-
-    if ($ok && $cust_id > 0) {
-        $invoice_no = $debtor['invoice_no'] ?? '';
-        $products_text = "Repayment of invoice no. " . $invoice_no;
-        $sold_by_name = $_SESSION['username'] ?? 'staff';
-        $status = 'credit repayment';
-        
-        $ct = $conn->prepare("INSERT INTO customer_transactions (customer_id, date_time, products_bought, amount_paid, amount_credited, sold_by, status, invoice_receipt_no) VALUES (?, ?, ?, ?, 0, ?, ?, ?)");
-        $ct->bind_param("issdsss", $cust_id, $now, $products_text, $pay_amt, $sold_by_name, $status, $receiptNo);
-        if (!$ct->execute()) { $ok = false; }
-        $ct->close();
-    }
-
-    if ($ok && $cust_id > 0) {
-        $uc = $conn->prepare("UPDATE customers SET amount_credited = GREATEST(0, amount_credited - ?) WHERE id = ?");
-        $uc->bind_param("di", $pay_amt, $cust_id);
-        if (!$uc->execute()) { $ok = false; }
-        $uc->close();
-    }
-
-    if ($ok) { 
-        $conn->commit(); 
-        echo json_encode(['success'=>true,'reload'=>true]); 
-    } else { 
-        $conn->rollback(); 
-        echo json_encode(['success'=>false,'message'=>'Failed to record repayment']); 
+    } catch (Throwable $e) {
+        $conn->rollback();
+        echo json_encode(['success'=>false,'message'=>'Error: '.$e->getMessage()]);
     }
     exit;
 }
@@ -318,6 +383,9 @@ $conn->query("ALTER TABLE debtors ADD COLUMN IF NOT EXISTS payment_method VARCHA
 if ($conn->errno) { @$conn->query("ALTER TABLE debtors ADD COLUMN payment_method VARCHAR(50) NULL"); }
 $conn->query("ALTER TABLE customer_transactions ADD COLUMN IF NOT EXISTS invoice_receipt_no VARCHAR(32) NULL");
 if ($conn->errno) { @$conn->query("ALTER TABLE customer_transactions ADD COLUMN invoice_receipt_no VARCHAR(32) NULL"); }
+// NEW: ensure sales.products_json column exists
+$conn->query("ALTER TABLE sales ADD COLUMN IF NOT EXISTS products_json TEXT NULL");
+if ($conn->errno) { @$conn->query("ALTER TABLE sales ADD COLUMN products_json TEXT NULL"); }
 
 $message = "";
 $user_role   = $_SESSION['role'];
@@ -360,10 +428,12 @@ $total_row = $total_result->fetch_assoc();
 $total_items = $total_row['total'];
 $total_pages = ceil($total_items / $items_per_page);
 
-// Fetch sales for current page
+// Fetch sales for current page (MODIFIED to show products from JSON)
 $sales_query = "
     SELECT sales.id, 
+           sales.`product-id`,
            COALESCE(products.name, CASE 
+               WHEN sales.`product-id` = 0 AND sales.products_json IS NOT NULL THEN 'Multiple Products'
                WHEN sales.`product-id` = 0 THEN 'Debtor Repayment'
                ELSE 'Unknown'
            END) AS `product-name`, 
@@ -373,7 +443,8 @@ $sales_query = "
            sales.date, 
            branch.name AS branch_name, 
            sales.payment_method,
-           sales.receipt_no
+           sales.receipt_no,
+           sales.products_json
     FROM sales
     LEFT JOIN products ON sales.`product-id` = products.id
     JOIN branch ON sales.`branch-id` = branch.id
@@ -455,6 +526,7 @@ $customer_debtors_result = $conn->query("
     ORDER BY ct.date_time DESC
     LIMIT 100
 ");
+
 
 // --- NEW: Fetch Product Summary data ---
 $product_summary_where = [];
@@ -859,7 +931,7 @@ $product_summary_result = $conn->query("
                                 <tr>
                                     <th>#</th>
                                     <?php if ($user_role !== 'staff' && empty($selected_branch)) echo "<th>Branch</th>"; ?>
-                                    <th>Product</th>
+                                    <th>Product(s)</th>
                                     <th>Quantity</th>
                                     <th>Total Price</th>
                                     <th>Payment Method</th>
@@ -871,11 +943,25 @@ $product_summary_result = $conn->query("
                                 <?php
                                 $i = $offset + 1;
                                 while ($row = $sales->fetch_assoc()):
+                                    // Parse products_json if available
+                                    $products_display = '';
+                                    if ($row['products_json']) {
+                                        $products_data = json_decode($row['products_json'], true);
+                                        if (is_array($products_data)) {
+                                            $products_display = implode(', ', array_map(function($p) {
+                                                return htmlspecialchars($p['name']) . ' x' . $p['quantity'];
+                                            }, $products_data));
+                                        } else {
+                                            $products_display = htmlspecialchars($row['product-name']);
+                                        }
+                                    } else {
+                                        $products_display = htmlspecialchars($row['product-name']);
+                                    }
                                 ?>
                                     <tr>
                                         <td><?= $i++ ?></td>
                                         <?php if ($user_role !== 'staff' && empty($selected_branch)) echo "<td>" . htmlspecialchars($row['branch_name']) . "</td>"; ?>
-                                        <td><span class="badge bg-primary"><?= htmlspecialchars($row['product-name']) ?></span></td>
+                                        <td><span class="badge bg-primary"><?= $products_display ?></span></td>
                                         <td><?= $row['quantity'] ?></td>
                                         <td><span class="fw-bold text-success">UGX<?= number_format($row['amount'], 2) ?></span></td>
                                         <td><?= htmlspecialchars($row['payment_method']) ?></td>
@@ -1380,7 +1466,7 @@ document.querySelectorAll('.btn-pay-customer-debtor').forEach(btn => {
         document.getElementById('pdAmount').value = '';
         document.getElementById('pdMsg').innerHTML = '';
         payModalEl.dataset.outstanding = String(balance);
-        payModalEl.dataset.isCustomerDebtor = '1';
+               payModalEl.dataset.isCustomerDebtor = '1';
         
         // Hide payment method for customer debtors (always 'Customer File')
         document.getElementById('pdMethodWrap').style.display = 'none';
@@ -1455,6 +1541,7 @@ document.getElementById('pdConfirmBtn').addEventListener('click', async () => {
 /* ...existing code... */
 
 /* Sub-tabs styling */
+
 #debtorSubTabs .nav-link {
     border-radius: 8px;
     padding: 0.5rem 1.2rem;
