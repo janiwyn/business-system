@@ -92,6 +92,21 @@ if (!$checkDebtorInvoiceCol || $checkDebtorInvoiceCol->num_rows === 0) {
     }
 }
 
+// Ensure debtors.due_date column exists
+$checkDebtorDueDateCol = $conn->query("
+    SELECT COLUMN_NAME 
+    FROM INFORMATION_SCHEMA.COLUMNS 
+    WHERE TABLE_SCHEMA = DATABASE() 
+      AND TABLE_NAME = 'debtors' 
+      AND COLUMN_NAME = 'due_date'
+");
+if (!$checkDebtorDueDateCol || $checkDebtorDueDateCol->num_rows === 0) {
+    $conn->query("ALTER TABLE debtors ADD COLUMN due_date DATE NULL");
+    if ($conn->errno) {
+        @$conn->query("ALTER TABLE debtors ADD COLUMN due_date DATE NULL");
+    }
+}
+
 // if ($_SESSION['role'] !== 'staff') {
 //     header("Location: ../auth/login.php");
 //     exit();
@@ -222,9 +237,9 @@ $sales_stmt->execute();
 $sales_result = $sales_stmt->get_result();
 $sales_stmt->close();
 
-// Fetch recent debtors (match sales.php columns/aliases)
+// Fetch recent debtors (match sales.php columns/aliases) - ADD due_date
 $debtors_stmt = $conn->prepare("
-    SELECT id, debtor_name, debtor_email, item_taken, quantity_taken, amount_paid, balance, is_paid, created_at
+    SELECT id, debtor_name, debtor_email, item_taken, quantity_taken, amount_paid, balance, is_paid, created_at, due_date
     FROM debtors
     WHERE branch_id = ?
     ORDER BY created_at DESC
@@ -590,12 +605,27 @@ $cust_stmt->close();
                                     <th>Amount Paid</th>
                                     <th>Balance</th>
                                     <th>Paid Status</th>
+                                    <th>Due Date</th>
                                     <th>Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <?php if ($debtors_result && $debtors_result->num_rows > 0): ?>
                                     <?php while ($debtor = $debtors_result->fetch_assoc()): ?>
+                                        <?php
+                                        // Check if due date button should be shown
+                                        $show_due_date_btn = true;
+                                        $due_date_display = '-';
+                                        if ($debtor['due_date']) {
+                                            $due_date_display = date('M d, Y', strtotime($debtor['due_date']));
+                                            $today = new DateTime();
+                                            $due = new DateTime($debtor['due_date']);
+                                            $diff = $today->diff($due);
+                                            $days_diff = (int)$diff->format('%r%a');
+                                            // Show button if due date exceeded by 4+ days
+                                            $show_due_date_btn = ($days_diff < -3);
+                                        }
+                                        ?>
                                         <tr>
                                             <td><?= date("M d, Y H:i", strtotime($debtor['created_at'])); ?></td>
                                             <td><?= htmlspecialchars($debtor['debtor_name']); ?></td>
@@ -612,6 +642,18 @@ $cust_stmt->close();
                                                 <?php endif; ?>
                                             </td>
                                             <td>
+                                                <?php if ($show_due_date_btn): ?>
+                                                    <button class="btn btn-sm btn-outline-primary set-due-date-btn-staff" 
+                                                            data-id="<?= $debtor['id'] ?>"
+                                                            data-name="<?= htmlspecialchars($debtor['debtor_name']) ?>"
+                                                            title="Set Due Date">
+                                                        <i class="fa fa-calendar"></i>
+                                                    </button>
+                                                <?php else: ?>
+                                                    <span class="text-muted"><?= $due_date_display ?></span>
+                                                <?php endif; ?>
+                                            </td>
+                                            <td>
                                                 <!-- Only show Pay button. Pass debtor metadata for the modal -->
                                                 <button class="btn btn-primary btn-sm btn-pay-debtor"
                                                         data-id="<?= $debtor['id'] ?>"
@@ -624,7 +666,7 @@ $cust_stmt->close();
                                     <?php endwhile; ?>
                                 <?php else: ?>
                                     <tr>
-                                        <td colspan="9" class="text-center text-muted">No debtors recorded yet.</td>
+                                        <td colspan="10" class="text-center text-muted">No debtors recorded yet.</td>
                                     </tr>
                                 <?php endif; ?>
                             </tbody>
@@ -655,6 +697,31 @@ $cust_stmt->close();
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
         <button type="button" id="pdConfirmBtn" class="btn btn-primary">OK</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- NEW: Set Due Date Modal (Staff) -->
+<div class="modal fade" id="setDueDateModalStaff" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header" style="background:var(--primary-color);color:#fff;">
+        <h5 class="modal-title">Set Due Date</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p id="ddDebtorLabelStaff" class="mb-3 fw-semibold"></p>
+        <input type="hidden" id="ddDebtorIdStaff" value="">
+        <div class="mb-3">
+          <label class="form-label">Expected Payment Date</label>
+          <input type="date" id="ddDueDateStaff" class="form-control" min="<?= date('Y-m-d') ?>">
+        </div>
+        <div id="ddMsgStaff"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" id="ddConfirmBtnStaff" class="btn btn-primary">OK</button>
       </div>
     </div>
   </div>

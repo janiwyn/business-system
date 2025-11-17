@@ -177,7 +177,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pay_debtor'])) {
                             $cost = $buying_price * $item_qty;
                             $profit = $item_amount - $cost;
 
-                            // INSERT INTO sales (product-id, branch-id, quantity, amount, sold-by, cost-price, total_profits, date, payment_method, receipt_no)
+                            // INSERT INTO sales (product-id, branch-id, quantity, amount, sold-by, cost-price, total-profits, date, payment_method, receipt_no)
                             // VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                             // Parameters: 1=product_id(i), 2=branch_id(i), 3=item_qty(i), 4=item_amount(d), 5=uid(i), 6=cost(d), 7=profit(d), 8=now(s), 9=pm_to_use(s), 10=receiptNo(s)
                             // COUNT: 10 parameters = 10 type chars
@@ -188,7 +188,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pay_debtor'])) {
                             $insS->close();
                         } else {
                             // Product not found, insert with product-id = 0 as fallback
-                            // INSERT INTO sales (product-id, branch-id, quantity, amount, sold-by, cost-price, total_profits, date, payment_method, receipt_no)
+                            // INSERT INTO sales (product-id, branch-id, quantity, amount, sold-by, cost-price, total-profits, date, payment_method, receipt_no)
                             // VALUES (0, ?, ?, ?, ?, 0, 0, ?, ?, ?)
                             // Parameters: 1=branch_id(i), 2=item_qty(i), 3=item_amount(d), 4=uid(i), 5=now(s), 6=pm_to_use(s), 7=receiptNo(s)
                             // COUNT: 7 parameters = 7 type chars
@@ -201,7 +201,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pay_debtor'])) {
                     }
                 } else {
                     // No items found, fallback to generic "Debtor Repayment"
-                    // INSERT INTO sales (product-id, branch-id, quantity, amount, sold-by, cost-price, total_profits, date, payment_method, receipt_no)
+                    // INSERT INTO sales (product-id, branch-id, quantity, amount, sold-by, cost-price, total-profits, date, payment_method, receipt_no)
                     // VALUES (0, ?, 0, ?, ?, 0, 0, ?, ?)
                     // Parameters: 1=branch_id(i), 2=pay_amt(d), 3=uid(i), 4=now(s), 5=pm_to_use(s), 6=receiptNo(s)
                     // COUNT: 6 parameters = 6 type chars
@@ -370,6 +370,50 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pay_customer_debtor']
     exit;
 }
 
+// NEW: AJAX handler for setting due date (shop debtors)
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['set_due_date'])) {
+    header('Content-Type: application/json; charset=utf-8');
+    $debtor_id = intval($_POST['debtor_id'] ?? 0);
+    $due_date = trim($_POST['due_date'] ?? '');
+    
+    if ($debtor_id <= 0 || !$due_date) {
+        echo json_encode(['success' => false, 'message' => 'Invalid input']);
+        exit;
+    }
+    
+    $stmt = $conn->prepare("UPDATE debtors SET due_date = ? WHERE id = ?");
+    $stmt->bind_param("si", $due_date, $debtor_id);
+    if ($stmt->execute()) {
+        echo json_encode(['success' => true]);
+    } else {
+        echo json_encode(['success' => false, 'message' => $stmt->error]);
+    }
+    $stmt->close();
+    exit;
+}
+
+// NEW: AJAX handler for setting due date (customer debtors)
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['set_customer_due_date'])) {
+    header('Content-Type: application/json; charset=utf-8');
+    $transaction_id = intval($_POST['transaction_id'] ?? 0);
+    $due_date = trim($_POST['due_date'] ?? '');
+    
+    if ($transaction_id <= 0 || !$due_date) {
+        echo json_encode(['success' => false, 'message' => 'Invalid input']);
+        exit;
+    }
+    
+    $stmt = $conn->prepare("UPDATE customer_transactions SET due_date = ? WHERE id = ?");
+    $stmt->bind_param("si", $due_date, $transaction_id);
+    if ($stmt->execute()) {
+        echo json_encode(['success' => true]);
+    } else {
+        echo json_encode(['success' => false, 'message' => $stmt->error]);
+    }
+    $stmt->close();
+    exit;
+}
+
 // --- STEP 3: NOW include auth, sidebar, header (HTML output starts here) ---
 include '../includes/auth.php';
 require_role(["admin", "manager", "staff"]);
@@ -401,6 +445,12 @@ if ($conn->errno) { @$conn->query("ALTER TABLE customer_transactions ADD COLUMN 
 // NEW: ensure sales.products_json column exists
 $conn->query("ALTER TABLE sales ADD COLUMN IF NOT EXISTS products_json TEXT NULL");
 if ($conn->errno) { @$conn->query("ALTER TABLE sales ADD COLUMN products_json TEXT NULL"); }
+// NEW: ensure debtors.due_date column exists
+$conn->query("ALTER TABLE debtors ADD COLUMN IF NOT EXISTS due_date DATE NULL");
+if ($conn->errno) { @$conn->query("ALTER TABLE debtors ADD COLUMN due_date DATE NULL"); }
+// NEW: ensure customer_transactions.due_date column exists
+$conn->query("ALTER TABLE customer_transactions ADD COLUMN IF NOT EXISTS due_date DATE NULL");
+if ($conn->errno) { @$conn->query("ALTER TABLE customer_transactions ADD COLUMN due_date DATE NULL"); }
 
 $message = "";
 $user_role   = $_SESSION['role'];
@@ -498,9 +548,9 @@ if (!empty($_GET['debtor_date_to'])) {
 }
 $debtorWhereClause = count($debtor_where) ? "WHERE " . implode(' AND ', $debtor_where) : "";
 
-// Fetch debtors for the table (ADD products_json column)
+// Fetch debtors for the table (ADD due_date column)
 $debtors_result = $conn->query("
-    SELECT id, debtor_name, debtor_email, debtor_contact, item_taken, quantity_taken, payment_method, amount_paid, balance, is_paid, created_at, invoice_no, products_json
+    SELECT id, debtor_name, debtor_email, debtor_contact, item_taken, quantity_taken, payment_method, amount_paid, balance, is_paid, created_at, invoice_no, products_json, due_date
     FROM debtors
     $debtorWhereClause
     ORDER BY created_at DESC
@@ -533,7 +583,8 @@ $customer_debtors_result = $conn->query("
         ct.amount_paid,
         ct.amount_credited AS balance,
         ct.sold_by,
-        ct.status
+        ct.status,
+        ct.due_date
     FROM customer_transactions ct
     JOIN customers c ON ct.customer_id = c.id
     WHERE ct.status = 'debtor'
@@ -1057,6 +1108,7 @@ $product_summary_result = $conn->query("
                                                 <th>Amount Paid</th>
                                                 <th>Balance</th>
                                                 <th>Paid Status</th>
+                                                <th>Due Date</th>
                                                 <th>Actions</th>
                                             </tr>
                                         </thead>
@@ -1117,6 +1169,33 @@ $product_summary_result = $conn->query("
                                                             <?php endif; ?>
                                                         </td>
                                                         <td>
+                                                            <?php
+                                                            // Check if due date button should be shown
+                                                            $show_due_date_btn = true;
+                                                            $due_date_display = '-';
+                                                            if ($debtor['due_date']) {
+                                                                $due_date_display = date('M d, Y', strtotime($debtor['due_date']));
+                                                                $today = new DateTime();
+                                                                $due = new DateTime($debtor['due_date']);
+                                                                $diff = $today->diff($due);
+                                                                $days_diff = (int)$diff->format('%r%a');
+                                                                // Show button if due date exceeded by 4+ days
+                                                                $show_due_date_btn = ($days_diff < -3);
+                                                            }
+                                                            ?>
+                                                            <?php if ($show_due_date_btn): ?>
+                                                                <button class="btn btn-sm btn-outline-primary set-due-date-btn" 
+                                                                        data-type="shop"
+                                                                        data-id="<?= $debtor['id'] ?>"
+                                                                        data-name="<?= htmlspecialchars($debtor['debtor_name']) ?>"
+                                                                        title="Set Due Date">
+                                                                    <i class="fa fa-calendar"></i>
+                                                                </button>
+                                                            <?php else: ?>
+                                                                <span class="text-muted"><?= $due_date_display ?></span>
+                                                            <?php endif; ?>
+                                                        </td>
+                                                        <td>
                                                             <button class="btn btn-primary btn-sm btn-pay-debtor"
                                                                 data-id="<?= $debtor['id'] ?>"
                                                                 data-balance="<?= htmlspecialchars($debtor['balance'] ?? 0) ?>"
@@ -1143,7 +1222,7 @@ $product_summary_result = $conn->query("
                                                 <?php endwhile; ?>
                                             <?php else: ?>
                                                 <tr>
-                                                    <td colspan="11" class="text-center text-muted">No shop debtors recorded yet.</td>
+                                                    <td colspan="12" class="text-center text-muted">No shop debtors recorded yet.</td>
                                                 </tr>
                                             <?php endif; ?>
                                         </tbody>
@@ -1171,6 +1250,7 @@ $product_summary_result = $conn->query("
                                                 <th>Payment Method</th>
                                                 <th>Amount Paid</th>
                                                 <th>Balance</th>
+                                                <th>Due Date</th>
                                                 <th>Actions</th>
                                             </tr>
                                         </thead>
@@ -1214,6 +1294,33 @@ $product_summary_result = $conn->query("
                                                         <td><?= htmlspecialchars('Customer File'); ?></td>
                                                         <td>UGX <?= number_format($cd['amount_paid'] ?? 0, 2); ?></td>
                                                         <td>UGX <?= number_format($cd['balance'] ?? 0, 2); ?></td>
+                                                        <td>
+                                                            <?php
+                                                            // Check if due date button should be shown
+                                                            $show_due_date_btn = true;
+                                                            $due_date_display = '-';
+                                                            if ($cd['due_date']) {
+                                                                $due_date_display = date('M d, Y', strtotime($cd['due_date']));
+                                                                $today = new DateTime();
+                                                                $due = new DateTime($cd['due_date']);
+                                                                $diff = $today->diff($due);
+                                                                $days_diff = (int)$diff->format('%r%a');
+                                                                // Show button if due date exceeded by 4+ days
+                                                                $show_due_date_btn = ($days_diff < -3);
+                                                            }
+                                                            ?>
+                                                            <?php if ($show_due_date_btn): ?>
+                                                                <button class="btn btn-sm btn-outline-primary set-due-date-btn" 
+                                                                        data-type="customer"
+                                                                        data-id="<?= $cd['id'] ?>"
+                                                                        data-name="<?= htmlspecialchars($cd['debtor_name']) ?>"
+                                                                        title="Set Due Date">
+                                                                    <i class="fa fa-calendar"></i>
+                                                                </button>
+                                                            <?php else: ?>
+                                                                <span class="text-muted"><?= $due_date_display ?></span>
+                                                            <?php endif; ?>
+                                                        </td>
                                                         <td>
                                                             <button class="btn btn-primary btn-sm btn-pay-customer-debtor"
                                                                 data-id="<?= $cd['id'] ?>"
@@ -1397,6 +1504,32 @@ $product_summary_result = $conn->query("
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
         <button type="button" id="pdConfirmBtn" class="btn btn-primary">OK</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- NEW: Set Due Date Modal -->
+<div class="modal fade" id="setDueDateModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header" style="background:var(--primary-color);color:#fff;">
+        <h5 class="modal-title">Set Due Date</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p id="ddDebtorLabel" class="mb-3 fw-semibold"></p>
+        <input type="hidden" id="ddDebtorId" value="">
+        <input type="hidden" id="ddDebtorType" value="">
+        <div class="mb-3">
+          <label class="form-label">Expected Payment Date</label>
+          <input type="date" id="ddDueDate" class="form-control" min="<?= date('Y-m-d') ?>">
+        </div>
+        <div id="ddMsg"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" id="ddConfirmBtn" class="btn btn-primary">OK</button>
       </div>
     </div>
   </div>
@@ -1697,6 +1830,100 @@ document.addEventListener('DOMContentLoaded', function() {
         console.log('Form created, submitting...'); // DEBUG
         form.submit();
         setTimeout(() => document.body.removeChild(form), 1000);
+    }
+});
+
+// NEW: Set Due Date button handler (FIXED - use event delegation)
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Due date script initialized'); // DEBUG
+    
+    // Use event delegation on document.body to catch clicks on dynamically loaded buttons
+    document.body.addEventListener('click', function(e) {
+        const btn = e.target.closest('.set-due-date-btn');
+        if (!btn) return;
+        
+        e.preventDefault();
+        e.stopPropagation();
+        
+        const type = btn.getAttribute('data-type');
+        const id = btn.getAttribute('data-id');
+        const name = btn.getAttribute('data-name');
+        
+        console.log('Set due date clicked:', { type, id, name }); // DEBUG
+        
+        if (!window.bootstrap) {
+            console.error('Bootstrap not loaded!');
+            alert('System error: Bootstrap not loaded. Please refresh the page.');
+            return;
+        }
+        
+        const dueDateModal = new bootstrap.Modal(document.getElementById('setDueDateModal'));
+        document.getElementById('ddDebtorLabel').textContent = `Debtor: ${name}`;
+        document.getElementById('ddDebtorId').value = id;
+        document.getElementById('ddDebtorType').value = type;
+        document.getElementById('ddDueDate').value = '';
+        document.getElementById('ddMsg').innerHTML = '';
+        
+        dueDateModal.show();
+    });
+    
+    // Confirm due date setting
+    const confirmBtn = document.getElementById('ddConfirmBtn');
+    if (confirmBtn) {
+        confirmBtn.addEventListener('click', async function() {
+            const id = document.getElementById('ddDebtorId').value;
+            const type = document.getElementById('ddDebtorType').value;
+            const dueDate = document.getElementById('ddDueDate').value;
+            const ddMsg = document.getElementById('ddMsg');
+            const ddConfirmBtn = this;
+            
+            console.log('Confirm clicked:', { id, type, dueDate }); // DEBUG
+            
+            if (!dueDate) {
+                ddMsg.innerHTML = '<div class="alert alert-warning">Please select a date.</div>';
+                return;
+            }
+            
+            ddConfirmBtn.disabled = true;
+            ddConfirmBtn.textContent = 'Saving...';
+            
+            try {
+                const formData = new FormData();
+                if (type === 'shop') {
+                    formData.append('set_due_date', '1');
+                    formData.append('debtor_id', id);
+                } else {
+                    formData.append('set_customer_due_date', '1');
+                    formData.append('transaction_id', id);
+                }
+                formData.append('due_date', dueDate);
+                
+                const res = await fetch(location.pathname, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await res.json();
+                
+                ddConfirmBtn.disabled = false;
+                ddConfirmBtn.textContent = 'OK';
+                
+                if (data.success) {
+                    ddMsg.innerHTML = '<div class="alert alert-success">Due date set successfully!</div>';
+                    setTimeout(() => {
+                        bootstrap.Modal.getInstance(document.getElementById('setDueDateModal')).hide();
+                        location.reload();
+                    }, 800);
+                } else {
+                    ddMsg.innerHTML = '<div class="alert alert-danger">' + (data.message || 'Error setting due date') + '</div>';
+                }
+            } catch (err) {
+                console.error('Error:', err);
+                ddConfirmBtn.disabled = false;
+                ddConfirmBtn.textContent = 'OK';
+                ddMsg.innerHTML = '<div class="alert alert-danger">Error setting due date. Check console.</div>';
+            }
+        });
     }
 });
 </script>

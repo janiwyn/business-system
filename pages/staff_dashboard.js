@@ -510,6 +510,73 @@ document.addEventListener('DOMContentLoaded', function() {
 
     ensureBootstrap(initPayModal);
 
+    // NEW: Set Due Date button handler (Staff) - FIXED with event delegation
+    document.body.addEventListener('click', function(e) {
+        const btn = e.target.closest('.set-due-date-btn-staff');
+        if (!btn) return;
+        
+        const id = btn.getAttribute('data-id');
+        const name = btn.getAttribute('data-name');
+        
+        console.log('Set due date clicked (staff):', { id, name }); // DEBUG
+        
+        const dueDateModal = new bootstrap.Modal(document.getElementById('setDueDateModalStaff'));
+        document.getElementById('ddDebtorLabelStaff').textContent = `Debtor: ${name}`;
+        document.getElementById('ddDebtorIdStaff').value = id;
+        document.getElementById('ddDueDateStaff').value = '';
+        document.getElementById('ddMsgStaff').innerHTML = '';
+        
+        dueDateModal.show();
+    });
+    
+    // Confirm due date setting (Staff)
+    document.getElementById('ddConfirmBtnStaff')?.addEventListener('click', async function() {
+        const id = document.getElementById('ddDebtorIdStaff').value;
+        const dueDate = document.getElementById('ddDueDateStaff').value;
+        const ddMsg = document.getElementById('ddMsgStaff');
+        const ddConfirmBtn = this;
+        
+        if (!dueDate) {
+            ddMsg.innerHTML = '<div class="alert alert-warning">Please select a date.</div>';
+            return;
+        }
+        
+        ddConfirmBtn.disabled = true;
+        ddConfirmBtn.textContent = 'Saving...';
+        
+        try {
+            const formData = new FormData();
+            formData.append('set_due_date', '1');
+            formData.append('debtor_id', id);
+            formData.append('due_date', dueDate);
+            
+            const res = await fetch('sales.php', {
+                method: 'POST',
+                body: formData
+            });
+            
+            const data = await res.json();
+            
+            ddConfirmBtn.disabled = false;
+            ddConfirmBtn.textContent = 'OK';
+            
+            if (data.success) {
+                ddMsg.innerHTML = '<div class="alert alert-success">Due date set successfully!</div>';
+                setTimeout(() => {
+                    bootstrap.Modal.getInstance(document.getElementById('setDueDateModalStaff')).hide();
+                    location.reload();
+                }, 800);
+            } else {
+                ddMsg.innerHTML = '<div class="alert alert-danger">' + (data.message || 'Error setting due date') + '</div>';
+            }
+        } catch (err) {
+            console.error('Error:', err);
+            ddConfirmBtn.disabled = false;
+            ddConfirmBtn.textContent = 'OK';
+            ddMsg.innerHTML = '<div class="alert alert-danger">Error setting due date. Check console.</div>';
+        }
+    });
+
     // Welcome balls animation (IIFE can stay outside DOMContentLoaded)
     (function() {
       const banner = document.querySelector('.welcome-banner');
