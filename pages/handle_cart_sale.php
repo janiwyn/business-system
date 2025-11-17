@@ -56,13 +56,8 @@ if (isset($_POST['submit_cart']) && !empty($_POST['cart_data'])) {
         
         // If insufficient balance: ONLY record customer debtor, DO NOT record sales
         if ($customer_balance < $total) {
-            // Generate INVOICE number
-            try {
-                $inv4 = str_pad((string)random_int(0, 9999), 4, '0', STR_PAD_LEFT);
-            } catch (Throwable $e) {
-                $inv4 = str_pad((string)mt_rand(0, 9999), 4, '0', STR_PAD_LEFT);
-            }
-            $receipt_invoice_no = 'INV-' . $inv4;
+            // CHANGED: Generate SEQUENTIAL invoice number using receipt_counter
+            $receipt_invoice_no = generateReceiptNumber($conn, 'INV'); // <-- SEQUENTIAL INV-00001, INV-00002...
 
             $now = date('Y-m-d H:i:s');
             $sold_by = $_SESSION['username'];
@@ -86,7 +81,7 @@ if (isset($_POST['submit_cart']) && !empty($_POST['cart_data'])) {
                 $stmt->close();
             }
 
-            // Record customer transaction (debtor record)
+            // Record customer transaction (debtor record) WITH SEQUENTIAL INVOICE NUMBER
             $ct = $conn->prepare("INSERT INTO customer_transactions (customer_id, date_time, products_bought, amount_paid, amount_credited, sold_by, status, invoice_receipt_no) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
             $ct->bind_param("issddsss", $customer_id, $now, $products_json, $amount_paid_val, $amount_credited, $sold_by, $status, $receipt_invoice_no);
             $ct->execute();

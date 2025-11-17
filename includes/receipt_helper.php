@@ -20,11 +20,19 @@ function generateReceiptNumber($conn, $prefix = 'RP') {
         // Get next number
         $next_number = ($result['last_number'] ?? 0) + 1;
         
-        // Update counter
-        $stmt = $conn->prepare("UPDATE receipt_counter SET last_number = ? WHERE prefix = ?");
-        $stmt->bind_param("is", $next_number, $prefix);
-        $stmt->execute();
-        $stmt->close();
+        // FIX: If no row exists for this prefix, insert it
+        if (!$result) {
+            $stmt = $conn->prepare("INSERT INTO receipt_counter (prefix, last_number) VALUES (?, ?)");
+            $stmt->bind_param("si", $prefix, $next_number);
+            $stmt->execute();
+            $stmt->close();
+        } else {
+            // Update counter
+            $stmt = $conn->prepare("UPDATE receipt_counter SET last_number = ? WHERE prefix = ?");
+            $stmt->bind_param("is", $next_number, $prefix);
+            $stmt->execute();
+            $stmt->close();
+        }
         
         $conn->commit();
         

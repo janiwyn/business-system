@@ -498,9 +498,9 @@ if (!empty($_GET['debtor_date_to'])) {
 }
 $debtorWhereClause = count($debtor_where) ? "WHERE " . implode(' AND ', $debtor_where) : "";
 
-// Fetch debtors for the table
+// Fetch debtors for the table (ADD invoice_no column)
 $debtors_result = $conn->query("
-    SELECT id, debtor_name, debtor_email, item_taken, quantity_taken, payment_method, amount_paid, balance, is_paid, created_at
+    SELECT id, debtor_name, debtor_email, item_taken, quantity_taken, payment_method, amount_paid, balance, is_paid, created_at, invoice_no
     FROM debtors
     $debtorWhereClause
     ORDER BY created_at DESC
@@ -1048,6 +1048,7 @@ $product_summary_result = $conn->query("
                                         <thead>
                                             <tr>
                                                 <th>Date</th>
+                                                <th>Invoice No.</th> <!-- NEW COLUMN -->
                                                 <th>Debtor Name</th>
                                                 <th>Debtor Email</th>
                                                 <th>Item Taken</th>
@@ -1064,6 +1065,7 @@ $product_summary_result = $conn->query("
                                                 <?php while ($debtor = $debtors_result->fetch_assoc()): ?>
                                                     <tr>
                                                         <td><?= date("M d, Y H:i", strtotime($debtor['created_at'])); ?></td>
+                                                        <td><?= htmlspecialchars($debtor['invoice_no'] ?? '-'); ?></td> <!-- NEW -->
                                                         <td><?= htmlspecialchars($debtor['debtor_name']); ?></td>
                                                         <td><?= htmlspecialchars($debtor['debtor_email']); ?></td>
                                                         <td><?= htmlspecialchars($debtor['item_taken'] ?? '-'); ?></td>
@@ -1091,7 +1093,7 @@ $product_summary_result = $conn->query("
                                                 <?php endwhile; ?>
                                             <?php else: ?>
                                                 <tr>
-                                                    <td colspan="10" class="text-center text-muted">No shop debtors recorded yet.</td>
+                                                    <td colspan="11" class="text-center text-muted">No shop debtors recorded yet.</td> <!-- UPDATED COLSPAN -->
                                                 </tr>
                                             <?php endif; ?>
                                         </tbody>

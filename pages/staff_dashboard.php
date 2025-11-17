@@ -77,6 +77,21 @@ if (!$checkDebtorCol || $checkDebtorCol->num_rows === 0) {
     }
 }
 
+// Ensure debtors.invoice_no column exists
+$checkDebtorInvoiceCol = $conn->query("
+    SELECT COLUMN_NAME 
+    FROM INFORMATION_SCHEMA.COLUMNS 
+    WHERE TABLE_SCHEMA = DATABASE() 
+      AND TABLE_NAME = 'debtors' 
+      AND COLUMN_NAME = 'invoice_no'
+");
+if (!$checkDebtorInvoiceCol || $checkDebtorInvoiceCol->num_rows === 0) {
+    $conn->query("ALTER TABLE debtors ADD COLUMN invoice_no VARCHAR(32) NULL");
+    if ($conn->errno) {
+        @$conn->query("ALTER TABLE debtors ADD COLUMN invoice_no VARCHAR(32) NULL");
+    }
+}
+
 // if ($_SESSION['role'] !== 'staff') {
 //     header("Location: ../auth/login.php");
 //     exit();
@@ -220,7 +235,7 @@ $debtors_stmt->execute();
 $debtors_result = $debtors_stmt->get_result();
 $debtors_stmt->close();
 
-// Handle debtor record (no invoice/receipt)
+// Handle debtor record (WITH INVOICE NUMBER)
 if (isset($_POST['record_debtor'])) {
     $debtor_name    = trim($_POST['debtor_name']);
     $debtor_contact = trim($_POST['debtor_contact']);
@@ -233,7 +248,7 @@ if (isset($_POST['record_debtor'])) {
     $cart = json_decode($_POST['cart_data'] ?? '[]', true);
     $amount_paid = floatval($_POST['amount_paid'] ?? 0);
 
-    // --- NEW: Store full cart as JSON for proper reconstruction ---
+    // --- Store full cart as JSON for proper reconstruction ---
     $products_json = $_POST['cart_data'] ?? '[]'; // Keep raw JSON string
     
     // Calculate item_taken (WITH QUANTITIES like customer debtors), quantity_taken, total_amount
@@ -243,7 +258,7 @@ if (isset($_POST['record_debtor'])) {
     if ($cart && is_array($cart)) {
         $item_names = [];
         foreach ($cart as $item) {
-            // FIX: Include quantity in item_taken display
+            // Include quantity in item_taken display
             $item_names[] = $item['name'] . ' x' . intval($item['quantity']);
             $quantity_taken += intval($item['quantity']);
             $total_amount += floatval($item['price']) * intval($item['quantity']);
@@ -252,13 +267,16 @@ if (isset($_POST['record_debtor'])) {
     }
     $balance = $total_amount - $amount_paid;
 
+    // CHANGED: Generate SEQUENTIAL invoice number using receipt_counter
+    $invoice_no = generateReceiptNumber($conn, 'INV'); // <-- SEQUENTIAL INV-00001, INV-00002...
+
     // Only insert if all required fields are present
     if ($debtor_name && $quantity_taken > 0 && $balance > 0 && !empty($item_taken)) {
-        // Add products_json column to debtors table
-        $stmt = $conn->prepare("INSERT INTO debtors (debtor_name, debtor_contact, debtor_email, item_taken, quantity_taken, amount_paid, balance, branch_id, created_by, created_at, products_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-        $stmt->bind_param("ssssiddiiss", $debtor_name, $debtor_contact, $debtor_email, $item_taken, $quantity_taken, $amount_paid, $balance, $branch, $created_by, $date, $products_json);
+        // Add products_json AND invoice_no columns to debtors table
+        $stmt = $conn->prepare("INSERT INTO debtors (debtor_name, debtor_contact, debtor_email, item_taken, quantity_taken, amount_paid, balance, branch_id, created_by, created_at, products_json, invoice_no) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+        $stmt->bind_param("ssssiddiisss", $debtor_name, $debtor_contact, $debtor_email, $item_taken, $quantity_taken, $amount_paid, $balance, $branch, $created_by, $date, $products_json, $invoice_no);
         if ($stmt->execute()) {
-            $message = "✅ Debtor recorded successfully!";
+            $message = "✅ Debtor recorded successfully! Invoice: " . $invoice_no;
         } else {
             $message = "❌ Failed to record debtor: " . $stmt->error;
         }
