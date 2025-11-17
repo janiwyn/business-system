@@ -39,19 +39,17 @@ document.addEventListener('DOMContentLoaded', function() {
     // Ensure initial state
     document.getElementById('payment_method').dispatchEvent(new Event('change'));
 
-    // --- Receipt Confirmation Modal ---
-    // Only create ONCE at the top
+    // --- Receipt Confirmation Modal (UPDATED: removed OK button) ---
     const receiptConfirmModal = document.createElement('div');
     receiptConfirmModal.id = 'receiptConfirmModal';
     receiptConfirmModal.style.display = 'none';
     receiptConfirmModal.innerHTML = `
   <div style="position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.25);z-index:9999;display:flex;align-items:center;justify-content:center;">
     <div style="background:#fff;padding:2rem 2.5rem;border-radius:10px;box-shadow:0 2px 16px #0002;max-width:95vw;">
-      <div style="font-size:1.2rem;margin-bottom:1rem;">Print receipt for this sale?</div>
+      <div style="font-size:1.2rem;margin-bottom:1rem;">Record this sale?</div>
       <div class="d-flex flex-wrap gap-2 justify-content-end" style="flex-wrap:wrap;">
         <button id="receiptConfirmCancel" class="btn btn-secondary">Cancel</button>
-        <button id="receiptConfirmRecord" class="btn btn-warning">Record</button>
-        <button id="receiptConfirmOk" class="btn btn-primary">OK</button>
+        <button id="receiptConfirmRecord" class="btn btn-primary">Record</button>
       </div>
     </div>
   </div>
@@ -61,10 +59,6 @@ document.addEventListener('DOMContentLoaded', function() {
     // Only attach event listeners before showing
     function showReceiptConfirmModal(cb) {
         receiptConfirmModal.style.display = '';
-        document.getElementById('receiptConfirmOk').onclick = function() {
-            receiptConfirmModal.style.display = 'none';
-            cb('ok');
-        };
         document.getElementById('receiptConfirmCancel').onclick = function() {
             receiptConfirmModal.style.display = 'none';
             cb('cancel');
@@ -75,18 +69,17 @@ document.addEventListener('DOMContentLoaded', function() {
         };
     }
 
-    // --- Invoice Confirmation Modal (for insufficient balance) ---
+    // --- Invoice Confirmation Modal (UPDATED: removed OK button) ---
     const invoiceConfirmModal = document.createElement('div');
     invoiceConfirmModal.id = 'invoiceConfirmModal';
     invoiceConfirmModal.style.display = 'none';
     invoiceConfirmModal.innerHTML = `
   <div style="position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.25);z-index:9999;display:flex;align-items:center;justify-content:center;">
     <div style="background:#fff;padding:2rem 2.5rem;border-radius:10px;box-shadow:0 2px 16px #0002;max-width:95vw;">
-      <div style="font-size:1.2rem;margin-bottom:1rem;">Print invoice for this sale?</div>
+      <div style="font-size:1.2rem;margin-bottom:1rem;">Record this sale?</div>
       <div class="d-flex flex-wrap gap-2 justify-content-end" style="flex-wrap:wrap;">
         <button id="invoiceConfirmCancel" class="btn btn-secondary">Cancel</button>
-        <button id="invoiceConfirmRecord" class="btn btn-warning">Record</button>
-        <button id="invoiceConfirmOk" class="btn btn-primary">OK</button>
+        <button id="invoiceConfirmRecord" class="btn btn-primary">Record</button>
       </div>
     </div>
   </div>
@@ -95,10 +88,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function showInvoiceConfirmModal(cb) {
         invoiceConfirmModal.style.display = '';
-        document.getElementById('invoiceConfirmOk').onclick = function() {
-            invoiceConfirmModal.style.display = 'none';
-            cb('ok');
-        };
         document.getElementById('invoiceConfirmCancel').onclick = function() {
             invoiceConfirmModal.style.display = 'none';
             cb('cancel');
@@ -232,24 +221,21 @@ document.addEventListener('DOMContentLoaded', function() {
         win.focus();
     }
 
-    // --- Modified Sell Button Logic ---
+    // --- Modified Sell Button Logic (UPDATED: simplified modal callbacks) ---
     document.getElementById('sellBtn').onclick = function() {
         const paymentMethod = document.getElementById('payment_method').value;
         const amountPaid = parseFloat(document.getElementById('amount_paid').value || 0);
 
-        // Calculate total cart value
         let total = 0;
         cart.forEach(item => {
             total += item.price * item.quantity;
         });
 
-        // If cart is empty, do nothing
         if (cart.length === 0) {
             alert('Cart is empty.');
             return;
         }
 
-        // Check customer balance for Customer File payment
         if (paymentMethod === 'Customer File') {
             const custId = document.getElementById('customer_select').value;
             if (!custId) {
@@ -257,7 +243,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
             
-            // Find customer's balance from the customers array
             const customer = window.customers.find(c => c.id == custId);
             if (!customer) {
                 alert('Customer not found.');
@@ -266,52 +251,36 @@ document.addEventListener('DOMContentLoaded', function() {
             
             const customerBalance = parseFloat(customer.account_balance || 0);
             
-            // If customer has enough balance: show RECEIPT modal
             if (customerBalance >= total) {
+                // Sufficient balance: show receipt modal (record only, no print)
                 showReceiptConfirmModal(function(action) {
-                    if (action === 'ok') {
-                        // Open preview FIRST, then submit after delay
-                        openReceiptPreview(cart, total, paymentMethod, 0);
-                        setTimeout(() => submitSaleOnly(), 300);
-                    } else if (action === 'record') {
-                        submitSaleOnly(); // submit only, no preview
+                    if (action === 'record') {
+                        submitSaleOnly();
                     }
-                    // cancel does nothing
                 });
             } else {
-                // Customer doesn't have enough balance: show INVOICE modal
+                // Insufficient balance: show invoice modal (record only, no print)
                 showInvoiceConfirmModal(function(action) {
-                    if (action === 'ok') {
-                        // Open invoice preview FIRST, then submit after delay
-                        const custId = document.getElementById('customer_select').value;
-                        openInvoicePreview(cart, total, paymentMethod, custId);
-                        setTimeout(() => submitSaleOnly(), 300);
-                    } else if (action === 'record') {
-                        submitSaleOnly(); // submit only, no invoice preview
+                    if (action === 'record') {
+                        submitSaleOnly();
                     }
-                    // cancel does nothing
                 });
             }
         } else {
-            // Only show receipt modal for non-debtor sales (other payment methods)
+            // Other payment methods
             if (amountPaid >= total) {
+                // Full payment: show receipt modal (record only, no print)
                 showReceiptConfirmModal(function(action) {
-                    if (action === 'ok') {
-                        // Open preview FIRST, then submit
-                        openReceiptPreview(cart, total, paymentMethod, amountPaid);
-                        setTimeout(() => submitSaleOnly(), 300);
-                    } else if (action === 'record') {
-                        submitSaleOnly(); // submit only, no preview
+                    if (action === 'record') {
+                        submitSaleOnly();
                     }
-                    // cancel does nothing
                 });
             } else {
-                // For debtors, proceed as before (no receipt)
+                // Underpayment: show debtor form
                 submitSaleOnly();
             }
         }
 
-        // Helper functions
         function submitSaleOnly() {
             if (paymentMethod === 'Customer File') {
                 const custId = document.getElementById('customer_select').value;
@@ -322,7 +291,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 document.getElementById('hidden_customer_id').value = custId;
                 hiddenSaleForm.submit();
             } else {
-                // Other payment methods
                 if (amountPaid >= total) {
                     const balance = amountPaid - total;
                     if (balance > 0) {
@@ -342,23 +310,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     window.scrollTo({ top: debtorForm.offsetTop, behavior: 'smooth' });
                 }
             }
-        }
-
-        function submitSaleAndShowReceipt() {
-            submitSaleOnly();
-            // Open receipt preview (will open in new tab after form submit)
-            setTimeout(() => {
-                openReceiptPreview(cart, total, paymentMethod, amountPaid > 0 ? amountPaid : 0);
-            }, 200);
-        }
-
-        function submitSaleAndShowInvoice() {
-            submitSaleOnly();
-            // Open invoice preview (will open in new tab after form submit)
-            const custId = document.getElementById('customer_select').value;
-            setTimeout(() => {
-                openInvoicePreview(cart, total, paymentMethod, custId);
-            }, 200);
         }
     };
 
