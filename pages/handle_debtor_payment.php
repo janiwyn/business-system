@@ -100,9 +100,9 @@ if (isset($_POST['pay_debtor']) && isset($_POST['id']) && isset($_POST['amount']
 
                 // Insert SINGLE grouped sales record (product-id = 0 indicates grouped sale)
                 $sold_by = $current_user_id ?? $debtor_created_by;
-                $payment_method = $pm ?? 'Debtor Repayment';
-                $sstmt = $conn->prepare("INSERT INTO sales (`product-id`,`branch-id`,quantity,amount,`sold-by`,`cost-price`,total_profits,date,payment_method,products_json, receipt_no) VALUES (0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-                $sstmt->bind_param("iididdsss", $debtor_branch_id, $total_quantity, $total_amount, $sold_by, $total_cost, $total_profit, $now, $payment_method, $products_json, $receiptNo);
+                $payment_method = 'Debtor Repayment';
+                $sstmt = $conn->prepare("INSERT INTO sales (`product-id`,`branch-id`,quantity,amount,`sold-by`,`cost-price`,total_profits,date,payment_method,products_json,receipt_no) VALUES (0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                $sstmt->bind_param("iididdssss", $debtor_branch_id, $total_quantity, $total_amount, $sold_by, $total_cost, $total_profit, $now, $payment_method, $products_json, $receiptNo);
                 $sstmt->execute();
                 $sstmt->close();
 
@@ -133,9 +133,10 @@ if (isset($_POST['pay_debtor']) && isset($_POST['id']) && isset($_POST['amount']
                 }
             } else {
                 // Fallback: single generic sale
-                $sstmt = $conn->prepare("INSERT INTO sales (`product-id`,`branch-id`,quantity,amount,`sold-by`,`cost-price`,total_profits,date,payment_method) VALUES (0, ?, 0, ?, ?, 0, 0, ?, 'Debtor Repayment')");
+                $sstmt = $conn->prepare("INSERT INTO sales (`product-id`,`branch-id`,quantity,amount,`sold-by`,`cost-price`,total_profits,date,payment_method,receipt_no) VALUES (0, ?, 0, ?, ?, 0, 0, ?, ?, ?)");
                 $sold_by = $current_user_id ?? $debtor_created_by;
-                $sstmt->bind_param("idis", $debtor_branch_id, $amount, $sold_by, $now);
+                $payment_method = 'Debtor Repayment';
+                $sstmt->bind_param("idisss", $debtor_branch_id, $amount, $sold_by, $now, $payment_method, $receiptNo);
                 $sstmt->execute();
                 $sstmt->close();
             }
@@ -217,9 +218,10 @@ if (isset($_POST['pay_debtor']) && isset($_POST['id']) && isset($_POST['amount']
             $sold_by_ct = $_SESSION['username'] ?? 'staff';
             $products_text = "Debtor payment for items: " . ($debtor_item_taken ?: 'Unknown');
             
+            // FIX: Change $pay_amt to $amount (correct variable name)
             // Insert into customer_transactions with the SAME receipt number
             $ct_stmt = $conn->prepare("INSERT INTO customer_transactions (customer_id, date_time, products_bought, amount_paid, amount_credited, sold_by, status, invoice_receipt_no) VALUES (?, ?, ?, ?, 0, ?, 'paid', ?)");
-            $ct_stmt->bind_param("issdss", $cust_id, $now_ct, $products_text, $pay_amt, $sold_by_ct, $receiptNo);
+            $ct_stmt->bind_param("issdss", $cust_id, $now_ct, $products_text, $amount, $sold_by_ct, $receiptNo);
             $ct_stmt->execute();
             $ct_stmt->close();
         }

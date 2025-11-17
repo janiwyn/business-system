@@ -97,9 +97,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pay_debtor'])) {
 
                     // Insert SINGLE grouped sales record (9 columns = 9 bind params)
                     // Columns: product-id, branch-id, quantity, amount, sold-by, cost-price, total_profits, date, payment_method, products_json
+                    // FIX: CORRECT THE TYPE STRING - COUNT CAREFULLY
+                    // INSERT INTO sales (product-id, branch-id, quantity, amount, sold-by, cost-price, total_profits, date, payment_method, receipt_no, products_json)
+                    // VALUES (0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    // Parameters: 1=branch_id(i), 2=total_quantity(i), 3=total_amount(d), 4=uid(i), 5=total_cost(d), 6=total_profit(d), 7=now(s), 8=pm_to_use(s), 9=receiptNo(s), 10=products_json(s)
+                    // COUNT: 10 parameters = 10 type chars
                     $sstmt = $conn->prepare("INSERT INTO sales (`product-id`,`branch-id`,quantity,amount,`sold-by`,`cost-price`,total_profits,date,payment_method,receipt_no,products_json) VALUES (0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-                    // Type string: i(branch), i(qty), d(amount), i(sold_by), d(cost), d(profit), s(date), s(pm), s(receipt), s(json)
-                    $sstmt->bind_param("iididdsss", $debtor_branch_id, $total_quantity, $total_amount, $uid, $total_cost, $total_profit, $now, $pm_to_use, $receiptNo, $products_json);
+                    // TYPE STRING: i i d i d d s s s s = 10 characters
+                    $sstmt->bind_param("iididdssss", $debtor_branch_id, $total_quantity, $total_amount, $uid, $total_cost, $total_profit, $now, $pm_to_use, $receiptNo, $products_json);
                     if (!$sstmt->execute()) { $ok = false; }
                     $sstmt->close();
 
@@ -132,8 +137,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pay_debtor'])) {
                     }
                 } else {
                     // Fallback: single generic sale (5 columns after VALUES)
+                    // INSERT INTO sales (product-id, branch-id, quantity, amount, sold-by, cost-price, total_profits, date, payment_method, receipt_no)
+                    // VALUES (0, ?, 0, ?, ?, 0, 0, ?, ?, ?)
+                    // Parameters: 1=branch_id(i), 2=pay_amt(d), 3=uid(i), 4=now(s), 5=pm_to_use(s), 6=receiptNo(s)
+                    // COUNT: 6 parameters = 6 type chars
                     $sstmt = $conn->prepare("INSERT INTO sales (`product-id`,`branch-id`,quantity,amount,`sold-by`,`cost-price`,total_profits,date,payment_method,receipt_no) VALUES (0, ?, 0, ?, ?, 0, 0, ?, ?, ?)");
-                    // Type string: i(branch), d(amount), i(sold_by), s(date), s(pm), s(receipt)
+                    // TYPE STRING: i d i s s s = 6 characters
                     $sstmt->bind_param("idisss", $debtor_branch_id, $pay_amt, $uid, $now, $pm_to_use, $receiptNo);
                     if (!$sstmt->execute()) { $ok = false; }
                     $sstmt->close();
@@ -168,24 +177,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pay_debtor'])) {
                             $cost = $buying_price * $item_qty;
                             $profit = $item_amount - $cost;
 
-                            $insS = $conn->prepare("INSERT INTO sales (`product-id`,`branch-id`,quantity,amount,`sold-by`,`cost-price`,total_profits,date,payment_method,receipt_no) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                            // INSERT INTO sales (product-id, branch-id, quantity, amount, sold-by, cost-price, total_profits, date, payment_method, receipt_no)
+                            // VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                            // Parameters: 1=product_id(i), 2=branch_id(i), 3=item_qty(i), 4=item_amount(d), 5=uid(i), 6=cost(d), 7=profit(d), 8=now(s), 9=pm_to_use(s), 10=receiptNo(s)
+                            // COUNT: 10 parameters = 10 type chars
+                            $insS = $conn->prepare("INSERT INTO sales (`product-id`,`branch-id`,quantity,amount,`sold-by`,`cost-price`,total_profits,date,payment_method,receipt_no) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                            // TYPE STRING: i i i d i d d s s s = 10 characters
                             $insS->bind_param("iiididdss", $product_id, $debtor_branch_id, $item_qty, $item_amount, $uid, $cost, $profit, $now, $pm_to_use, $receiptNo);
                             if (!$insS->execute()) { $ok = false; }
                             $insS->close();
                         } else {
                             // Product not found, insert with product-id = 0 as fallback
-                            $item_amount = $pay_amt / count($items); // distribute amount
-                            $item_qty = max(1, $qty_per_item);
+                            // INSERT INTO sales (product-id, branch-id, quantity, amount, sold-by, cost-price, total_profits, date, payment_method, receipt_no)
+                            // VALUES (0, ?, ?, ?, ?, 0, 0, ?, ?, ?)
+                            // Parameters: 1=branch_id(i), 2=item_qty(i), 3=item_amount(d), 4=uid(i), 5=now(s), 6=pm_to_use(s), 7=receiptNo(s)
+                            // COUNT: 7 parameters = 7 type chars
                             $insS = $conn->prepare("INSERT INTO sales (`product-id`,`branch-id`,quantity,amount,`sold-by`,`cost-price`,total_profits,date,payment_method,receipt_no) VALUES (0, ?, ?, ?, ?, 0, 0, ?, ?, ?)");
-                            $insS->bind_param("ididss", $debtor_branch_id, $item_qty, $item_amount, $uid, $now, $pm_to_use, $receiptNo);
+                            // TYPE STRING: i i d i s s s = 7 characters
+                            $insS->bind_param("iidisss", $debtor_branch_id, $item_qty, $item_amount, $uid, $now, $pm_to_use, $receiptNo);
                             if (!$insS->execute()) { $ok = false; }
                             $insS->close();
                         }
                     }
                 } else {
                     // No items found, fallback to generic "Debtor Repayment"
+                    // INSERT INTO sales (product-id, branch-id, quantity, amount, sold-by, cost-price, total_profits, date, payment_method, receipt_no)
+                    // VALUES (0, ?, 0, ?, ?, 0, 0, ?, ?)
+                    // Parameters: 1=branch_id(i), 2=pay_amt(d), 3=uid(i), 4=now(s), 5=pm_to_use(s), 6=receiptNo(s)
+                    // COUNT: 6 parameters = 6 type chars
                     $insS = $conn->prepare("INSERT INTO sales (`product-id`,`branch-id`,quantity,amount,`sold-by`,`cost-price`,total_profits,date,payment_method,receipt_no) VALUES (0, ?, 0, ?, ?, 0, 0, ?, ?)");
-                    $insS->bind_param("idisss", $debtor_branch_id, $pay_amt, $uid, $now, $pm_to_use, $receiptNo);
+                    // TYPE STRING: i d i s s = 6 characters
+                    $insS->bind_param("idiss", $debtor_branch_id, $pay_amt, $uid, $now, $pm_to_use, $receiptNo);
                     if (!$insS->execute()) { $ok = false; }
                     $insS->close();
                 }
