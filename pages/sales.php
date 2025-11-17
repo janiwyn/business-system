@@ -498,9 +498,9 @@ if (!empty($_GET['debtor_date_to'])) {
 }
 $debtorWhereClause = count($debtor_where) ? "WHERE " . implode(' AND ', $debtor_where) : "";
 
-// Fetch debtors for the table (ADD invoice_no column)
+// Fetch debtors for the table (ADD products_json column)
 $debtors_result = $conn->query("
-    SELECT id, debtor_name, debtor_email, item_taken, quantity_taken, payment_method, amount_paid, balance, is_paid, created_at, invoice_no
+    SELECT id, debtor_name, debtor_email, debtor_contact, item_taken, quantity_taken, payment_method, amount_paid, balance, is_paid, created_at, invoice_no, products_json
     FROM debtors
     $debtorWhereClause
     ORDER BY created_at DESC
@@ -1063,6 +1063,42 @@ $product_summary_result = $conn->query("
                                         <tbody>
                                             <?php if ($debtors_result && $debtors_result->num_rows > 0): ?>
                                                 <?php while ($debtor = $debtors_result->fetch_assoc()): ?>
+                                                    <?php
+                                                    // FIX: Parse products_json to get actual cart data
+                                                    $products_json = $debtor['products_json'] ?? '[]';
+                                                    $products_data = json_decode($products_json, true);
+                                                    
+                                                    // If products_json is empty/invalid, try to reconstruct from item_taken
+                                                    if (!is_array($products_data) || empty($products_data)) {
+                                                        $products_data = [];
+                                                        // Parse item_taken (e.g., "maize x2, beans x3")
+                                                        $items = array_filter(array_map('trim', explode(',', $debtor['item_taken'] ?? '')));
+                                                        foreach ($items as $item_str) {
+                                                            // Extract name and quantity (e.g., "maize x2")
+                                                            if (preg_match('/^(.+?)\s*x(\d+)$/i', $item_str, $matches)) {
+                                                                $name = trim($matches[1]);
+                                                                $qty = intval($matches[2]);
+                                                            } else {
+                                                                $name = $item_str;
+                                                                $qty = 1;
+                                                            }
+                                                            
+                                                            // Estimate price per item (total / total_qty)
+                                                            $total_qty = intval($debtor['quantity_taken'] ?? 0);
+                                                            $total_amount = floatval($debtor['balance']) + floatval($debtor['amount_paid']);
+                                                            $price_per_item = ($total_qty > 0) ? ($total_amount / $total_qty) : 0;
+                                                            
+                                                            $products_data[] = [
+                                                                'name' => $name,
+                                                                'quantity' => $qty,
+                                                                'price' => $price_per_item
+                                                            ];
+                                                        }
+                                                        
+                                                        // Re-encode for data attribute
+                                                        $products_json = json_encode($products_data);
+                                                    }
+                                                    ?>
                                                     <tr>
                                                         <td><?= date("M d, Y H:i", strtotime($debtor['created_at'])); ?></td>
                                                         <td><?= htmlspecialchars($debtor['invoice_no'] ?? '-'); ?></td>
@@ -1088,7 +1124,7 @@ $product_summary_result = $conn->query("
                                                                 data-pm="<?= htmlspecialchars($debtor['payment_method'] ?? '') ?>">
                                                                 Pay
                                                             </button>
-                                                            <!-- NEW: Invoice button -->
+                                                            <!-- FIX: Pass reconstructed products_json -->
                                                             <button class="btn btn-warning btn-sm btn-view-invoice"
                                                                 data-type="shop"
                                                                 data-id="<?= $debtor['id'] ?>"
@@ -1096,7 +1132,7 @@ $product_summary_result = $conn->query("
                                                                 data-name="<?= htmlspecialchars($debtor['debtor_name']) ?>"
                                                                 data-email="<?= htmlspecialchars($debtor['debtor_email']) ?>"
                                                                 data-contact="<?= htmlspecialchars($debtor['debtor_contact'] ?? '') ?>"
-                                                                data-products='<?= htmlspecialchars($debtor['products_json'] ?? '[]') ?>'
+                                                                data-products='<?= htmlspecialchars($products_json) ?>'
                                                                 data-balance="<?= $debtor['balance'] ?? 0 ?>"
                                                                 data-paid="<?= $debtor['amount_paid'] ?? 0 ?>"
                                                                 title="View Invoice">
