@@ -1102,6 +1102,7 @@ $product_summary_result = $conn->query("
                                                 <th>Invoice No.</th>
                                                 <th>Debtor Name</th>
                                                 <th>Debtor Email</th>
+                                                <th>Contact</th>
                                                 <th>Item Taken</th>
                                                 <th>Quantity Taken</th>
                                                 <th>Payment Method</th>
@@ -1156,9 +1157,10 @@ $product_summary_result = $conn->query("
                                                         <td><?= htmlspecialchars($debtor['invoice_no'] ?? '-'); ?></td>
                                                         <td><?= htmlspecialchars($debtor['debtor_name']); ?></td>
                                                         <td><?= htmlspecialchars($debtor['debtor_email']); ?></td>
+                                                        <td><?= htmlspecialchars($debtor['debtor_contact'] ?? '-'); ?></td>
                                                         <td><?= htmlspecialchars($debtor['item_taken'] ?? '-'); ?></td>
                                                         <td><?= htmlspecialchars($debtor['quantity_taken'] ?? '-'); ?></td>
-                                                        <td><?= htmlspecialchars($debtor['payment_method'] ?? '-') ?></td>
+                                                        <td><?= htmlspecialchars($debtor['payment_method'] ?? '-'); ?></td>
                                                         <td>UGX <?= number_format($debtor['amount_paid'] ?? 0, 2); ?></td>
                                                         <td>UGX <?= number_format($debtor['balance'] ?? 0, 2); ?></td>
                                                         <td>
@@ -1196,26 +1198,25 @@ $product_summary_result = $conn->query("
                                                             <?php endif; ?>
                                                         </td>
                                                         <td>
-                                                            <button class="btn btn-primary btn-sm btn-pay-debtor"
-                                                                data-id="<?= $debtor['id'] ?>"
-                                                                data-balance="<?= htmlspecialchars($debtor['balance'] ?? 0) ?>"
-                                                                data-name="<?= htmlspecialchars($debtor['debtor_name']) ?>"
-                                                                data-pm="<?= htmlspecialchars($debtor['payment_method'] ?? '') ?>">
-                                                                Pay
-                                                            </button>
-                                                            <!-- FIX: Pass reconstructed products_json -->
-                                                            <button class="btn btn-warning btn-sm btn-view-invoice"
-                                                                data-type="shop"
-                                                                data-id="<?= $debtor['id'] ?>"
-                                                                data-invoice="<?= htmlspecialchars($debtor['invoice_no'] ?? '') ?>"
-                                                                data-name="<?= htmlspecialchars($debtor['debtor_name']) ?>"
-                                                                data-email="<?= htmlspecialchars($debtor['debtor_email']) ?>"
-                                                                data-contact="<?= htmlspecialchars($debtor['debtor_contact'] ?? '') ?>"
-                                                                data-products='<?= htmlspecialchars($products_json) ?>'
-                                                                data-balance="<?= $debtor['balance'] ?? 0 ?>"
-                                                                data-paid="<?= $debtor['amount_paid'] ?? 0 ?>"
-                                                                title="View Invoice">
+                                                            <!-- UPDATED: Add due_date to data attributes -->
+                                                            <button class="btn btn-info btn-sm btn-view-invoice" 
+                                                                    data-type="shop"
+                                                                    data-invoice="<?= htmlspecialchars($debtor['invoice_no'] ?? 'N/A') ?>"
+                                                                    data-name="<?= htmlspecialchars($debtor['debtor_name']) ?>"
+                                                                    data-email="<?= htmlspecialchars($debtor['debtor_email']) ?>"
+                                                                    data-contact="<?= htmlspecialchars($debtor['debtor_contact'] ?? '') ?>"
+                                                                    data-products='<?= htmlspecialchars($debtor['products_json'] ?: '[]') ?>'
+                                                                    data-balance="<?= $debtor['balance'] ?>"
+                                                                    data-paid="<?= $debtor['amount_paid'] ?>"
+                                                                    data-due-date="<?= htmlspecialchars($debtor['due_date'] ?? '') ?>"
+                                                                    title="View Invoice">
                                                                 <i class="fa fa-file-invoice"></i> Invoice
+                                                            </button>
+                                                            <button class="btn btn-primary btn-sm btn-pay-debtor"
+                                                                    data-id="<?= $debtor['id'] ?>"
+                                                                    data-balance="<?= htmlspecialchars($debtor['balance'] ?? 0) ?>"
+                                                                    data-name="<?= htmlspecialchars($debtor['debtor_name']) ?>">
+                                                                Pay
                                                             </button>
                                                         </td>
                                                     </tr>
@@ -1284,8 +1285,8 @@ $product_summary_result = $conn->query("
                                                     <tr>
                                                         <td><?= $date_obj->format('M d, Y'); ?></td>
                                                         <td><?= $date_obj->format('H:i'); ?></td>
-                                                        <td><?= htmlspecialchars($cd['invoice_receipt_no'] ?? '-'); ?></td>
-                                                        <td><?= htmlspecialchars($cd['debtor_name']); ?></td>
+                                                        <td><?= htmlspecialchars($cd['invoice_receipt_no'] ?? '-') ?></td>
+                                                        <td><?= htmlspecialchars($cd['debtor_name']) ?></td>
                                                         <td><?= htmlspecialchars($cd['debtor_email'] ?? '-'); ?></td>
                                                         <td><?= htmlspecialchars($cd['debtor_contact'] ?? '-'); ?></td>
                                                         <td><?= $products_display ?: '-'; ?></td>
@@ -1322,25 +1323,25 @@ $product_summary_result = $conn->query("
                                                             <?php endif; ?>
                                                         </td>
                                                         <td>
-                                                            <button class="btn btn-primary btn-sm btn-pay-customer-debtor"
-                                                                data-id="<?= $cd['id'] ?>"
-                                                                data-balance="<?= htmlspecialchars($cd['balance'] ?? 0) ?>"
-                                                                data-name="<?= htmlspecialchars($cd['debtor_name']) ?>">
-                                                                Pay
-                                                            </button>
-                                                            <!-- NEW: Invoice button -->
-                                                            <button class="btn btn-warning btn-sm btn-view-invoice"
-                                                                data-type="customer"
-                                                                data-id="<?= $cd['id'] ?>"
-                                                                data-invoice="<?= htmlspecialchars($cd['invoice_receipt_no'] ?? '') ?>"
-                                                                data-name="<?= htmlspecialchars($cd['debtor_name']) ?>"
-                                                                data-email="<?= htmlspecialchars($cd['debtor_email'] ?? '') ?>"
-                                                                data-contact="<?= htmlspecialchars($cd['debtor_contact'] ?? '') ?>"
-                                                                data-products='<?= htmlspecialchars($cd['products_bought'] ?? '[]') ?>'
-                                                                data-balance="<?= $cd['balance'] ?? 0 ?>"
-                                                                data-paid="<?= $cd['amount_paid'] ?? 0 ?>"
-                                                                title="View Invoice">
+                                                            <!-- UPDATED: Add due_date to data attributes -->
+                                                            <button class="btn btn-info btn-sm btn-view-invoice" 
+                                                                    data-type="customer"
+                                                                    data-invoice="<?= htmlspecialchars($cd['invoice_receipt_no'] ?? 'N/A') ?>"
+                                                                    data-name="<?= htmlspecialchars($cd['debtor_name']) ?>"
+                                                                    data-email="<?= htmlspecialchars($cd['debtor_email']) ?>"
+                                                                    data-contact="<?= htmlspecialchars($cd['debtor_contact'] ?? '') ?>"
+                                                                    data-products='<?= htmlspecialchars($cd['products_bought'] ?: '[]') ?>'
+                                                                    data-balance="<?= $cd['balance'] ?>"
+                                                                    data-paid="<?= $cd['amount_paid'] ?>"
+                                                                    data-due-date="<?= htmlspecialchars($cd['due_date'] ?? '') ?>"
+                                                                    title="View Invoice">
                                                                 <i class="fa fa-file-invoice"></i> Invoice
+                                                            </button>
+                                                            <button class="btn btn-primary btn-sm btn-pay-customer-debtor"
+                                                                    data-id="<?= $cd['id'] ?>"
+                                                                    data-balance="<?= htmlspecialchars($cd['balance']) ?>"
+                                                                    data-name="<?= htmlspecialchars($cd['debtor_name']) ?>">
+                                                                Pay
                                                             </button>
                                                         </td>
                                                     </tr>
@@ -1775,8 +1776,9 @@ document.addEventListener('DOMContentLoaded', function() {
         const productsJson = btn.getAttribute('data-products');
         const balance = parseFloat(btn.getAttribute('data-balance') || 0);
         const amountPaid = parseFloat(btn.getAttribute('data-paid') || 0);
+        const dueDate = btn.getAttribute('data-due-date') || ''; // GET DUE DATE
         
-        console.log('Parsed data:', { type, invoiceNo, debtorName, balance, amountPaid }); // DEBUG
+        console.log('Parsed data:', { type, invoiceNo, debtorName, balance, amountPaid, dueDate }); // DEBUG
         
         // Parse products
         let cart = [];
@@ -1791,15 +1793,15 @@ document.addEventListener('DOMContentLoaded', function() {
         // Calculate total
         let total = balance + amountPaid;
         
-        console.log('Opening invoice with cart:', cart, 'total:', total); // DEBUG
+        console.log('Opening invoice with cart:', cart, 'total:', total, 'dueDate:', dueDate); // DEBUG
         
-        // Open invoice preview
-        openDebtorInvoice(cart, total, invoiceNo, debtorName, debtorEmail, debtorContact, amountPaid, balance);
+        // Open invoice preview (PASS DUE DATE)
+        openDebtorInvoice(cart, total, invoiceNo, debtorName, debtorEmail, debtorContact, amountPaid, balance, dueDate);
     });
     
     // Function to open invoice preview
-    function openDebtorInvoice(cart, total, invoiceNo, debtorName, debtorEmail, debtorContact, amountPaid, balance) {
-        console.log('openDebtorInvoice called'); // DEBUG
+    function openDebtorInvoice(cart, total, invoiceNo, debtorName, debtorEmail, debtorContact, amountPaid, balance, dueDate) {
+        console.log('openDebtorInvoice called with dueDate:', dueDate); // DEBUG
         
         // Send data via POST using a temporary form
         const form = document.createElement('form');
@@ -1824,7 +1826,8 @@ document.addEventListener('DOMContentLoaded', function() {
         addField('customer_contact', debtorContact);
         addField('amount_paid', amountPaid);
         addField('balance', balance);
-        addField('is_debtor', '1'); // Flag to indicate this is a debtor invoice
+        addField('is_debtor', '1');
+        addField('due_date', dueDate || ''); // PASS DUE DATE
 
         document.body.appendChild(form);
         console.log('Form created, submitting...'); // DEBUG
