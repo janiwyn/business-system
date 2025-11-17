@@ -9,16 +9,8 @@ $customer_email = $_POST['customer_email'] ?? '';
 $customer_contact = $_POST['customer_contact'] ?? '';
 $amount_paid = floatval($_POST['amount_paid'] ?? 0);
 $balance = floatval($_POST['balance'] ?? 0);
-$invoice_no = $_POST['invoice_no'] ?? 'N/A';
+$invoice_no = $_POST['invoice_no'] ?? 'N/A'; // USE EXISTING INVOICE NUMBER
 $due_date = $_POST['due_date'] ?? ''; // GET DUE DATE FROM POST
-
-// Generate invoice number
-try {
-    $inv4 = str_pad((string)random_int(0, 9999), 4, '0', STR_PAD_LEFT);
-} catch (Throwable $e) {
-    $inv4 = str_pad((string)mt_rand(0, 9999), 4, '0', STR_PAD_LEFT);
-}
-$invoice_no = 'INV-000' . $inv4;
 
 $date = date('M d, Y');
 
