@@ -248,6 +248,73 @@
       dueDateModal.show();
     });
 
+    // Invoice button handler — open invoice_preview.php with POST (delegated)
+    document.body.addEventListener('click', function(e) {
+      const btn = e.target.closest('.btn-view-invoice');
+      if (!btn) return;
+
+      // Read dataset (data- attributes)
+      const type = btn.dataset.type || 'shop';
+      const productsRaw = btn.dataset.products || '[]';
+      const invoiceNo = btn.dataset.invoice || btn.dataset.receipt || '';
+      const name = btn.dataset.name || '';
+      const email = btn.dataset.email || '';
+      const contact = btn.dataset.contact || '';
+      const balance = parseFloat(btn.dataset.balance || 0);
+      const paid = parseFloat(btn.dataset.paid || 0);
+      const dueDate = btn.dataset.dueDate || btn.dataset.due_date || '';
+
+      // Parse products JSON and compute total if possible
+      let cart = [];
+      try {
+        cart = JSON.parse(productsRaw);
+        if (!Array.isArray(cart)) cart = [];
+      } catch (err) {
+        cart = [];
+      }
+      let total = 0;
+      if (cart.length > 0) {
+        for (const it of cart) {
+          const q = parseFloat(it.quantity || it.qty || 0) || 0;
+          const p = parseFloat(it.price || 0) || 0;
+          total += q * p;
+        }
+      } else {
+        // Fallback to amount paid + balance (if products not available)
+        total = (paid || 0) + (balance || 0);
+      }
+
+      // Prepare and submit POST form to invoice_preview.php in a new tab
+      const form = document.createElement('form');
+      form.method = 'POST';
+      form.action = 'invoice_preview.php';
+      form.target = '_blank';
+      form.style.display = 'none';
+
+      const addField = (nameF, valueF) => {
+        const inp = document.createElement('input');
+        inp.type = 'hidden';
+        inp.name = nameF;
+        inp.value = (typeof valueF === 'string') ? valueF : JSON.stringify(valueF);
+        form.appendChild(inp);
+      };
+
+      addField('cart', cart);
+      addField('total', total);
+      addField('payment_method', type === 'customer' ? 'Customer File' : (btn.dataset.paymentMethod || 'Debtor'));
+      addField('amount_paid', paid);
+      addField('balance', balance);
+      addField('invoice_no', invoiceNo);
+      addField('customer_name', name);
+      addField('customer_email', email);
+      addField('customer_contact', contact);
+      addField('due_date', dueDate);
+
+      document.body.appendChild(form);
+      form.submit();
+      setTimeout(() => document.body.removeChild(form), 600);
+    });
+
     // Confirm due date setting
     const ddConfirmBtn = document.getElementById('ddConfirmBtn');
     if (ddConfirmBtn) {
@@ -413,4 +480,4 @@
     })();
 
   }); // onReady
-})(); 
+})();
