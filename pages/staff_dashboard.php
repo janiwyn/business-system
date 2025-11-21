@@ -8,6 +8,15 @@ include '../includes/header.php';
 include 'handle_debtor_payment.php';
 include 'handle_cart_sale.php';
 
+// NEW: Handle AJAX request to mark notifications as shown
+if (isset($_POST['mark_notifications_shown'])) {
+    $_SESSION['shown_login_notifications'] = true;
+    exit;
+}
+
+// NEW: Include notification popup (shows once per login)
+include '../includes/notification_popup.php';
+
 // Ensure customers.amount_credited column exists to avoid "Unknown column" errors.
 $checkCol = $conn->query("
     SELECT COLUMN_NAME
