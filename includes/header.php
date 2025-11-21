@@ -56,7 +56,6 @@
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       background-clip: text;
-      text-fill-color: transparent;
       animation: oceanWave 10s ease-in-out infinite;
       text-shadow: none;
     }
@@ -101,17 +100,16 @@
       box-shadow: 0 2px 8px rgba(44,62,80,0.18);
     }
     body.dark-mode .main-header .logo-text {
+    body.dark-mode .main-header .logo-text {
       color: #1abc9c;
       background: linear-gradient(270deg, #159c8c, #3498db, #56ccf2, #159c8c);
       background-size: 400% 400%;
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       background-clip: text;
-      text-fill-color: transparent;
       animation: oceanWave 5s ease-in-out infinite;
       text-shadow: none;
     }
-    body.dark-mode .theme-switch label {
       color: #ffd200;
     }
     /* Responsive styles for header */

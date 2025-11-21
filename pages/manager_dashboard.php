@@ -5,6 +5,15 @@ require_role(['manager']);
 include '../pages/sidebar.php';
 include '../includes/header.php';
 
+// NEW: Handle AJAX request to mark notifications as shown
+if (isset($_POST['mark_notifications_shown'])) {
+    $_SESSION['shown_login_notifications'] = true;
+    exit;
+}
+
+// NEW: Include notification popup (shows once per login)
+include '../includes/notification_popup.php';
+
 // Total Sales Today
 $sql = "SELECT SUM(amount) AS total FROM sales WHERE DATE(`date`) = CURDATE()";
 $result = mysqli_query($conn, $sql);

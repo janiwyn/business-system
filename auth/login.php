@@ -22,6 +22,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $_SESSION['username'] = $user['username'];
         $_SESSION['role'] = strtolower(trim($user['role']));
         $_SESSION['branch_id'] = $user['branch-id'];
+        
+        // NEW: Reset notification popup flag on login
+        unset($_SESSION['shown_login_notifications']);
 
         // ✅ If role is staff or manager, insert into employees table if not exists
         if ($_SESSION['role'] === 'staff' || $_SESSION['role'] === 'manager') {
