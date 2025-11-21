@@ -25,34 +25,36 @@ include '../includes/header.php';
                   </tr>
                 </thead>
                 <tbody>
-                  <?php
-                  $total_assets = 0;
-                  $assets = mysqli_query($conn, "SELECT * FROM accounts WHERE type='asset'");
-                  while ($acc = mysqli_fetch_assoc($assets)) {
-                    $id = $acc['id'];
+                <?php
+                $total_assets = 0;
 
-                    // Assets increase with debit, decrease with credit
-                    $debits = mysqli_fetch_assoc(mysqli_query($conn, "SELECT SUM(amount) AS total FROM transactions WHERE debit_account_id = $id"))['total'] ?? 0;
-                    $credits = mysqli_fetch_assoc(mysqli_query($conn, "SELECT SUM(amount) AS total FROM transactions WHERE credit_account_id = $id"))['total'] ?? 0;
+                // CASH & BANK from cash_book
+                $cash_total = mysqli_fetch_assoc(mysqli_query($conn, "SELECT SUM(cash) AS total FROM cash_book WHERE type='receipt'"))['total'] ?? 0;
+                $bank_total = mysqli_fetch_assoc(mysqli_query($conn, "SELECT SUM(bank) AS total FROM cash_book WHERE type='receipt'"))['total'] ?? 0;
+                $cash_payment = mysqli_fetch_assoc(mysqli_query($conn, "SELECT SUM(cash) AS total FROM cash_book WHERE type='payment'"))['total'] ?? 0;
+                $bank_payment = mysqli_fetch_assoc(mysqli_query($conn, "SELECT SUM(bank) AS total FROM cash_book WHERE type='payment'"))['total'] ?? 0;
 
-                    $balance = $debits - $credits;
-                    $total_assets += $balance;
+                $cash_balance = $cash_total - $cash_payment;
+                $bank_balance = $bank_total - $bank_payment;
 
-                    echo "<tr>
-                            <td>{$acc['account_name']}</td>
-                            <td class='text-end'>" . number_format($balance, 2) . "</td>
-                          </tr>";
-                  }
-                  echo "<tr class='fw-bold table-secondary'>
-                          <td>Total Assets</td>
-                          <td class='text-end'>" . number_format($total_assets, 2) . "</td>
-                        </tr>";
-                  ?>
+                $total_assets += $cash_balance + $bank_balance;
+
+                echo "<tr><td>Cash</td><td class='text-end'>".number_format($cash_balance,2)."</td></tr>";
+                echo "<tr><td>Bank</td><td class='text-end'>".number_format($bank_balance,2)."</td></tr>";
+
+                // INVENTORY (total cost of unsold products)
+                $inventory = mysqli_fetch_assoc(mysqli_query($conn, "SELECT SUM(`cost-price` * quantity) AS total FROM sales WHERE date >= '0000-00-00'"))['total'] ?? 0;
+                $total_assets += $inventory;
+                echo "<tr><td>Inventory</td><td class='text-end'>".number_format($inventory,2)."</td></tr>";
+
+                echo "<tr class='fw-bold table-secondary'><td>Total Assets</td><td class='text-end'>".number_format($total_assets,2)."</td></tr>";
+                ?>
                 </tbody>
               </table>
             </div>
           </div>
         </div>
+
         <!-- LIABILITIES SECTION -->
         <div class="col-md-4">
           <div class="card mb-3">
@@ -66,34 +68,20 @@ include '../includes/header.php';
                   </tr>
                 </thead>
                 <tbody>
-                  <?php
-                  $total_liabilities = 0;
-                  $liabilities = mysqli_query($conn, "SELECT * FROM accounts WHERE type='liability'");
-                  while ($acc = mysqli_fetch_assoc($liabilities)) {
-                    $id = $acc['id'];
-
-                    // Liabilities increase with credit, decrease with debit
-                    $credits = mysqli_fetch_assoc(mysqli_query($conn, "SELECT SUM(amount) AS total FROM transactions WHERE credit_account_id = $id"))['total'] ?? 0;
-                    $debits = mysqli_fetch_assoc(mysqli_query($conn, "SELECT SUM(amount) AS total FROM transactions WHERE debit_account_id = $id"))['total'] ?? 0;
-
-                    $balance = $credits - $debits;
-                    $total_liabilities += $balance;
-
-                    echo "<tr>
-                            <td>{$acc['account_name']}</td>
-                            <td class='text-end'>" . number_format($balance, 2) . "</td>
-                          </tr>";
-                  }
-                  echo "<tr class='fw-bold table-secondary'>
-                          <td>Total Liabilities</td>
-                          <td class='text-end'>" . number_format($total_liabilities, 2) . "</td>
-                        </tr>";
-                  ?>
+                <?php
+                $total_liabilities = 0;
+                // Example: total expenses as liabilities (if unpaid)
+                $liabilities = mysqli_fetch_assoc(mysqli_query($conn, "SELECT SUM(amount) AS total FROM expenses"))['total'] ?? 0;
+                $total_liabilities += $liabilities;
+                echo "<tr><td>Accounts Payable</td><td class='text-end'>".number_format($liabilities,2)."</td></tr>";
+                echo "<tr class='fw-bold table-secondary'><td>Total Liabilities</td><td class='text-end'>".number_format($total_liabilities,2)."</td></tr>";
+                ?>
                 </tbody>
               </table>
             </div>
           </div>
         </div>
+
         <!-- EQUITY SECTION -->
         <div class="col-md-4">
           <div class="card mb-3">
@@ -107,35 +95,26 @@ include '../includes/header.php';
                   </tr>
                 </thead>
                 <tbody>
-                  <?php
-                  $total_equity = 0;
-                  $equity = mysqli_query($conn, "SELECT * FROM accounts WHERE type='equity'");
-                  while ($acc = mysqli_fetch_assoc($equity)) {
-                    $id = $acc['id'];
+                <?php
+                $total_equity = 0;
 
-                    // Equity increases with credit, decreases with debit
-                    $credits = mysqli_fetch_assoc(mysqli_query($conn, "SELECT SUM(amount) AS total FROM transactions WHERE credit_account_id = $id"))['total'] ?? 0;
-                    $debits = mysqli_fetch_assoc(mysqli_query($conn, "SELECT SUM(amount) AS total FROM transactions WHERE debit_account_id = $id"))['total'] ?? 0;
+                // Retained earnings = Total Income - Total Expenses
+                $total_income = mysqli_fetch_assoc(mysqli_query($conn, "SELECT SUM(amount) AS total FROM sales"))['total'] ?? 0;
+                $total_expense = mysqli_fetch_assoc(mysqli_query($conn, "SELECT SUM(amount) AS total FROM expenses"))['total'] ?? 0;
+                $retained_earnings = $total_income - $total_expense;
 
-                    $balance = $credits - $debits;
-                    $total_equity += $balance;
+                $total_equity += $retained_earnings;
+                echo "<tr><td>Retained Earnings</td><td class='text-end'>".number_format($retained_earnings,2)."</td></tr>";
 
-                    echo "<tr>
-                            <td>{$acc['account_name']}</td>
-                            <td class='text-end'>" . number_format($balance, 2) . "</td>
-                          </tr>";
-                  }
-                  echo "<tr class='fw-bold table-secondary'>
-                          <td>Total Equity</td>
-                          <td class='text-end'>" . number_format($total_equity, 2) . "</td>
-                        </tr>";
-                  ?>
+                echo "<tr class='fw-bold table-secondary'><td>Total Equity</td><td class='text-end'>".number_format($total_equity,2)."</td></tr>";
+                ?>
                 </tbody>
               </table>
             </div>
           </div>
         </div>
       </div>
+
       <!-- FINAL BALANCE CHECK -->
       <div class="card summary-card shadow-sm mt-4">
         <div class="card-header summary-header text-center">
@@ -144,8 +123,8 @@ include '../includes/header.php';
         <div class="card-body text-center">
           <?php
           $total_liabilities_equity = $total_liabilities + $total_equity;
-          echo "<h5>Total Assets: <span class='text-success fw-bold'>" . number_format($total_assets, 2) . "</span></h5>";
-          echo "<h5>Total Liabilities + Equity: <span class='text-primary fw-bold'>" . number_format($total_liabilities_equity, 2) . "</span></h5>";
+          echo "<h5>Total Assets: <span class='text-success fw-bold'>".number_format($total_assets,2)."</span></h5>";
+          echo "<h5>Total Liabilities + Equity: <span class='text-primary fw-bold'>".number_format($total_liabilities_equity,2)."</span></h5>";
 
           if (abs($total_assets - $total_liabilities_equity) < 0.01) {
             echo "<h4 class='text-success fw-bold mt-3'>✅ Balanced</h4>";
@@ -155,6 +134,7 @@ include '../includes/header.php';
           ?>
         </div>
       </div>
+
       <div class="text-end">
         <a href="accounting.php" class="btn btn-secondary">← Back</a>
       </div>

@@ -11,8 +11,8 @@ include '../includes/header.php';
   <div class="card trial-balance-card mb-4"  style="border-left: 4px solid teal;">
     <div class="card-header">Trial Balance</div>
     <div class="card-body">
-      <table class="trial-balance-table align-middle">
-        <thead>
+      <table class="trial-balance-table align-middle table table-bordered">
+        <thead class="table-light">
           <tr>
             <th>Account Name</th>
             <th>Debit (Dr)</th>
@@ -28,23 +28,42 @@ include '../includes/header.php';
         while ($acc = mysqli_fetch_assoc($accounts)) {
           $id = $acc['id'];
 
-          // Sum of debits for this account
-          $sql_debit = mysqli_query($conn, "SELECT SUM(amount) as total FROM transactions WHERE debit_account_id = $id");
-          $debit_row = mysqli_fetch_assoc($sql_debit);
-          $debit_total = $debit_row['total'] ?? 0;
+          // Sum debits from manual transactions
+          $sql_debit_trans = mysqli_query($conn, "SELECT SUM(amount) as total FROM transactions WHERE debit_account_id = $id");
+          $debit_trans_row = mysqli_fetch_assoc($sql_debit_trans);
+          $debit_trans_total = $debit_trans_row['total'] ?? 0;
 
-          // Sum of credits for this account
-          $sql_credit = mysqli_query($conn, "SELECT SUM(amount) as total FROM transactions WHERE credit_account_id = $id");
-          $credit_row = mysqli_fetch_assoc($sql_credit);
-          $credit_total = $credit_row['total'] ?? 0;
+          // Sum credits from manual transactions
+          $sql_credit_trans = mysqli_query($conn, "SELECT SUM(amount) as total FROM transactions WHERE credit_account_id = $id");
+          $credit_trans_row = mysqli_fetch_assoc($sql_credit_trans);
+          $credit_trans_total = $credit_trans_row['total'] ?? 0;
 
-          // Determine final balance
-          if ($debit_total > $credit_total) {
-            $final_debit = $debit_total - $credit_total;
-            $final_credit = 0;
+          // Sum sales related to this account (if income account)
+          $sql_sales = mysqli_query($conn, "
+            SELECT SUM(amount) as total FROM sales s
+            JOIN accounts a ON a.id = $id
+            WHERE a.type='income'
+          ");
+          $sales_row = mysqli_fetch_assoc($sql_sales);
+          $sales_total = $sales_row['total'] ?? 0;
+
+          // Sum expenses related to this account (if expense account)
+          $sql_expenses = mysqli_query($conn, "
+            SELECT SUM(amount) as total FROM expenses e
+            JOIN accounts a ON a.id = $id
+            WHERE a.type='expense'
+          ");
+          $expense_row = mysqli_fetch_assoc($sql_expenses);
+          $expense_total = $expense_row['total'] ?? 0;
+
+          // Calculate final debit and credit
+          if ($acc['type'] == 'asset' || $acc['type'] == 'expense') {
+            $final_debit = $debit_trans_total + $expense_total;
+            $final_credit = $credit_trans_total + $sales_total;
           } else {
-            $final_credit = $credit_total - $debit_total;
-            $final_debit = 0;
+            // liabilities, income, equity
+            $final_debit = $debit_trans_total + $expense_total;
+            $final_credit = $credit_trans_total + $sales_total;
           }
 
           $grand_debit += $final_debit;
@@ -52,15 +71,15 @@ include '../includes/header.php';
 
           echo "<tr>
                   <td>{$acc['account_name']}</td>
-                  <td>$final_debit</td>
-                  <td>$final_credit</td>
+                  <td>".number_format($final_debit,2)."</td>
+                  <td>".number_format($final_credit,2)."</td>
                 </tr>";
         }
 
         echo "<tr class='fw-bold table-secondary'>
                 <td class='text-end'>Total:</td>
-                <td>$grand_debit</td>
-                <td>$grand_credit</td>
+                <td>".number_format($grand_debit,2)."</td>
+                <td>".number_format($grand_credit,2)."</td>
               </tr>";
 
         if ($grand_debit == $grand_credit) {
@@ -71,7 +90,7 @@ include '../includes/header.php';
         ?>
         </tbody>
       </table>
-      <a href="accounting.php" class="btn btn-secondary">← Back</a>
+      <a href="accounting.php" class="btn btn-secondary mt-3">← Back</a>
     </div>
   </div>
 </div>

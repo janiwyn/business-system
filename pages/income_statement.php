@@ -13,42 +13,28 @@ include '../includes/header.php';
     <!-- Income Section -->
     <div class="col-md-6">
       <div class="card income-card mb-4"  style="border-left: 4px solid teal;">
-        <div class="card-header income-header">Income</div>
+        <div class="card-header income-header">Income (Sales)</div>
         <div class="card-body">
           <table class="income-table align-middle">
             <thead>
               <tr>
-                <th>Account</th>
+                <th>Sale Description</th>
                 <th class="text-end">Amount</th>
               </tr>
             </thead>
             <tbody>
               <?php
               $total_income = 0;
-
-              $income_accounts = mysqli_query($conn, "SELECT * FROM accounts WHERE type='income'");
-              while ($acc = mysqli_fetch_assoc($income_accounts)) {
-                $id = $acc['id'];
-
-                // Calculate total credits (income usually has credits)
-                $credit_query = mysqli_query($conn, "SELECT SUM(amount) as total FROM transactions WHERE credit_account_id = $id");
-                $credit_row = mysqli_fetch_assoc($credit_query);
-                $credit_total = $credit_row['total'] ?? 0;
-
-                // Subtract any debits to get net income
-                $debit_query = mysqli_query($conn, "SELECT SUM(amount) as total FROM transactions WHERE debit_account_id = $id");
-                $debit_row = mysqli_fetch_assoc($debit_query);
-                $debit_total = $debit_row['total'] ?? 0;
-
-                $income = $credit_total - $debit_total;
-                $total_income += $income;
-
-                echo "<tr>
-                        <td>{$acc['account_name']}</td>
-                        <td class='text-end'>$income</td>
-                      </tr>";
+              $sales_query = mysqli_query($conn, "SELECT * FROM sales ORDER BY date ASC");
+              while ($sale = mysqli_fetch_assoc($sales_query)) {
+                  $desc = "Invoice #" . $sale['invoice_no'];
+                  $amount = $sale['amount'];
+                  $total_income += $amount;
+                  echo "<tr>
+                          <td>$desc</td>
+                          <td class='text-end'>$amount</td>
+                        </tr>";
               }
-
               echo "<tr class='fw-bold table-secondary'>
                       <td>Total Income</td>
                       <td class='text-end'>$total_income</td>
@@ -59,6 +45,7 @@ include '../includes/header.php';
         </div>
       </div>
     </div>
+
     <!-- Expenses Section -->
     <div class="col-md-6">
       <div class="card expense-card mb-4"  style="border-left: 4px solid teal;">
@@ -67,37 +54,23 @@ include '../includes/header.php';
           <table class="expense-table align-middle">
             <thead>
               <tr>
-                <th>Account</th>
+                <th>Expense Description</th>
                 <th class="text-end">Amount</th>
               </tr>
             </thead>
             <tbody>
               <?php
               $total_expense = 0;
-
-              $expense_accounts = mysqli_query($conn, "SELECT * FROM accounts WHERE type='expense'");
-              while ($acc = mysqli_fetch_assoc($expense_accounts)) {
-                $id = $acc['id'];
-
-                // Expenses usually have debits
-                $debit_query = mysqli_query($conn, "SELECT SUM(amount) as total FROM transactions WHERE debit_account_id = $id");
-                $debit_row = mysqli_fetch_assoc($debit_query);
-                $debit_total = $debit_row['total'] ?? 0;
-
-                // Subtract credits
-                $credit_query = mysqli_query($conn, "SELECT SUM(amount) as total FROM transactions WHERE credit_account_id = $id");
-                $credit_row = mysqli_fetch_assoc($credit_query);
-                $credit_total = $credit_row['total'] ?? 0;
-
-                $expense = $debit_total - $credit_total;
-                $total_expense += $expense;
-
-                echo "<tr>
-                        <td>{$acc['account_name']}</td>
-                        <td class='text-end'>$expense</td>
-                      </tr>";
+              $expense_query = mysqli_query($conn, "SELECT * FROM expenses ORDER BY date ASC");
+              while ($exp = mysqli_fetch_assoc($expense_query)) {
+                  $desc = $exp['category'] . " - " . $exp['description'];
+                  $amount = $exp['amount'];
+                  $total_expense += $amount;
+                  echo "<tr>
+                          <td>$desc</td>
+                          <td class='text-end'>$amount</td>
+                        </tr>";
               }
-
               echo "<tr class='fw-bold table-secondary'>
                       <td>Total Expenses</td>
                       <td class='text-end'>$total_expense</td>
@@ -109,6 +82,7 @@ include '../includes/header.php';
       </div>
     </div>
   </div>
+
   <!-- Net Profit / Loss -->
   <div class="card net-result-card shadow-sm mt-4 mb-4"  style="border-left: 4px solid teal;">
     <div class="card-header net-result-header text-center">
@@ -118,17 +92,19 @@ include '../includes/header.php';
       <?php
       $net_profit = $total_income - $total_expense;
       if ($net_profit > 0) {
-        echo "<h4 class='text-success fw-bold'>Net Profit: $net_profit</h4>";
+          echo "<h4 class='text-success fw-bold'>Net Profit: $net_profit</h4>";
       } elseif ($net_profit < 0) {
-        echo "<h4 class='text-danger fw-bold'>Net Loss: " . abs($net_profit) . "</h4>";
+          echo "<h4 class='text-danger fw-bold'>Net Loss: " . abs($net_profit) . "</h4>";
       } else {
-        echo "<h4 class='text-secondary fw-bold'>No Profit, No Loss (Balanced)</h4>";
+          echo "<h4 class='text-secondary fw-bold'>No Profit, No Loss (Balanced)</h4>";
       }
       ?>
     </div>
   </div>
+
   <div class="text-end">
     <a href="accounting.php" class="btn btn-secondary">← Back</a>
   </div>
 </div>
+
 <?php include '../includes/footer.php'; ?>
