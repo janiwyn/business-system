@@ -36,13 +36,44 @@ include '../includes/header.php';
       <?php
       if (isset($_GET['account_id'])) {
         $account_id = $_GET['account_id'];
-        $sql = "SELECT * FROM transactions 
-                WHERE debit_account_id = $account_id OR credit_account_id = $account_id 
-                ORDER BY date ASC";
-        $result = mysqli_query($conn, $sql);
 
-        echo "<div class='table-responsive'><table class='ledger-table align-middle'>
-                <thead>
+        // Fetch account name
+        $acc_res = mysqli_query($conn, "SELECT account_name FROM accounts WHERE id = $account_id");
+        $account = mysqli_fetch_assoc($acc_res);
+        echo "<h5 class='mb-3'>Ledger for: <strong>{$account['account_name']}</strong></h5>";
+
+        // Dynamic ledger query combining sales, expenses, and manual transactions
+        $ledger_sql = "
+          SELECT date, description,
+                 CASE WHEN type = 'Income' THEN amount ELSE NULL END AS debit,
+                 CASE WHEN type = 'Expense' THEN amount ELSE NULL END AS credit
+          FROM (
+            SELECT s.date, CONCAT('Sale Invoice #', s.invoice_no) AS description, s.amount, 'Income' AS type
+            FROM sales s
+            WHERE s.`branch-id` = $account_id
+
+            UNION ALL
+
+            SELECT e.date, CONCAT(e.category, ' - ', e.description) AS description, e.amount, 'Expense' AS type
+            FROM expenses e
+            WHERE e.`branch-id` = $account_id
+
+            UNION ALL
+
+            SELECT t.date, t.description,
+                   CASE WHEN t.debit_account_id = $account_id THEN t.amount ELSE NULL END AS debit,
+                   CASE WHEN t.credit_account_id = $account_id THEN t.amount ELSE NULL END AS credit
+            FROM transactions t
+            WHERE t.debit_account_id = $account_id OR t.credit_account_id = $account_id
+          ) AS ledger_data
+          ORDER BY date ASC
+        ";
+
+        $ledger_result = mysqli_query($conn, $ledger_sql);
+
+        // Display ledger table
+        echo "<div class='table-responsive'><table class='ledger-table align-middle table table-bordered'>
+                <thead class='table-light'>
                   <tr>
                     <th>Date</th>
                     <th>Description</th>
@@ -55,12 +86,12 @@ include '../includes/header.php';
         $total_debit = 0;
         $total_credit = 0;
 
-        while ($row = mysqli_fetch_assoc($result)) {
-          $debit = $row['debit_account_id'] == $account_id ? $row['amount'] : '';
-          $credit = $row['credit_account_id'] == $account_id ? $row['amount'] : '';
-          
-          if ($debit) $total_debit += $row['amount'];
-          if ($credit) $total_credit += $row['amount'];
+        while ($row = mysqli_fetch_assoc($ledger_result)) {
+          $debit = $row['debit'] ? number_format($row['debit'], 2) : '';
+          $credit = $row['credit'] ? number_format($row['credit'], 2) : '';
+
+          if ($row['debit']) $total_debit += $row['debit'];
+          if ($row['credit']) $total_credit += $row['credit'];
 
           echo "<tr>
                   <td>{$row['date']}</td>
@@ -72,12 +103,12 @@ include '../includes/header.php';
 
         $balance = $total_debit - $total_credit;
         $balance_label = $balance >= 0 ? "Dr" : "Cr";
-        $balance = abs($balance);
+        $balance = number_format(abs($balance), 2);
 
         echo "<tr class='fw-bold'>
                 <td colspan='2' class='text-end'>Totals:</td>
-                <td>$total_debit</td>
-                <td>$total_credit</td>
+                <td>".number_format($total_debit, 2)."</td>
+                <td>".number_format($total_credit, 2)."</td>
               </tr>
               <tr class='table-secondary fw-bold'>
                 <td colspan='2' class='text-end'>Balance:</td>
@@ -90,4 +121,5 @@ include '../includes/header.php';
     </div>
   </div>
 </div>
+
 <?php include '../includes/footer.php'; ?>

@@ -4,69 +4,118 @@ include '../includes/auth.php';
 require_role(["admin", "manager"]);
 include '../pages/sidebar.php';
 include '../includes/header.php';
+
+// Fetch sales transactions (INCOME) with branch and user names
+$sales_query = "
+    SELECT 
+        s.id,
+        s.date,
+        s.amount,
+        s.payment_method,
+        s.invoice_no,
+        'Sale' AS type,
+        CONCAT('Sale Invoice #', s.invoice_no) AS description,
+        u.username AS sold_by_name,
+        b.name AS branch_name
+    FROM sales s
+    LEFT JOIN users u ON s.`sold-by` = u.id
+    LEFT JOIN branch b ON s.`branch-id` = b.id
+    ORDER BY s.date DESC
+";
+
+$sales_result = mysqli_query($conn, $sales_query);
+
+// Fetch expenses transactions (EXPENSE) with branch and user names
+$expense_query = "
+    SELECT 
+        e.id,
+        e.date,
+        e.amount,
+        e.category,
+        e.description,
+        'Expense' AS type,
+        u.username AS spent_by_name,
+        b.name AS branch_name
+    FROM expenses e
+    LEFT JOIN users u ON e.`spent-by` = u.id
+    LEFT JOIN branch b ON e.`branch-id` = b.id
+    ORDER BY e.date DESC
+";
+
+$expense_result = mysqli_query($conn, $expense_query);
 ?>
+
 <link rel="stylesheet" href="assets/css/accounting.css">
 
 <div class="container mt-5">
-  <div class="card add-transaction-card mb-4"  style="border-left: 4px solid teal;">
-    <div class="card-header">Record New Transaction</div>
+  <div class="card mb-4" style="border-left: 4px solid teal;">
+    <div class="card-header">
+      <h5 class="mb-0">Business Transactions (Auto-generated)</h5>
+    </div>
+
     <div class="card-body">
-      <form method="POST">
-        <div class="row g-3">
-          <div class="col-md-4">
-            <label class="form-label">Date</label>
-            <input type="date" name="date" class="form-control" required>
-          </div>
-          <div class="col-md-8">
-            <label class="form-label">Description</label>
-            <input type="text" name="description" class="form-control" required>
-          </div>
-          <div class="col-md-6">
-            <label class="form-label">Debit Account</label>
-            <select name="debit_account" class="form-select">
-              <?php
-              $result = mysqli_query($conn, "SELECT * FROM accounts");
-              while ($row = mysqli_fetch_assoc($result)) {
-                echo "<option value='{$row['id']}'>{$row['account_name']}</option>";
-              }
-              ?>
-            </select>
-          </div>
-          <div class="col-md-6">
-            <label class="form-label">Credit Account</label>
-            <select name="credit_account" class="form-select">
-              <?php
-              $result = mysqli_query($conn, "SELECT * FROM accounts");
-              while ($row = mysqli_fetch_assoc($result)) {
-                echo "<option value='{$row['id']}'>{$row['account_name']}</option>";
-              }
-              ?>
-            </select>
-          </div>
-          <div class="col-md-4">
-            <label class="form-label">Amount</label>
-            <input type="number" step="0.01" name="amount" class="form-control" required>
-          </div>
-        </div>
-        <div class="mt-4 text-end">
-          <button type="submit" name="save" class="btn btn-primary">Save Transaction</button>
-          <a href="accounting.php" class="btn btn-secondary">← Back</a>
-        </div>
-      </form>
-      <?php
-      if (isset($_POST['save'])) {
-        $date = $_POST['date'];
-        $desc = $_POST['description'];
-        $debit = $_POST['debit_account'];
-        $credit = $_POST['credit_account'];
-        $amount = $_POST['amount'];
-        $sql = "INSERT INTO transactions (date, description, debit_account_id, credit_account_id, amount)
-                VALUES ('$date', '$desc', '$debit', '$credit', '$amount')";
-        mysqli_query($conn, $sql);
-        echo "<script>alert('Transaction recorded successfully!');</script>";
-      }
-      ?>
+      <table class="table table-bordered table-striped">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Type</th>
+            <th>Description</th>
+            <th>Branch</th>
+            <th>Amount</th>
+            <th>Handled By</th>
+          </tr>
+        </thead>
+       <tbody>
+  <!-- SALES / INCOME -->
+  <tr>
+    <td colspan="6" class="text-center bg-light"><strong>Income Transactions</strong></td>
+  </tr>
+  <?php 
+  $total_income = 0;
+  while ($sale = mysqli_fetch_assoc($sales_result)) { 
+      $total_income += $sale['amount'];
+  ?>
+    <tr>
+      <td><?php echo $sale['date']; ?></td>
+      <td><span class="badge bg-success">Income</span></td>
+      <td><?php echo $sale['description']; ?></td>
+      <td><?php echo $sale['branch_name']; ?></td>
+      <td><strong><?php echo number_format($sale['amount'], 2); ?></strong></td>
+      <td><?php echo $sale['sold_by_name']; ?></td>
+    </tr>
+  <?php } ?>
+  <tr>
+    <td colspan="4" class="text-end"><strong>Total Income:</strong></td>
+    <td colspan="2"><strong><?php echo number_format($total_income, 2); ?></strong></td>
+  </tr>
+
+  <!-- EXPENSES -->
+  <tr>
+    <td colspan="6" class="text-center bg-light"><strong>Expense Transactions</strong></td>
+  </tr>
+  <?php 
+  $total_expense = 0;
+  while ($exp = mysqli_fetch_assoc($expense_result)) { 
+      $total_expense += $exp['amount'];
+  ?>
+    <tr>
+      <td><?php echo $exp['date']; ?></td>
+      <td><span class="badge bg-danger">Expense</span></td>
+      <td><?php echo $exp['category'] . " - " . $exp['description']; ?></td>
+      <td><?php echo $exp['branch_name']; ?></td>
+      <td><strong>-<?php echo number_format($exp['amount'], 2); ?></strong></td>
+      <td><?php echo $exp['spent_by_name']; ?></td>
+    </tr>
+  <?php } ?>
+  <tr>
+    <td colspan="4" class="text-end"><strong>Total Expenses:</strong></td>
+    <td colspan="2"><strong>-<?php echo number_format($total_expense, 2); ?></strong></td>
+  </tr>
+</tbody>
+
+      </table>
     </div>
   </div>
 </div>
+
 <?php include '../includes/footer.php'; ?>
