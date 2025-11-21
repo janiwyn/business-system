@@ -56,41 +56,90 @@ if (isset($_POST['submit_cart']) && !empty($_POST['cart_data'])) {
         
         // If insufficient balance: ONLY record customer debtor, DO NOT record sales
         if ($customer_balance < $total) {
-            // CHANGED: Generate SEQUENTIAL invoice number using receipt_counter
-            $receipt_invoice_no = generateReceiptNumber($conn, 'INV'); // <-- SEQUENTIAL INV-00001, INV-00002...
+            // CHANGED: Only record customer_transactions (debtor), NO sales table insert
+
+            $receipt_invoice_no = generateReceiptNumber($conn, 'INV');
 
             $now = date('Y-m-d H:i:s');
-            $sold_by = $_SESSION['username'];
-            
-            // Record ONLY in customer_transactions (debtor)
-            $amount_paid_val = $customer_balance; // They can pay whatever balance they have
-            $amount_credited = $total - $customer_balance; // Remaining debt
+            $sold_by = $_SESSION['username'] ?? '';
+
+            $amount_paid_val = $customer_balance;
+            $amount_credited = $total - $customer_balance;
             $status = 'debtor';
 
-            // Deduct customer's available balance (if any)
-            if ($customer_balance > 0) {
-                $stmt = $conn->prepare("UPDATE customers SET account_balance = 0, amount_credited = amount_credited + ? WHERE id = ?");
-                $stmt->bind_param("di", $amount_credited, $customer_id);
-                $stmt->execute();
-                $stmt->close();
-            } else {
-                // No balance at all, just add to credited
-                $stmt = $conn->prepare("UPDATE customers SET amount_credited = amount_credited + ? WHERE id = ?");
-                $stmt->bind_param("di", $amount_credited, $customer_id);
-                $stmt->execute();
-                $stmt->close();
+            // Validate stock
+            $total_quantity = 0;
+            $stock_ok = true;
+            $stock_errors = [];
+
+            $chk = $conn->prepare("SELECT `selling-price`,`buying-price`,stock FROM products WHERE id = ? AND `branch-id` = ?");
+            foreach ($cart as $item) {
+                $pid = (int)($item['id'] ?? 0);
+                $qty = (int)($item['quantity'] ?? 0);
+                if ($pid <= 0 || $qty <= 0) continue;
+
+                $chk->bind_param("ii", $pid, $branch_id);
+                $chk->execute();
+                $prod = $chk->get_result()->fetch_assoc();
+                if (!$prod) { $stock_ok = false; $stock_errors[] = "Product ID {$pid} not found."; break; }
+                if (intval($prod['stock']) < $qty) { $stock_ok = false; $stock_errors[] = "Not enough stock for {$item['name']}."; break; }
+
+                $total_quantity += $qty;
+            }
+            $chk->close();
+
+            if (!$stock_ok) {
+                $conn->rollback();
+                $_SESSION['cart_sale_message'] = '❌ Cannot record customer debtor: ' . implode(' ', $stock_errors);
+                echo "<script>window.location='staff_dashboard.php';</script>";
+                exit;
             }
 
-            // Record customer transaction (debtor record) WITH SEQUENTIAL INVOICE NUMBER
-            $ct = $conn->prepare("INSERT INTO customer_transactions (customer_id, date_time, products_bought, amount_paid, amount_credited, sold_by, status, invoice_receipt_no) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
-            $ct->bind_param("issddsss", $customer_id, $now, $products_json, $amount_paid_val, $amount_credited, $sold_by, $status, $receipt_invoice_no);
-            $ct->execute();
-            $ct->close();
+            // BEGIN TRANSACTION: decrement stock, update customer, insert transaction ONLY (NO sales insert)
+            try {
+                $conn->begin_transaction();
 
-            $conn->commit();
-            $_SESSION['cart_sale_message'] = '✅ Customer debtor recorded successfully! Invoice: ' . $receipt_invoice_no;
-            echo "<script>window.location='staff_dashboard.php';</script>";
-            exit;
+                $upd = $conn->prepare("UPDATE products SET stock = stock - ? WHERE id = ? AND `branch-id` = ?");
+                foreach ($cart as $item) {
+                    $pid = (int)($item['id'] ?? 0);
+                    $qty = (int)($item['quantity'] ?? 0);
+                    if ($pid <= 0 || $qty <= 0) continue;
+                    $upd->bind_param("iii", $qty, $pid, $branch_id);
+                    $upd->execute();
+                }
+                $upd->close();
+
+                // Update customer's balances
+                if ($customer_balance > 0) {
+                    $stmt = $conn->prepare("UPDATE customers SET account_balance = 0, amount_credited = amount_credited + ? WHERE id = ?");
+                    $stmt->bind_param("di", $amount_credited, $customer_id);
+                    $stmt->execute();
+                    $stmt->close();
+                } else {
+                    $stmt = $conn->prepare("UPDATE customers SET amount_credited = amount_credited + ? WHERE id = ?");
+                    $stmt->bind_param("di", $amount_credited, $customer_id);
+                    $stmt->execute();
+                    $stmt->close();
+                }
+
+                // Insert customer_transactions (debtor) WITH branch_id - THIS IS THE ONLY INSERT
+                $ct = $conn->prepare("INSERT INTO customer_transactions (customer_id, branch_id, date_time, products_bought, amount_paid, amount_credited, sold_by, status, invoice_receipt_no) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                $ct->bind_param("iissddsss", $customer_id, $branch_id, $now, $products_json, $amount_paid_val, $amount_credited, $sold_by, $status, $receipt_invoice_no);
+                $ct->execute();
+                $ct->close();
+
+                // REMOVED: No sales table insert for customer debtors with insufficient balance
+
+                $conn->commit();
+                $_SESSION['cart_sale_message'] = '✅ Customer debtor recorded successfully! Invoice: ' . $receipt_invoice_no;
+                echo "<script>window.location='staff_dashboard.php';</script>";
+                exit;
+            } catch (Throwable $e) {
+                $conn->rollback();
+                $_SESSION['cart_sale_message'] = '❌ Failed to record customer debtor: ' . $e->getMessage();
+                echo "<script>window.location='staff_dashboard.php';</script>";
+                exit;
+            }
         }
     }
 
@@ -200,9 +249,9 @@ if (isset($_POST['submit_cart']) && !empty($_POST['cart_data'])) {
         $stmt->execute();
         $stmt->close();
 
-        // FIX: Store the SAME receipt number from sales table
-        $ct = $conn->prepare("INSERT INTO customer_transactions (customer_id, date_time, products_bought, amount_paid, amount_credited, sold_by, status, invoice_receipt_no) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
-        $ct->bind_param("issddsss", $customer_id, $now, $products_json, $amount_paid_val, $amount_credited, $sold_by, $status, $receipt_invoice_no); // <-- SAME receipt_invoice_no
+        // FIX: Store the SAME receipt number from sales table WITH branch_id
+        $ct = $conn->prepare("INSERT INTO customer_transactions (customer_id, branch_id, date_time, products_bought, amount_paid, amount_credited, sold_by, status, invoice_receipt_no) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
+        $ct->bind_param("iissddsss", $customer_id, $branch_id, $now, $products_json, $amount_paid_val, $amount_credited, $sold_by, $status, $receipt_invoice_no);
         $ct->execute();
         $ct->close();
     }

@@ -252,53 +252,114 @@ $debtors_stmt->close();
 
 // Handle debtor record (WITH INVOICE NUMBER)
 if (isset($_POST['record_debtor'])) {
-    $debtor_name    = trim($_POST['debtor_name']);
-    $debtor_contact = trim($_POST['debtor_contact']);
-    $debtor_email   = trim($_POST['debtor_email']);
-    $created_by     = $user_id;
-    $branch         = $branch_id;
-    $date           = date('Y-m-d H:i:s');
+	$debtor_name    = trim($_POST['debtor_name']);
+	$debtor_contact = trim($_POST['debtor_contact']);
+	$debtor_email   = trim($_POST['debtor_email']);
+	$created_by     = $user_id;
+	$branch         = $branch_id;
+	$date           = date('Y-m-d H:i:s');
 
-    // Get cart and payment info from POST
-    $cart = json_decode($_POST['cart_data'] ?? '[]', true);
-    $amount_paid = floatval($_POST['amount_paid'] ?? 0);
+	// Get cart and payment info from POST
+	$cart = json_decode($_POST['cart_data'] ?? '[]', true);
+	$amount_paid = floatval($_POST['amount_paid'] ?? 0);
 
-    // --- Store full cart as JSON for proper reconstruction ---
-    $products_json = $_POST['cart_data'] ?? '[]'; // Keep raw JSON string
-    
-    // Calculate item_taken (WITH QUANTITIES like customer debtors), quantity_taken, total_amount
-    $item_taken = '';
-    $quantity_taken = 0;
-    $total_amount = 0;
-    if ($cart && is_array($cart)) {
-        $item_names = [];
-        foreach ($cart as $item) {
-            // Include quantity in item_taken display
-            $item_names[] = $item['name'] . ' x' . intval($item['quantity']);
-            $quantity_taken += intval($item['quantity']);
-            $total_amount += floatval($item['price']) * intval($item['quantity']);
-        }
-        $item_taken = implode(', ', $item_names);
-    }
-    $balance = $total_amount - $amount_paid;
+	// --- Store full cart as JSON for proper reconstruction ---
+	$products_json = $_POST['cart_data'] ?? '[]'; // Keep raw JSON string
 
-    // CHANGED: Generate SEQUENTIAL invoice number using receipt_counter
-    $invoice_no = generateReceiptNumber($conn, 'INV'); // <-- SEQUENTIAL INV-00001, INV-00002...
+	// Calculate item_taken (WITH QUANTITIES like customer debtors), quantity_taken, total_amount
+	$item_taken = '';
+	$quantity_taken = 0;
+	$total_amount = 0;
+	if ($cart && is_array($cart)) {
+	    $item_names = [];
+	    foreach ($cart as $item) {
+	        // Include quantity in item_taken display
+	        $item_names[] = $item['name'] . ' x' . intval($item['quantity']);
+	        $quantity_taken += intval($item['quantity']);
+	        $total_amount += floatval($item['price']) * intval($item['quantity']);
+	    }
+	    $item_taken = implode(', ', $item_names);
+	}
+	$balance = $total_amount - $amount_paid;
 
-    // Only insert if all required fields are present
-    if ($debtor_name && $quantity_taken > 0 && $balance > 0 && !empty($item_taken)) {
-        // Add products_json AND invoice_no columns to debtors table
-        $stmt = $conn->prepare("INSERT INTO debtors (debtor_name, debtor_contact, debtor_email, item_taken, quantity_taken, amount_paid, balance, branch_id, created_by, created_at, products_json, invoice_no) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-        $stmt->bind_param("ssssiddiisss", $debtor_name, $debtor_contact, $debtor_email, $item_taken, $quantity_taken, $amount_paid, $balance, $branch, $created_by, $date, $products_json, $invoice_no);
-        if ($stmt->execute()) {
-            $message = "✅ Debtor recorded successfully! Invoice: " . $invoice_no;
-        } else {
-            $message = "❌ Failed to record debtor: " . $stmt->error;
-        }
-        $stmt->close();
-    } else {
-        $message = "⚠️ Debtor name, item taken, quantity, and balance are required.";
-    }
+	// CHANGED: Generate SEQUENTIAL invoice number using receipt_counter
+	$invoice_no = generateReceiptNumber($conn, 'INV'); // <-- SEQUENTIAL INV-00001, INV-00002...
+
+	// Only insert if all required fields are present
+	if ($debtor_name && $quantity_taken > 0 && $balance > 0 && !empty($item_taken)) {
+	    // Add products_json AND invoice_no columns to debtors table
+	    $stmt = $conn->prepare("INSERT INTO debtors (debtor_name, debtor_contact, debtor_email, item_taken, quantity_taken, amount_paid, balance, branch_id, created_by, created_at, products_json, invoice_no) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+	    $stmt->bind_param("ssssiddiisss", $debtor_name, $debtor_contact, $debtor_email, $item_taken, $quantity_taken, $amount_paid, $balance, $branch, $created_by, $date, $products_json, $invoice_no);
+	    if ($stmt->execute()) {
+	        $debtor_id_new = $stmt->insert_id;
+	        $stmt->close();
+
+	        // NEW: decrement stock for each product in the cart (validate first)
+	        $stock_ok = true;
+	        $stock_errors = [];
+	        $conn->begin_transaction();
+	        try {
+	            // Validate all items
+	            $chkStmt = $conn->prepare("SELECT stock FROM products WHERE id = ? AND `branch-id` = ? LIMIT 1");
+	            foreach ($cart as $item) {
+	                $pid = intval($item['id'] ?? 0);
+	                $qty = max(0, intval($item['quantity'] ?? 0));
+	                if ($pid <= 0 || $qty <= 0) continue;
+	                $chkStmt->bind_param("ii", $pid, $branch);
+	                $chkStmt->execute();
+	                $res = $chkStmt->get_result()->fetch_assoc();
+	                if (!$res) {
+	                    $stock_ok = false;
+	                    $stock_errors[] = "Product ID {$pid} not found in branch.";
+	                    break;
+	                }
+	                if (intval($res['stock']) < $qty) {
+	                    $stock_ok = false;
+	                    $stock_errors[] = "Not enough stock for product ID {$pid}.";
+	                    break;
+	                }
+	            }
+	            $chkStmt->close();
+
+	            if (!$stock_ok) {
+	                // rollback and delete inserted debtor (we don't want dangling debtor if stock invalid)
+	                $conn->rollback();
+	                $del = $conn->prepare("DELETE FROM debtors WHERE id = ?");
+	                $del->bind_param("i", $debtor_id_new);
+	                $del->execute();
+	                $del->close();
+	                $message = "❌ Cannot record debtor: " . implode(' ', $stock_errors);
+	            } else {
+	                // Decrement stock
+	                $updStmt = $conn->prepare("UPDATE products SET stock = stock - ? WHERE id = ? AND `branch-id` = ?");
+	                foreach ($cart as $item) {
+	                    $pid = intval($item['id'] ?? 0);
+	                    $qty = max(0, intval($item['quantity'] ?? 0));
+	                    if ($pid <= 0 || $qty <= 0) continue;
+	                    $updStmt->bind_param("iii", $qty, $pid, $branch);
+	                    $updStmt->execute();
+	                }
+	                $updStmt->close();
+	                $conn->commit();
+
+	                $message = "✅ Debtor recorded successfully! Invoice: " . $invoice_no;
+	            }
+	        } catch (Throwable $e) {
+	            $conn->rollback();
+	            // remove debtor record to keep DB consistent
+	            $del = $conn->prepare("DELETE FROM debtors WHERE id = ?");
+	            $del->bind_param("i", $debtor_id_new);
+	            $del->execute();
+	            $del->close();
+	            $message = "❌ Failed to record debtor: " . $e->getMessage();
+	        }
+	    } else {
+	        $message = "❌ Failed to record debtor: " . $stmt->error;
+	        $stmt->close();
+	    }
+	} else {
+	    $message = "⚠️ Debtor name, item taken, quantity, and balance are required.";
+	}
 }
 
 // --- NEW: fetch customers for "Customer File" option (staff only) ---

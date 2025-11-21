@@ -42,6 +42,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     if ($action === 'add_money') {
         $customer_id = intval($_POST['customer_id'] ?? 0);
         $amount = floatval($_POST['amount'] ?? 0);
+        $user_branch = $_SESSION['branch_id'] ?? 1; // Get staff's branch
         if ($customer_id <= 0 || $amount <= 0) {
             echo json_encode(['success'=>false,'message'=>'Invalid input']);
             exit;
@@ -69,24 +70,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             $now = date('Y-m-d H:i:s');
             $sold_by = $_SESSION['username'];
 
-            // 1. Record deduction transaction if any credited amount was paid off
+            // 1. Record deduction transaction if any credited amount was paid off WITH branch_id
             if ($amount_to_credit > 0) {
                 $products = 'Account Deduction';
                 $amount_paid = $amount_to_credit;
                 $amount_credited = $amount_to_credit;
-                $stmt2 = $conn->prepare("INSERT INTO customer_transactions (customer_id, date_time, products_bought, amount_paid, amount_credited, sold_by) VALUES (?, ?, ?, ?, ?, ?)");
-                $stmt2->bind_param("issdds", $customer_id, $now, $products, $amount_paid, $amount_credited, $sold_by);
+                $stmt2 = $conn->prepare("INSERT INTO customer_transactions (customer_id, branch_id, date_time, products_bought, amount_paid, amount_credited, sold_by) VALUES (?, ?, ?, ?, ?, ?, ?)");
+                $stmt2->bind_param("iissdds", $customer_id, $user_branch, $now, $products, $amount_paid, $amount_credited, $sold_by);
                 $stmt2->execute();
                 $stmt2->close();
             }
 
-            // 2. Record top-up transaction for remaining balance
+            // 2. Record top-up transaction for remaining balance WITH branch_id
             if ($amount_to_balance > 0) {
                 $products = 'Account Top-up';
                 $amount_paid = $amount_to_balance;
                 $amount_credited = 0;
-                $stmt2 = $conn->prepare("INSERT INTO customer_transactions (customer_id, date_time, products_bought, amount_paid, amount_credited, sold_by) VALUES (?, ?, ?, ?, ?, ?)");
-                $stmt2->bind_param("issdds", $customer_id, $now, $products, $amount_paid, $amount_credited, $sold_by);
+                $stmt2 = $conn->prepare("INSERT INTO customer_transactions (customer_id, branch_id, date_time, products_bought, amount_paid, amount_credited, sold_by) VALUES (?, ?, ?, ?, ?, ?, ?)");
+                $stmt2->bind_param("iissdds", $customer_id, $user_branch, $now, $products, $amount_paid, $amount_credited, $sold_by);
                 $stmt2->execute();
                 $stmt2->close();
             }
@@ -119,11 +120,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 }
 if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['fetch_transactions'])) {
     $customer_id = intval($_GET['customer_id'] ?? 0);
+    $user_role = $_SESSION['role'] ?? 'staff';
+    $user_branch = $_SESSION['branch_id'] ?? null;
+    
     $out = ['success'=>false,'rows'=>[]];
     if ($customer_id > 0) {
-        // Include customer's payment_method in the response
-        $stmt = $conn->prepare("SELECT ct.*, c.payment_method FROM customer_transactions ct JOIN customers c ON c.id = ct.customer_id WHERE ct.customer_id = ? ORDER BY ct.date_time DESC");
-        $stmt->bind_param("i", $customer_id);
+        if ($user_role === 'staff') {
+            // Staff: only see transactions from their branch
+            $stmt = $conn->prepare("SELECT ct.*, c.payment_method, b.name AS branch_name FROM customer_transactions ct JOIN customers c ON c.id = ct.customer_id LEFT JOIN branch b ON ct.branch_id = b.id WHERE ct.customer_id = ? AND ct.branch_id = ? ORDER BY ct.date_time DESC");
+            $stmt->bind_param("ii", $customer_id, $user_branch);
+        } else {
+            // Admin/Manager: see all transactions
+            $stmt = $conn->prepare("SELECT ct.*, c.payment_method, b.name AS branch_name FROM customer_transactions ct JOIN customers c ON c.id = ct.customer_id LEFT JOIN branch b ON ct.branch_id = b.id WHERE ct.customer_id = ? ORDER BY ct.date_time DESC");
+            $stmt->bind_param("i", $customer_id);
+        }
         $stmt->execute();
         $res = $stmt->get_result();
         while ($r = $res->fetch_assoc()) $out['rows'][] = $r;
@@ -232,7 +242,7 @@ $customers = $customers_res ? $customers_res->fetch_all(MYSQLI_ASSOC) : [];
                             <th>Name</th>
                             <th>Contact</th>
                             <th>Email</th>
-                            <th>Payment Method</th> <!-- NEW -->
+                            <th>Payment Method</th>
                             <th>Opening Date</th>
                             <th class="text-center">Open File</th>
                           </tr>
@@ -244,7 +254,7 @@ $customers = $customers_res ? $customers_res->fetch_all(MYSQLI_ASSOC) : [];
                               <td><?= htmlspecialchars($c['name']) ?></td>
                               <td><?= htmlspecialchars($c['contact']) ?></td>
                               <td><?= htmlspecialchars($c['email']) ?></td>
-                              <td><?= htmlspecialchars($c['payment_method'] ?? '') ?></td> <!-- NEW -->
+                              <td><?= htmlspecialchars($c['payment_method'] ?? '') ?></td>
                               <td><?= htmlspecialchars($c['opening_date'] ?? '') ?></td>
                               <td class="text-center">
                                 <a href="view_customer_file.php?id=<?= $c['id'] ?>" class="btn btn-info btn-sm" title="Open File">
@@ -269,7 +279,7 @@ $customers = $customers_res ? $customers_res->fetch_all(MYSQLI_ASSOC) : [];
                     <th>Name</th>
                     <th>Contact</th>
                     <th>Email</th>
-                    <th>Payment Method</th> <!-- NEW -->
+                    <th>Payment Method</th>
                     <th>Opening Date</th>
                     <th class="text-center">Open File</th>
                   </tr>
@@ -281,7 +291,7 @@ $customers = $customers_res ? $customers_res->fetch_all(MYSQLI_ASSOC) : [];
                       <td><?= htmlspecialchars($c['name']) ?></td>
                       <td><?= htmlspecialchars($c['contact']) ?></td>
                       <td><?= htmlspecialchars($c['email']) ?></td>
-                      <td><?= htmlspecialchars($c['payment_method'] ?? '') ?></td> <!-- NEW -->
+                      <td><?= htmlspecialchars($c['payment_method'] ?? '') ?></td>
                       <td><?= htmlspecialchars($c['opening_date'] ?? '') ?></td>
                       <td class="text-center">
                         <a href="view_customer_file.php?id=<?= $c['id'] ?>" class="btn btn-info btn-sm">Open File</a>
@@ -458,10 +468,9 @@ $customers = $customers_res ? $customers_res->fetch_all(MYSQLI_ASSOC) : [];
                             if (!data.rows.length) { container.innerHTML = '<div class="text-muted">No transactions.</div>'; container.dataset.loaded = '1'; return; }
 
                             // Add Invoice/Receipt No. column after Date & Time
-                            let html = '<table><thead><tr><th>Date & Time</th><th>Invoice/Receipt No.</th><th>Products</th><th class="text-center">Quantity</th><th class="text-end">Amount Paid</th><th class="text-end">Amount Credited</th><th>Payment Method</th><th>Sold By</th></tr></thead><tbody>';
+                            let html = '<table><thead><tr><th>Date & Time</th><th>Branch</th><th>Invoice/Receipt No.</th><th>Products</th><th class="text-center">Quantity</th><th class="text-end">Amount Paid</th><th class="text-end">Amount Credited</th><th>Payment Method</th><th>Sold By</th></tr></thead><tbody>';
                             data.rows.forEach(r=>{
-                              let prodDisplay = '';
-                              let totalQty = 0;
+                              let prodDisplay = '', totalQty = 0;
                               try {
                                 const pb = JSON.parse(r.products_bought || '[]');
                                 if (Array.isArray(pb)) {
@@ -486,8 +495,12 @@ $customers = $customers_res ? $customers_res->fetch_all(MYSQLI_ASSOC) : [];
                               // Determine Invoice or Receipt number based on amount_credited
                               const invoiceReceiptNo = escapeHtml(r.invoice_receipt_no || '-');
                               
+                              // NEW: Get branch name
+                              const branchName = escapeHtml(r.branch_name || 'Unknown');
+                              
                               html += `<tr>
                                          <td>${escapeHtml(r.date_time)}</td>
+                                         <td>${branchName}</td>
                                          <td>${invoiceReceiptNo}</td>
                                          <td>${prodDisplay || '-'}</td>
                                          <td class="text-center">${totalQty}</td>
@@ -736,7 +749,7 @@ document.querySelectorAll('#customersAccordion .accordion-button').forEach(btn=>
     if (!data.rows.length) { container.innerHTML = '<div class="text-muted">No transactions.</div>'; container.dataset.loaded = '1'; return; }
 
     // Add Invoice/Receipt No. column after Date & Time
-    let html = '<div class="transactions-table"><table><thead><tr><th>Date & Time</th><th>Invoice/Receipt No.</th><th>Products</th><th class="text-center">Quantity</th><th class="text-end">Amount Paid</th><th class="text-end">Amount Credited</th><th>Payment Method</th><th>Sold By</th></tr></thead><tbody>';
+    let html = '<div class="transactions-table"><table><thead><tr><th>Date & Time</th><th>Branch</th><th>Invoice/Receipt No.</th><th>Products</th><th class="text-center">Quantity</th><th class="text-end">Amount Paid</th><th class="text-end">Amount Credited</th><th>Payment Method</th><th>Sold By</th></tr></thead><tbody>';
     data.rows.forEach(r=>{
       let prodDisplay = '';
       let totalQty = 0;
@@ -764,8 +777,12 @@ document.querySelectorAll('#customersAccordion .accordion-button').forEach(btn=>
       // Determine Invoice or Receipt number based on amount_credited
       const invoiceReceiptNo = escapeHtml(r.invoice_receipt_no || '-');
       
+      // NEW: Get branch name
+      const branchName = escapeHtml(r.branch_name || 'Unknown');
+      
       html += `<tr>
                  <td>${escapeHtml(r.date_time)}</td>
+                 <td>${branchName}</td>
                  <td>${invoiceReceiptNo}</td>
                  <td>${prodDisplay || '-'}</td>
                  <td class="text-center">${totalQty}</td>
@@ -823,8 +840,10 @@ async function generateCustomerReport(customerId, customerName){
     const paid = parseFloat(r.amount_paid || 0); totalPaid += paid;
     const credited = parseFloat(r.amount_credited || 0); totalCredited += credited;
     const invoiceReceiptNo = escapeHtml(r.invoice_receipt_no || '-');
+    const branchName = escapeHtml(r.branch_name || 'Unknown');
     return `<tr>
       <td>${escapeHtml(r.date_time||'')}</td>
+      <td>${branchName}</td>
       <td>${invoiceReceiptNo}</td>
       <td>${prodDisplay||'-'}</td>
       <td class="text-center">${totalQty}</td>
@@ -852,9 +871,12 @@ async function generateCustomerReport(customerId, customerName){
     th { background:#1abc9c; color:#fff; font-weight:600; }
     tbody tr:nth-child(even) { background:#f4f6f9; }
     tbody tr:hover { background:#e0f7fa; }
-    tfoot td { font-weight:bold; }
     .print-btn { display:block; margin:1.5rem auto 0; padding:.7rem 2.5rem; font-size:1.1rem; background:#1abc9c; color:#fff; border:none; border-radius:8px; font-weight:bold; cursor:pointer; box-shadow:0 2px 8px #0002; }
-    @media print { .print-btn { display:none; } .report-container { box-shadow:none; border-radius:0; padding:.5rem; } }
+    tfoot td { font-weight:bold; }
+    @media print {
+      .print-btn { display:none; }
+      .report-container { box-shadow:none; border-radius:0; padding:.5rem; }
+    }
   </style>
 </head>
 <body>
@@ -870,6 +892,7 @@ async function generateCustomerReport(customerId, customerName){
       <thead>
         <tr>
           <th>Date & Time</th>
+          <th>Branch</th>
           <th>Invoice/Receipt No.</th>
           <th>Products</th>
           <th class="text-center">Quantity</th>
@@ -882,10 +905,10 @@ async function generateCustomerReport(customerId, customerName){
       <tbody>${rowsHtml}</tbody>
       <tfoot>
         <tr>
-          <td colspan="5">Totals</td>
+          <td colspan="5" class="text-end">Totals</td>
+          <td class="text-end">UGX ${totalPaid.toFixed(2)}</td>
           <td class="text-end">UGX ${totalCredited.toFixed(2)}</td>
-          <td></td>
-          <td></td>
+          <td colspan="2"></td>
         </tr>
       </tfoot>
     </table>
@@ -907,7 +930,7 @@ async function exportCustomerTransactions(customerId, customerName){
   const data = await res.json();
   if (!data.success || !data.rows.length) { alert('No transactions found for '+customerName); return; }
 
-  const header = ['Date & Time','Invoice/Receipt No.','Products','Quantity','Amount Paid','Amount Credited','Payment Method','Sold By'];
+  const header = ['Date & Time','Branch','Invoice/Receipt No.','Products','Quantity','Amount Paid','Amount Credited','Payment Method','Sold By'];
   const csvRows = [header.join(',')];
 
   data.rows.forEach(r => {
@@ -926,6 +949,7 @@ async function exportCustomerTransactions(customerId, customerName){
 
     const row = [
       csvEscape(r.date_time||''),
+      csvEscape(r.branch_name||'Unknown'),
       csvEscape(r.invoice_receipt_no||''),
       csvEscape(prodDisplay||''),
       String(totalQty),
@@ -947,6 +971,15 @@ async function exportCustomerTransactions(customerId, customerName){
   URL.revokeObjectURL(url);
 }
 
-// ...existing code...
+// Helper for CSV escaping
+function csvEscape(val) {
+  if (val === null || val === undefined) return '';
+  val = String(val);
+  if (val.includes(',') || val.includes('"') || val.includes('\n')) {
+    return '"' + val.replace(/"/g, '""') + '"';
+  }
+  return val;
+}
 </script>
+
 <?php include '../includes/footer.php'; ?>
