@@ -50,42 +50,64 @@ if (
     $spent_by   = mysqli_real_escape_string($conn, $_POST['spent_by']);
     $amount_paid = floatval($_POST['amount_paid'] ?? 0);
 
-    if (!empty($category) && !empty($branch_id) && !empty($supplier_id) && !empty($product) && $quantity > 0 && $unit_price > 0 && !empty($date)) {
-        // Insert into expenses
-        $sql = "INSERT INTO expenses (category, `branch-id`, supplier_id, product, quantity, unit_price, amount, description, date, `spent-by`) 
-                VALUES ('$category', '$branch_id', '$supplier_id', '$product', $quantity, $unit_price, $amount, '$description', '$date', '$spent_by')";
+    // NEW: Handle "Other" supplier option
+    $is_other_supplier = ($supplier_id === 'other');
+    $business_name = '';
+    $product_name = '';
+    
+    if ($is_other_supplier) {
+        $business_name = mysqli_real_escape_string($conn, $_POST['business_name'] ?? '');
+        $product_name = mysqli_real_escape_string($conn, $_POST['product_manual'] ?? '');
+        $supplier_id = 0; // Set to 0 or NULL for "Other"
+    }
+
+    if (!empty($category) && !empty($branch_id) && $quantity > 0 && $unit_price > 0 && !empty($date)) {
+        // NEW: Modified INSERT to handle both supplier and "Other" cases
+        if ($is_other_supplier) {
+            // For "Other" supplier: product=NULL, product_name=text, supplier=business_name
+            $sql = "INSERT INTO expenses (category, `branch-id`, supplier_id, supplier, product, product_name, quantity, unit_price, amount, description, date, `spent-by`) 
+                    VALUES ('$category', '$branch_id', NULL, '$business_name', NULL, '$product_name', $quantity, $unit_price, $amount, '$description', '$date', '$spent_by')";
+        } else {
+            // For regular supplier: product=ID, product_name=NULL
+            $sql = "INSERT INTO expenses (category, `branch-id`, supplier_id, product, product_name, quantity, unit_price, amount, description, date, `spent-by`) 
+                    VALUES ('$category', '$branch_id', '$supplier_id', '$product', NULL, $quantity, $unit_price, $amount, '$description', '$date', '$spent_by')";
+        }
+        
         if ($conn->query($sql)) {
-            // Insert into supplier_transactions
-            $products_res = $conn->query("SELECT product_name FROM supplier_products WHERE id = $product");
-            $product_name = '';
-            if ($products_res && $row = $products_res->fetch_assoc()) {
-                $product_name = $row['product_name'];
+            // NEW: Only insert into supplier_transactions if NOT "Other"
+            if (!$is_other_supplier) {
+                // Insert into supplier_transactions
+                $products_res = $conn->query("SELECT product_name FROM supplier_products WHERE id = $product");
+                $product_name = '';
+                if ($products_res && $row = $products_res->fetch_assoc()) {
+                    $product_name = $row['product_name'];
+                }
+                $branch_name = '';
+                $branch_res = $conn->query("SELECT name FROM branch WHERE id = $branch_id");
+                if ($branch_res && $brow = $branch_res->fetch_assoc()) {
+                    $branch_name = $brow['name'];
+                }
+                $balance = $amount - $amount_paid;
+                $now = date('Y-m-d H:i:s');
+                $payment_method = '';
+                $stmt = $conn->prepare("INSERT INTO supplier_transactions (supplier_id, date_time, branch, products_supplied, quantity, unit_price, amount, payment_method, amount_paid, balance) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                $stmt->bind_param(
+                    "isssiddsdd",
+                    $supplier_id,
+                    $now,
+                    $branch_name,
+                    $product_name,
+                    $quantity,
+                    $unit_price,
+                    $amount,
+                    $payment_method,
+                    $amount_paid,
+                    $balance
+                );
+                $stmt->execute();
+                $stmt->close();
+                // --- End supplier_transactions insert ---
             }
-            $branch_name = '';
-            $branch_res = $conn->query("SELECT name FROM branch WHERE id = $branch_id");
-            if ($branch_res && $brow = $branch_res->fetch_assoc()) {
-                $branch_name = $brow['name'];
-            }
-            $balance = $amount - $amount_paid;
-            $now = date('Y-m-d H:i:s');
-            $payment_method = '';
-            $stmt = $conn->prepare("INSERT INTO supplier_transactions (supplier_id, date_time, branch, products_supplied, quantity, unit_price, amount, payment_method, amount_paid, balance) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-            $stmt->bind_param(
-                "isssiddsdd",
-                $supplier_id,
-                $now,
-                $branch_name,
-                $product_name,
-                $quantity,
-                $unit_price,
-                $amount,
-                $payment_method,
-                $amount_paid,
-                $balance
-            );
-            $stmt->execute();
-            $stmt->close();
-            // --- End supplier_transactions insert ---
             $message = "Expense added successfully.";
             // PRG pattern: redirect after successful insert
             header("Location: expense.php?added=1");
@@ -124,49 +146,68 @@ if (
     $date       = $_POST['date'];
     $spent_by   = mysqli_real_escape_string($conn, $_POST['spent_by']);
     $category   = mysqli_real_escape_string($conn, $_POST['category']);
-    // $description = mysqli_real_escape_string($conn, $_POST['description']);
-    // For each cart item, insert into expenses and supplier_transactions
+    
+    // NEW: Handle "Other" supplier for cart
+    $is_other_supplier = ($supplier_id === 'other');
+    $business_name = $is_other_supplier ? mysqli_real_escape_string($conn, $_POST['business_name'] ?? '') : '';
+    if ($is_other_supplier) $supplier_id = 0;
+    
     if (is_array($cart) && count($cart) > 0) {
         foreach ($cart as $item) {
-            $product    = mysqli_real_escape_string($conn, $item['product']);
             $quantity   = isset($item['quantity']) ? intval($item['quantity']) : 0;
             $unit_price = isset($item['unit_price']) ? floatval($item['unit_price']) : 0;
             $amount     = isset($item['amount']) ? floatval($item['amount']) : 0;
             $amount_paid = isset($item['amount_paid']) ? floatval($item['amount_paid']) : 0;
-            // Insert into expenses
-            $sql = "INSERT INTO expenses (category, `branch-id`, supplier_id, product, quantity, unit_price, amount, date, `spent-by`) 
-                    VALUES ('$category', '$branch_id', '$supplier_id', '$product', $quantity, $unit_price, $amount, '$date', '$spent_by')";
+            
+            // NEW: Handle product name for "Other" supplier
+            $product_name = isset($item['product_name']) ? mysqli_real_escape_string($conn, $item['product_name']) : '';
+            
+            // FIX: Use new product_name column for manual entries
+            if ($is_other_supplier) {
+                // For "Other" supplier: product=NULL, product_name=text, supplier=business_name
+                $sql = "INSERT INTO expenses (category, `branch-id`, supplier_id, supplier, product, product_name, quantity, unit_price, amount, date, `spent-by`) 
+                        VALUES ('$category', '$branch_id', NULL, '$business_name', NULL, '$product_name', $quantity, $unit_price, $amount, '$date', '$spent_by')";
+            } else {
+                // Regular supplier: product=ID, product_name=NULL
+                $product_id = mysqli_real_escape_string($conn, $item['product']);
+                $sql = "INSERT INTO expenses (category, `branch-id`, supplier_id, product, product_name, quantity, unit_price, amount, date, `spent-by`) 
+                        VALUES ('$category', '$branch_id', '$supplier_id', '$product_id', NULL, $quantity, $unit_price, $amount, '$date', '$spent_by')";
+            }
             $conn->query($sql);
-            // Insert into supplier_transactions
-            $products_res = $conn->query("SELECT product_name FROM supplier_products WHERE id = $product");
-            $product_name = '';
-            if ($products_res && $row = $products_res->fetch_assoc()) {
-                $product_name = $row['product_name'];
+            
+            // NEW: Only insert into supplier_transactions if NOT "Other"
+            if (!$is_other_supplier) {
+                // Insert into supplier_transactions
+                $products_res = $conn->query("SELECT product_name FROM supplier_products WHERE id = $product_id");
+                $product_name = '';
+                if ($products_res && $row = $products_res->fetch_assoc()) {
+                    $product_name = $row['product_name'];
+                }
+                $branch_name = '';
+                $branch_res = $conn->query("SELECT name FROM branch WHERE id = $branch_id");
+                if ($branch_res && $brow = $branch_res->fetch_assoc()) {
+                    $branch_name = $brow['name'];
+                }
+                $balance = $amount - $amount_paid;
+                $now = date('Y-m-d H:i:s');
+                $payment_method = '';
+                $stmt = $conn->prepare("INSERT INTO supplier_transactions (supplier_id, date_time, branch, products_supplied, quantity, unit_price, amount, payment_method, amount_paid, balance) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                $stmt->bind_param(
+                    "isssiddsdd",
+                    $supplier_id,
+                    $now,
+                    $branch_name,
+                    $product_name,
+                    $quantity,
+                    $unit_price,
+                    $amount,
+                    $payment_method,
+                    $amount_paid,
+                    $balance
+                );
+                $stmt->execute();
+                $stmt->close();
             }
-            $branch_name = '';
-            $branch_res = $conn->query("SELECT name FROM branch WHERE id = $branch_id");
-            if ($branch_res && $brow = $branch_res->fetch_assoc()) {
-                $branch_name = $brow['name'];
-            }
-            $balance = $amount - $amount_paid;
-            $now = date('Y-m-d H:i:s');
-            $payment_method = ''; // Set as needed
-            $stmt = $conn->prepare("INSERT INTO supplier_transactions (supplier_id, date_time, branch, products_supplied, quantity, unit_price, amount, payment_method, amount_paid, balance) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-            $stmt->bind_param(
-                "isssiddsdd",
-                $supplier_id,
-                $now,
-                $branch_name,
-                $product_name,
-                $quantity,
-                $unit_price,
-                $amount,
-                $payment_method,
-                $amount_paid,
-                $balance
-            );
-            $stmt->execute();
-            $stmt->close();
         }
         $message = "Expenses added successfully.";
         // PRG pattern: redirect after successful insert
@@ -618,18 +659,31 @@ body.dark-mode .tm-main-tabs .tm-tab-btn.active { background:#1abc9c; color:#fff
                                     <?= htmlspecialchars($s['name']) ?>
                                 </option>
                             <?php endforeach; ?>
+                            <!-- NEW: Add "Other" option -->
+                            <option value="other">Other</option>
                         </select>
                     </div>
-                    <div class="col-md-3">
+                    <!-- NEW: Business Name field (hidden by default) -->
+                    <div class="col-md-3" id="business_name_wrapper" style="display:none;">
+                        <label for="business_name" class="form-label fw-semibold">Business Name *</label>
+                        <input type="text" name="business_name" id="business_name" class="form-control">
+                    </div>
+                    <!-- NEW: Product dropdown (for suppliers) -->
+                    <div class="col-md-3" id="product_wrapper">
                         <label for="product" class="form-label fw-semibold">Product *</label>
                         <select name="product" id="product" class="form-select">
                             <option value="">Select product</option>
                             <!-- Populated by JS -->
                         </select>
                     </div>
+                    <!-- NEW: Manual product input (for "Other") -->
+                    <div class="col-md-3" id="product_manual_wrapper" style="display:none;">
+                        <label for="product_manual" class="form-label fw-semibold">Product *</label>
+                        <input type="text" name="product_manual" id="product_manual" class="form-control">
+                    </div>
                     <div class="col-md-2">
-                        <label for="unit_price" class="form-label fw-semibold">Unit Price</label>
-                        <input type="number" id="unit_price" class="form-control" readonly>
+                        <label for="unit_price" class="form-label fw-semibold">Unit Price *</label>
+                        <input type="number" id="unit_price" name="unit_price" class="form-control" step="0.01" min="0">
                     </div>
                     <div class="col-md-2">
                         <label for="quantity" class="form-label fw-semibold">Quantity *</label>
@@ -645,24 +699,11 @@ body.dark-mode .tm-main-tabs .tm-tab-btn.active { background:#1abc9c; color:#fff
                     </div>
                     <div class="col-md-1 d-flex align-items-end">
                         <button type="button" id="addToCartBtn" class="btn btn-primary w-100 add-to-cart-btn" title="Add to Cart" style="display:flex;align-items:center;justify-content:center;">
-        <!-- Use a Bootstrap or FontAwesome icon, fallback to SVG if not available -->
-        <span style="font-size:1.4em;line-height:1;">
-            <!-- Bootstrap icon (if using Bootstrap Icons) -->
-            <i class="bi bi-cart-plus"></i>
-            <!-- If Bootstrap Icons not loaded, fallback to SVG: -->
-            <!--
-            <svg xmlns="http://www.w3.org/2000/svg" width="1.4em" height="1.4em" fill="currentColor" viewBox="0 0 16 16">
-                <path d="M8 7V4a.5.5 0 0 1 1 0v3h3a.5.5 0 0 1 0 1H9v3a.5.5 0 0 1-1 0V8H5a.5.5 0 0 1 0-1h3z"/>
-                <path d="M0 1.5A.5.5 0 0 1 .5 1h1a.5.5 0 0 1 .485.379L2.89 5H14.5a.5.5 0 0 1 .49.598l-1.5 7A.5.5 0 0 1 13 13H4a.5.5 0 0 1-.491-.408L1.01 2H.5a.5.5 0 0 1-.5-.5zm3.14 4l1.25 6h7.22l1.25-6H3.14z"/>
-            </svg>
-            -->
-        </span>
-    </button>
+                            <span style="font-size:1.4em;line-height:1;">
+                                <i class="bi bi-cart-plus"></i>
+                            </span>
+                        </button>
                     </div>
-                    <!-- <div class="col-md-4">
-                        <label for="description" class="form-label fw-semibold">Description</label>
-                        <textarea name="description" id="description" class="form-control" rows="1"></textarea>
-                    </div> -->
                     <div class="col-md-2">
                         <label for="date" class="form-label fw-semibold">Date *</label>
                         <input type="date" name="date" id="date" class="form-control" required value="<?= date('Y-m-d') ?>">
@@ -826,14 +867,19 @@ body.dark-mode .tm-main-tabs .tm-tab-btn.active { background:#1abc9c; color:#fff
                                                     <td><?= isset($row['date']) ? htmlspecialchars($row['date']) : '' ?></td>
                                                     <td>
                                                         <?php
+                                                        // FIX: Display supplier name for both regular and "Other" suppliers
                                                         $sup_name = '';
-                                                        if (isset($row['supplier_id'])) {
-                                                          foreach ($suppliers as $sup) {
-                                                            if ($sup['id'] == $row['supplier_id']) {
-                                                              $sup_name = $sup['name'];
-                                                              break;
-                                                          }
-                                                        }
+                                                        if (!empty($row['supplier'])) {
+                                                            // "Other" supplier: business name is in supplier column
+                                                            $sup_name = $row['supplier'];
+                                                        } elseif (isset($row['supplier_id'])) {
+                                                            // Regular supplier: look up from suppliers array
+                                                            foreach ($suppliers as $sup) {
+                                                                if ($sup['id'] == $row['supplier_id']) {
+                                                                    $sup_name = $sup['name'];
+                                                                    break;
+                                                                }
+                                                            }
                                                         }
                                                         echo htmlspecialchars($sup_name);
                                                         ?>
@@ -842,7 +888,16 @@ body.dark-mode .tm-main-tabs .tm-tab-btn.active { background:#1abc9c; color:#fff
                                                     <td><?= isset($row['category']) ? htmlspecialchars($row['category']) : '' ?></td>
                                                     <td>
                                                         <?php
-                                                        $prod_name = (isset($row['product']) && isset($products_lookup[$row['product']])) ? $products_lookup[$row['product']] : '';
+                                                        // FIX: Display product name for both regular and "Other" suppliers
+                                                        $prod_name = '';
+                                                        // Check if "Other" supplier (supplier_id is NULL/empty AND supplier column has value)
+                                                        if ((empty($row['supplier_id']) || $row['supplier_id'] === null) && !empty($row['supplier'])) {
+                                                            // "Other" supplier: use product_name column
+                                                            $prod_name = $row['product_name'] ?? '';
+                                                        } elseif (!empty($row['product']) && isset($products_lookup[$row['product']])) {
+                                                            // Regular supplier: look up from products_lookup
+                                                            $prod_name = $products_lookup[$row['product']];
+                                                        }
                                                         echo htmlspecialchars($prod_name);
                                                         ?>
                                                     </td>
@@ -920,8 +975,13 @@ body.dark-mode .tm-main-tabs .tm-tab-btn.active { background:#1abc9c; color:#fff
                                         <td><?= isset($row['date']) ? htmlspecialchars($row['date']) : '' ?></td>
                                         <td>
                                             <?php
+                                            // FIX: Display supplier name for both regular and "Other" suppliers
                                             $sup_name = '';
-                                            if (isset($row['supplier_id'])) {
+                                            if (!empty($row['supplier'])) {
+                                                // "Other" supplier: business name is in supplier column
+                                                $sup_name = $row['supplier'];
+                                            } elseif (isset($row['supplier_id'])) {
+                                                // Regular supplier: look up from suppliers array
                                                 foreach ($suppliers as $sup) {
                                                     if ($sup['id'] == $row['supplier_id']) {
                                                         $sup_name = $sup['name'];
@@ -936,7 +996,16 @@ body.dark-mode .tm-main-tabs .tm-tab-btn.active { background:#1abc9c; color:#fff
                                         <td><?= isset($row['category']) ? htmlspecialchars($row['category']) : '' ?></td>
                                         <td>
                                             <?php
-                                            $prod_name = (isset($row['product']) && isset($products_lookup[$row['product']])) ? $products_lookup[$row['product']] : '';
+                                            // FIX: Display product name for both regular and "Other" suppliers
+                                            $prod_name = '';
+                                            // Check if "Other" supplier (supplier_id is NULL/empty AND supplier column has value)
+                                            if ((empty($row['supplier_id']) || $row['supplier_id'] === null) && !empty($row['supplier'])) {
+                                                // "Other" supplier: use product_name column
+                                                $prod_name = $row['product_name'] ?? '';
+                                            } elseif (!empty($row['product']) && isset($products_lookup[$row['product']])) {
+                                                // Regular supplier: look up from products_lookup
+                                                $prod_name = $products_lookup[$row['product']];
+                                            }
                                             echo htmlspecialchars($prod_name);
                                             ?>
                                         </td>
@@ -944,12 +1013,11 @@ body.dark-mode .tm-main-tabs .tm-tab-btn.active { background:#1abc9c; color:#fff
                                         <td>UGX<?= isset($row['unit_price']) ? number_format($row['unit_price'], 2) : '0.00' ?></td>
                                         <td>UGX<?= isset($row['amount']) ? number_format($row['amount'], 2) : '0.00' ?></td>
                                         <td><?= isset($row['username']) ? htmlspecialchars($row['username']) : '' ?></td>
-                                        <td><?= isset($row['description']) ? htmlspecialchars($row['description']) : '' ?></td>
                                     </tr>
                                 <?php endforeach; ?>
                             <?php else: ?>
                                 <tr>
-                                    <td colspan="11" class="text-center text-muted">No expenses recorded yet.</td>
+                                    <td colspan="10" class="text-center text-muted">No expenses recorded yet.</td>
                                 </tr>
                             <?php endif; ?>
                         </tbody>
@@ -974,9 +1042,10 @@ body.dark-mode .tm-main-tabs .tm-tab-btn.active { background:#1abc9c; color:#fff
                 </div>
             </div>
         </div>
+        
         <!-- Total Expenses Tab -->
         <div class="tab-pane fade" id="totalExpensesTab" role="tabpanel" aria-labelledby="total-expenses-tab">
-            <div class="card mb-5">
+            <div class="card mb-5" style="border-left: 4px solid teal;">
                 <div class="card-header bg-light text-black" style="border-radius:12px 12px 0 0;">
                     <span class="fw-bold title-card"><i class="fa-solid fa-calculator"></i> Total Expenses</span>
                     <button type="button" class="btn btn-success d-inline-flex d-md-none" title="Generate Report" onclick="openReportGen('total_expenses')">
@@ -1076,16 +1145,41 @@ include '../includes/footer.php';
 ?>
 
 <script>
-// Populate products dropdown and unit price when supplier is selected
+// NEW: Handle supplier selection (show/hide fields based on "Other" selection)
 document.getElementById('supplier_id').addEventListener('change', function() {
     const supplierId = this.value;
+    const isOther = (supplierId === 'other');
+    
+    // Show/hide business name field
+    document.getElementById('business_name_wrapper').style.display = isOther ? '' : 'none';
+    document.getElementById('business_name').required = isOther;
+    
+    // Show/hide product fields
+    document.getElementById('product_wrapper').style.display = isOther ? 'none' : '';
+    document.getElementById('product_manual_wrapper').style.display = isOther ? '' : 'none';
+    document.getElementById('product').required = !isOther;
+    document.getElementById('product_manual').required = isOther;
+    
+    // Reset fields
     const productSelect = document.getElementById('product');
     productSelect.innerHTML = '<option value="">Select product</option>';
+    document.getElementById('product_manual').value = '';
+    document.getElementById('business_name').value = '';
     document.getElementById('unit_price').value = '';
     document.getElementById('quantity').value = '';
     document.getElementById('amount').value = '';
-    if (!supplierId) return;
-    // Fetch products for this supplier via AJAX
+    
+    // For "Other", enable manual unit price entry
+    if (isOther) {
+        document.getElementById('unit_price').readOnly = false;
+        document.getElementById('unit_price').required = true;
+    } else {
+        document.getElementById('unit_price').readOnly = true;
+        document.getElementById('unit_price').required = false;
+    }
+    
+    // For regular supplier, fetch products via AJAX
+    if (!supplierId || isOther) return;
     fetch('expense.php', {
         method: 'POST',
         headers: {'Content-Type':'application/x-www-form-urlencoded'},
@@ -1099,21 +1193,24 @@ document.getElementById('supplier_id').addEventListener('change', function() {
     });
 });
 
-// When product is selected, show unit price
+// When product is selected, show unit price (for regular suppliers only)
 document.getElementById('product').addEventListener('change', function() {
     const selected = this.options[this.selectedIndex];
     const unitPrice = selected.getAttribute('data-unit_price') || '';
     document.getElementById('unit_price').value = unitPrice;
+    document.getElementById('unit_price').readOnly = true;
     document.getElementById('quantity').value = '';
     document.getElementById('amount').value = '';
 });
 
-// Calculate amount when quantity changes
-document.getElementById('quantity').addEventListener('input', function() {
-    const qty = parseFloat(this.value) || 0;
+// Calculate amount when quantity or unit price changes
+function calculateAmount() {
+    const qty = parseFloat(document.getElementById('quantity').value) || 0;
     const unitPrice = parseFloat(document.getElementById('unit_price').value) || 0;
     document.getElementById('amount').value = (qty * unitPrice).toFixed(2);
-});
+}
+document.getElementById('quantity').addEventListener('input', calculateAmount);
+document.getElementById('unit_price').addEventListener('input', calculateAmount);
 
 let cart = [];
 
@@ -1144,25 +1241,72 @@ function updateCartTable() {
         `;
     });
     cartTotal.textContent = 'UGX ' + total.toFixed(2);
+    
+    // FIX: Remove required attributes from ALL form fields when cart has items
+    if (cart.length > 0) {
+        // Remove all required attributes
+        document.getElementById('category').removeAttribute('required');
+        document.getElementById('branch_id').removeAttribute('required');
+        document.getElementById('supplier_id').removeAttribute('required');
+        document.getElementById('product').removeAttribute('required');
+        document.getElementById('product_manual').removeAttribute('required');
+        document.getElementById('business_name').removeAttribute('required');
+        document.getElementById('date').removeAttribute('required');
+        document.getElementById('spent_by').removeAttribute('required');
+        document.getElementById('unit_price').removeAttribute('required');
+    }
 }
 
 function removeCartItem(idx) {
     cart.splice(idx, 1);
     updateCartTable();
+    // FIX: Re-enable required validation if cart is empty
+    if (cart.length === 0) {
+        document.getElementById('category').setAttribute('required', 'required');
+        document.getElementById('branch_id').setAttribute('required', 'required');
+        document.getElementById('supplier_id').setAttribute('required', 'required');
+        document.getElementById('date').setAttribute('required', 'required');
+        document.getElementById('spent_by').setAttribute('required', 'required');
+    }
 }
 
+// NEW: Modified Add to Cart handler
 document.getElementById('addToCartBtn').addEventListener('click', function() {
-    const productSelect = document.getElementById('product');
-    const productId = productSelect.value;
-    const productName = productSelect.options[productSelect.selectedIndex]?.text || '';
+    const supplierId = document.getElementById('supplier_id').value;
+    const isOther = (supplierId === 'other');
+    
+    let productId = '';
+    let productName = '';
+    
+    if (isOther) {
+        // For "Other", use manual product input
+        productName = document.getElementById('product_manual').value.trim();
+        if (!productName) {
+            alert('Please enter product name.');
+            return;
+        }
+        productId = 'manual_' + Date.now();
+    } else {
+        // For regular supplier, use dropdown
+        const productSelect = document.getElementById('product');
+        productId = productSelect.value;
+        productName = productSelect.options[productSelect.selectedIndex]?.text || '';
+        if (!productId) {
+            alert('Please select a product.');
+            return;
+        }
+    }
+    
     const unitPrice = parseFloat(document.getElementById('unit_price').value) || 0;
     const quantity = parseInt(document.getElementById('quantity').value) || 0;
     const amount = parseFloat(document.getElementById('amount').value) || 0;
     const amountPaid = parseFloat(document.getElementById('amount_paid').value) || 0;
-    if (!productId || quantity <= 0 || unitPrice <= 0) {
-        alert('Please select a product and enter valid quantity and unit price.');
+    
+    if (quantity <= 0 || unitPrice <= 0) {
+        alert('Please enter valid quantity and unit price.');
         return;
     }
+    
     cart.push({
         product: productId,
         product_name: productName,
@@ -1171,23 +1315,114 @@ document.getElementById('addToCartBtn').addEventListener('click', function() {
         amount: amount,
         amount_paid: amountPaid
     });
+    
     updateCartTable();
+    
     // Reset product fields
-    productSelect.selectedIndex = 0;
+    if (isOther) {
+        document.getElementById('product_manual').value = '';
+    } else {
+        document.getElementById('product').selectedIndex = 0;
+    }
     document.getElementById('unit_price').value = '';
     document.getElementById('quantity').value = '';
     document.getElementById('amount').value = '';
     document.getElementById('amount_paid').value = '';
 });
 
+// FIX: COMPLETELY REWRITTEN form submit handler - bypasses ALL HTML5 validation
 document.getElementById('addExpenseForm').addEventListener('submit', function(e) {
+    e.preventDefault(); // Always prevent default HTML5 validation
+    e.stopPropagation(); // Stop event bubbling
+    
+    // Validate that cart has items
     if (cart.length === 0) {
         alert('Please add at least one product to the cart.');
-        e.preventDefault();
         return false;
     }
+    
+    // Get form values directly (don't rely on form validation)
+    const category = document.getElementById('category').value.trim();
+    const branchId = document.getElementById('branch_id').value;
+    const supplierId = document.getElementById('supplier_id').value;
+    const date = document.getElementById('date').value;
+    const spentBy = document.getElementById('spent_by').value;
+    
+    // Manual validation for required cart submission fields
+    if (!category) {
+        alert('Please enter a category.');
+        document.getElementById('category').focus();
+        return false;
+    }
+    if (!branchId) {
+        alert('Please select a branch.');
+        document.getElementById('branch_id').focus();
+        return false;
+    }
+    if (!supplierId) {
+        alert('Please select a supplier.');
+        document.getElementById('supplier_id').focus();
+        return false;
+    }
+    if (!date) {
+        alert('Please select a date.');
+        document.getElementById('date').focus();
+        return false;
+    }
+    if (!spentBy) {
+        alert('Please select who spent.');
+        document.getElementById('spent_by').focus();
+        return false;
+    }
+    
+    // For "Other" supplier, validate business name
+    if (supplierId === 'other') {
+        const businessName = document.getElementById('business_name').value.trim();
+        if (!businessName) {
+            alert('Please enter business name for "Other" supplier.');
+            document.getElementById('business_name').focus();
+            return false;
+        }
+    }
+    
+    // All validations passed - prepare and submit form
     document.getElementById('cart_json').value = JSON.stringify(cart);
-    // Allow form to submit
+    
+    // Create a temporary form to submit (bypasses novalidate issues)
+    const tempForm = document.createElement('form');
+    tempForm.method = 'POST';
+    tempForm.action = 'expense.php';
+    tempForm.style.display = 'none';
+    
+    // Add all form fields as hidden inputs
+    const fields = {
+        'cart_json': JSON.stringify(cart),
+        'category': category,
+        'branch_id': branchId,
+        'supplier_id': supplierId,
+        'date': date,
+        'spent_by': spentBy
+    };
+    
+    // Add business_name if "Other" supplier
+    if (supplierId === 'other') {
+        fields['business_name'] = document.getElementById('business_name').value.trim();
+    }
+    
+    // Create hidden inputs for each field
+    for (const [name, value] of Object.entries(fields)) {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = name;
+        input.value = value;
+        tempForm.appendChild(input);
+    }
+    
+    // Append to body and submit
+    document.body.appendChild(tempForm);
+    tempForm.submit();
+    
+    return false; // Prevent default form submission
 });
 
 function openReportGen(type) {

@@ -139,10 +139,10 @@ body.dark-mode .sidebar::-webkit-scrollbar-thumb:horizontal {
         <li>
             <a href="petty_cash.php"><i class="fa fa-money-bill"></i> Petty Cash</a>
         </li>
+        <li><a href="../pages/till_management.php"><i class="fa-solid fa-cash-register"></i> Till Management</a></li>
         <li style="margin-top:2rem;">
             <a href="../auth/logout.php" class="text-danger fw-bold"><i class="fa-solid fa-right-from-bracket"></i> Logout</a>
         </li>
-        <li><a href="../pages/till_management.php"><i class="fa-solid fa-cash-register"></i> Till Management</a></li>
     </ul>
 </div>
 
