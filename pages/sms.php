@@ -46,7 +46,7 @@ function sendExpirySMS($productName, $expiryDate) {
         "user_id" => 1,
         "batch_name" => "Expiry Date Alert",
         "message_text" => $message,
-        "receipients" => "0781710027, 0771827046"
+        "receipients" => ""
     ];
 
     $ch = curl_init($apiUrl);
