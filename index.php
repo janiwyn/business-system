@@ -1,6 +1,6 @@
 <?php
 session_start();
-include "../includes/db.php";
+include "includes/db.php";
 
 $error = "";
 
@@ -9,7 +9,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $password = trim($_POST['password']);
 
     // Fetch user from database
-    $query = "SELECT id, username, password, role, `branch-id` FROM users WHERE username = ?";
+    $query = "SELECT id, username, password, role, `branch-id`, business_id FROM users WHERE username = ?";
     $stmt = $conn->prepare($query);
     $stmt->bind_param("s", $username);
     $stmt->execute();
@@ -22,6 +22,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $_SESSION['username'] = $user['username'];
         $_SESSION['role'] = strtolower(trim($user['role']));
         $_SESSION['branch_id'] = $user['branch-id'];
+        $_SESSION['business_id'] = $user['business_id'];
         
         // NEW: Reset notification popup flag on login
         unset($_SESSION['shown_login_notifications']);
@@ -49,13 +50,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       
         // Redirect based on role
 if ($_SESSION['role'] === 'super') {
-    header('Location: ../pages/super.php');
+    header('Location: pages/super.php');
 } elseif ($_SESSION['role'] === 'admin') {
-    header('Location: ../pages/admin_dashboard.php');
+    header('Location: pages/admin_dashboard.php');
 } elseif ($_SESSION['role'] === 'manager') {
-    header('Location: ../pages/manager_dashboard.php');
+    header('Location: pages/manager_dashboard.php');
 } elseif ($_SESSION['role'] === 'staff') {
-    header('Location: ../pages/staff_dashboard.php');
+    header('Location: pages/staff_dashboard.php');
 } else {
     $error = 'Unknown role';
 }
@@ -74,7 +75,7 @@ if ($_SESSION['role'] === 'super') {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Business System - Login</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-  <link rel="stylesheet" href="../assets/css/responsive.css">
+  <link rel="stylesheet" href="assets/css/responsive.css">
   <style>
     body {
       margin: 0;
@@ -120,7 +121,7 @@ if ($_SESSION['role'] === 'super') {
 
   <div class="login-card">
     <div class="login-header">
-      <img src="../uploads/2.png" alt="Logo" width="100" height="100">
+      <img src="uploads/2.png" alt="Logo" width="100" height="100">
       <p>Secure Login Portal</p>
     </div>
 
@@ -130,7 +131,7 @@ if ($_SESSION['role'] === 'super') {
       </div>
     <?php endif; ?>
 
-    <form action="login.php" method="POST">
+    <form action="index.php" method="POST">
       <div class="mb-3">
         <label for="username" class="form-label fw-semibold">Username</label>
         <input type="text" class="form-control" id="username" name="username" required>
@@ -143,7 +144,7 @@ if ($_SESSION['role'] === 'super') {
     </form>
 
     <div class="text-center mt-3">
-      <p>Don't have an account? <a href="signup.php">Sign up here</a></p>
+      <p>Don't have an account? <a href="auth/signup.php">Sign up here</a></p>
     </div>
 
     <div class="footer-text">

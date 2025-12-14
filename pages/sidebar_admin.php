@@ -1,6 +1,6 @@
 <?php
 if (!isset($_SESSION['role'])) {
-    header("Location: ../auth/login.php");
+    header("Location: ../index.php");
     exit();
 }
 $role = $_SESSION['role'];

@@ -29,8 +29,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             $message = "Branch Already Exists!!";
             $message_class = "alert-danger";
         }else{
-            $stmt = $conn->prepare("INSERT INTO branch (name, location, contact, `branch-key`) VALUES (?, ?, ?, ?)");
-            $stmt->bind_param("ssss", $name, $location, $contact, $branchKey);
+            $business_id = $_SESSION['business_id'];
+            $stmt = $conn->prepare("INSERT INTO branch (name, location, contact, `branch-key`, business_id) VALUES (?, ?, ?, ?, ?)");
+            $stmt->bind_param("sssss", $name, $location, $contact, $branchKey, $business_id);
 
             if ($stmt->execute()) {
                 $message = "Branch created successfully!";
@@ -136,11 +137,11 @@ body.dark-mode .form-select:focus {
                 </div>
                 <div class="mb-3">
                     <label for="contact" class="form-label fw-semibold">Contact Info</label>
-                    <input type="text" class="form-control" id="contact" name="contact" required placeholder="Enter phone or email">
+                    <input type="text" class="form-control" id="contact" name="contact" required placeholder="Enter phone or email" autocomplete="off">
                 </div>
                 <div class="mb-3">
                     <label for="branch-key" class="form-label fw-semibold">Branch Key</label>
-                    <input type="password" class="form-control" id="branch-key" name="branch-key" required placeholder="Enter the Branch's Key">
+                    <input type="password" class="form-control" id="branch-key" name="branch-key" required placeholder="Enter the Branch's Key" >
                 </div>
                 <button type="submit" class="btn btn-primary">Create Branch</button>
                 <a href="branch.php" class="btn btn-secondary">Back to Branch Page</a>

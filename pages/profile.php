@@ -4,7 +4,7 @@ include '../includes/db.php';
 $userId = $_SESSION['user_id'] ?? null;
 
 if (!$userId) {
-    header("Location: ../auth/login.php");
+    header("Location: ../index.php");
     exit();
 }
 

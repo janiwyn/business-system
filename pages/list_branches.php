@@ -5,8 +5,18 @@ include '../pages/sidebar.php';
 include '../includes/header.php';
 include '../includes/db.php';
 
-// Fetch all branches
-$sql = "SELECT id, name, location, contact FROM branch ORDER BY id DESC";
+if (!isset($_SESSION['business_id'])) {
+    die("Error: business_id not found in session");
+}
+
+$business_id = $_SESSION['business_id'];
+
+// Fetch all branches connected tot he business
+$sql = "SELECT id, name, location, contact 
+        FROM branch 
+        WHERE business_id = '$business_id '
+        ORDER BY id DESC";
+
 $result = mysqli_query($conn, $sql);
 ?>
 

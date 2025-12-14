@@ -205,7 +205,7 @@ body.dark-mode .transactions-table tbody tr:hover {
                         <select name="branch_id" class="form-select" required>
                             <option value="">-- Select Branch --</option>
                             <?php
-                            $branches = mysqli_query($conn, "SELECT id, name FROM branch");
+                            $branches = mysqli_query($conn, "SELECT id, name FROM branch WHERE business_id = '{$_SESSION['business_id']}'");
                             while ($b = mysqli_fetch_assoc($branches)) {
                                 echo "<option value='{$b['id']}'>{$b['name']}</option>";
                             }
@@ -321,13 +321,15 @@ body.dark-mode .transactions-table tbody tr:hover {
                     </thead>
                     <tbody>
                     <?php
-                    $employees = mysqli_query($conn, "
-                        SELECT e.*, b.name as branch_name, u.username as system_user
-                        FROM employees e
-                        LEFT JOIN branch b ON e.`branch-id` = b.id
-                        LEFT JOIN users u ON e.`user-id` = u.id
-                        ORDER BY e.id DESC
-                    ");
+                    $business_id = $_SESSION['business_id'];
+
+                    $sql = "SELECT e.*, b.name AS branch_name, u.username AS system_user
+                            FROM employees e
+                            LEFT JOIN branch b ON e.`branch-id` = b.id
+                            LEFT JOIN users u ON e.`user-id` = u.id
+                            WHERE e.business_id = '$business_id'
+                            ORDER BY e.id DESC";
+                    $employees = mysqli_query($conn, $sql);
                     while ($row = mysqli_fetch_assoc($employees)) {
                         echo "<tr>
                             <td>" . ($row['system_user'] ?? 'N/A') . "</td>
