@@ -4,7 +4,7 @@ if (session_status() === PHP_SESSION_NONE) session_start();
 
 // Redirect if not authenticated
 if (!isset($_SESSION['role'])) {
-    header("Location: ../auth/login.php");
+    header("Location: ../index.php");
     exit();
 }
 

@@ -7,6 +7,39 @@ $message = "";
 $message_class = "";
 $isSuperSignup = isset($_GET['super']); // true only if ?super in URL
 
+function getInitials($string) {
+    $words = explode(" ", trim($string));
+    $initials = "";
+
+    foreach ($words as $w) {
+        if ($w !== "") {
+            $initials .= strtoupper($w[0]);
+        }
+    }
+
+    return $initials;
+}
+
+function generateUniqueBusinessCode($prefix, $conn) {
+    while (true) {
+        // random 4-digit number
+        $number = rand(1000, 9999);
+
+        // final code
+        $business_code = $prefix . $number;
+
+        // check database if it exists
+        $stmt = $conn->prepare("SELECT id FROM businesses WHERE business_code = ?");
+        $stmt->bind_param("s", $business_code);
+        $stmt->execute();
+        $result = $stmt->get_result();
+
+        if ($result->num_rows === 0) {
+            return $business_code; // Unique → OK
+        }
+    }
+}
+
 if ($_SERVER["REQUEST_METHOD"] == 'POST') {
     // Collect POST data safely
     $username = trim($_POST['username'] ?? '');
@@ -16,10 +49,13 @@ if ($_SERVER["REQUEST_METHOD"] == 'POST') {
     $role = $_POST['role'] ?? '';
     $phone = trim($_POST['phone'] ?? '');
     $assigned_branch = NULL;
-    $business_id = $_POST['business_id'] ?? '';
     $new_business_name = trim($_POST['new_business_name'] ?? '');
     $new_business_address = trim($_POST['new_business_address'] ?? '');
     $new_business_phone = trim($_POST['new_business_phone'] ?? '');
+    $business_code = "";
+    $business_id = "";
+
+    
 
     // Basic validation
     if (empty($username) || empty($email) || empty($password) || empty($confirm_password) || empty($role) || empty($phone)) {
@@ -50,6 +86,27 @@ if ($_SERVER["REQUEST_METHOD"] == 'POST') {
             }
         }
 
+        // Manager branch validation
+        if ($role === 'manager') {
+            $branch_id_input  = $_POST['branch_id'] ?? null;
+            $business_code = $branch_id_input;
+
+            if (!$branch_id_input) {
+                $error = "Manager must enter a business code!!";
+            } else {
+                $stmt = $conn->prepare("SELECT business_code FROM businesses WHERE business_code = ?");
+                $stmt->bind_param("s", $branch_id_input);
+                $stmt->execute();
+                $res = $stmt->get_result();
+                if ($res->num_rows === 0) {
+                    $error = "Invalid business code.";
+                } else {
+                    $assigned_branch = $branch_id_input;
+                }
+                $stmt->close();
+            }
+        }
+
         // Email uniqueness check
         if (empty($error)) {
             $check = $conn->prepare("SELECT id FROM users WHERE email = ?");
@@ -62,16 +119,34 @@ if ($_SERVER["REQUEST_METHOD"] == 'POST') {
             $check->close();
         }
 
+        
+
         // ✅ Admin: handle business registration/linking
         if (empty($error) && $role === 'admin') {
-            if (empty($business_id) && !empty($new_business_name)) {
-                $stmt = $conn->prepare("INSERT INTO businesses (name, address, phone) VALUES (?, ?, ?)");
-                $stmt->bind_param("sss", $new_business_name, $new_business_address, $new_business_phone);
+            // Generate business code
+            if (!empty($new_business_name) && !empty($new_business_address)) {
+                $name_initials = getInitials($new_business_name);
+                $address_initials = getInitials($new_business_address);
+                $prefix = $name_initials . $address_initials;
+                $business_code = generateUniqueBusinessCode($prefix, $conn);
+
+                $stmt = $conn->prepare("INSERT INTO businesses (business_code, name, address, phone, admin_name, email) VALUES (?, ?,  ?, ?, ?, ?)");
+                $stmt->bind_param("ssssss", $business_code, $new_business_name, $new_business_address, $new_business_phone, $username, $email);
                 $stmt->execute();
-                $business_id = $conn->insert_id;
-                $stmt->close();
+                $stmt->close();                
+
             }
         }
+
+        $stmt = $conn->prepare("SELECT id FROM businesses WHERE business_code = ?");
+        $stmt->bind_param("s", $business_code);
+        $stmt->execute();
+
+        $result = $stmt->get_result();
+        $row = $result->fetch_assoc();
+
+        $business_id = $row['id'] ?? null;   // store the ID
+        $stmt->close();
 
         // Insert user if still no errors
         if (empty($error)) {
@@ -79,10 +154,10 @@ if ($_SERVER["REQUEST_METHOD"] == 'POST') {
 
             if ($role === 'staff') {
                 $stmt2 = $conn->prepare(
-                    "INSERT INTO users (username, email, password, role, phone, `branch-id`)
-                     VALUES (?, ?, ?, ?, ?, ?)"
+                    "INSERT INTO users (username, email, password, role, phone, `branch-id`, business_id)
+                     VALUES (?, ?, ?, ?, ?, ?, ?)"
                 );
-                $stmt2->bind_param("sssssi", $username, $email, $hash, $role, $phone, $assigned_branch);
+                $stmt2->bind_param("sssssi", $username, $email, $hash, $role, $phone, $assigned_branch, $business_id);
             } elseif ($role === 'admin') {
                 $stmt2 = $conn->prepare(
                     "INSERT INTO users (username, email, password, role, phone, business_id)
@@ -91,11 +166,11 @@ if ($_SERVER["REQUEST_METHOD"] == 'POST') {
                 $stmt2->bind_param("sssssi", $username, $email, $hash, $role, $phone, $business_id);
             } else {
               $status = 'active';
-$stmt2 = $conn->prepare(
-    "INSERT INTO users (username, email, password, role, phone, status)
-     VALUES (?, ?, ?, ?, ?, ?)"
-);
-$stmt2->bind_param("ssssss", $username, $email, $hash, $role, $phone, $status);
+            $stmt2 = $conn->prepare(
+                "INSERT INTO users (username, email, password, role, phone, business_id)
+                VALUES (?, ?, ?, ?, ?, ?)"
+            );
+            $stmt2->bind_param("sssssi", $username, $email, $hash, $role, $phone, $business_id);
 
             }
 
@@ -155,7 +230,7 @@ $businesses = $conn->query("SELECT id, name FROM businesses ORDER BY name ASC");
         <div class="alert alert-danger py-2 text-center mb-2"><?= htmlspecialchars($error) ?></div>
     <?php elseif (!empty($success)): ?>
         <div class="alert alert-success py-2 text-center mb-2"><?= htmlspecialchars($success) ?></div>
-        <div class="text-center mb-2"><a href="login.php" class="btn btn-sm btn-success rounded-pill px-3">Go to Login</a></div>
+        <div class="text-center mb-2"><a href="../index.php" class="btn btn-sm btn-success rounded-pill px-3">Go to Login</a></div>
     <?php endif; ?>
 
     <form action="signup.php" method="POST" class="needs-validation" novalidate>
@@ -200,13 +275,8 @@ $businesses = $conn->query("SELECT id, name FROM businesses ORDER BY name ASC");
         <!-- Staff Branch Fields -->
         <div class="row g-2 mt-1 staff-branch-fields" style="display:none;">
             <div class="col-md-6">
-                <label class="form-label">Branch</label>
-                <select name="branch_id" class="form-select form-select-sm">
-                    <option value="" disabled selected>Select branch</option>
-                    <?php while ($b = $branches->fetch_assoc()): ?>
-                        <option value="<?= $b['id'] ?>"><?= htmlspecialchars($b['name']) ?></option>
-                    <?php endwhile; ?>
-                </select>
+                <label class="form-label">Business Code</label>
+                <input type="text" name="branch_id" class="form-control form-control-sm" >
             </div>
             <div class="col-md-6">
                 <label class="form-label">Branch Password</label>
@@ -214,15 +284,17 @@ $businesses = $conn->query("SELECT id, name FROM businesses ORDER BY name ASC");
             </div>
         </div>
 
+        <!-- Manager Branch Fields -->
+        <div class="row g-2 mt-1 manager-branch-fields" style="display:none;">
+            <div class="col-md-6">
+                <label class="form-label">Business Code</label>
+                <input type="text" name="branch_id" class="form-control form-control-sm" >
+            </div>
+        </div>
+
         <!-- Admin Business Fields -->
         <div class="mt-2 admin-business-fields" style="display:none;">
             <label class="form-label">Select Existing Business</label>
-            <select name="business_id" class="form-select form-select-sm mb-2">
-                <option value="">-- Create New Business --</option>
-                <?php while ($biz = $businesses->fetch_assoc()): ?>
-                    <option value="<?= $biz['id'] ?>"><?= htmlspecialchars($biz['name']) ?></option>
-                <?php endwhile; ?>
-            </select>
 
             <div class="new-business-fields">
                 <label class="form-label">New Business Name</label>
@@ -236,18 +308,20 @@ $businesses = $conn->query("SELECT id, name FROM businesses ORDER BY name ASC");
 
         <div class="divider"></div>
         <button type="submit" name="signup" class="btn btn-corporate w-100 mb-2">Create Account</button>
-        <div class="text-center mt-2"><p>Already have an account? <a href="login.php">Login here</a></p></div>
+        <div class="text-center mt-2"><p>Already have an account? <a href="../index.php">Login here</a></p></div>
     </form>
 </div>
 
 <script>
     const roleSelect = document.getElementById('role');
     const branchFields = document.querySelector('.staff-branch-fields');
+    const managerFields = document.querySelector('.manager-branch-fields');
     const businessFields = document.querySelector('.admin-business-fields');
 
     roleSelect.addEventListener('change', () => {
         branchFields.style.display = (roleSelect.value === 'staff') ? 'flex' : 'none';
         businessFields.style.display = (roleSelect.value === 'admin') ? 'block' : 'none';
+        managerFields.style.display = (roleSelect.value === 'manager') ? 'flex' : 'none';
     });
 </script>
 </body>

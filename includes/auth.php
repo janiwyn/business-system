@@ -6,7 +6,7 @@ if (session_status() == PHP_SESSION_NONE) {
 
 // Redirect to login if not logged in
 if (!isset($_SESSION['user_id'])) {
-    header("Location: ../auth/login.php");
+    header("Location: ../index.php");
     exit;
 }
 
@@ -20,7 +20,7 @@ if (isset($_SESSION['role']) && $_SESSION['role'] !== 'admin') {
 // Improved role-based access control
 function require_role($allowed_roles) {
     if (!isset($_SESSION['role'])) {
-        header("Location: ../auth/login.php");
+        header("Location: ../index.php");
         exit;
     }
 
@@ -59,7 +59,7 @@ function redirect_to_dashboard($role) {
              header("Location: ../pages/super.php");
              break;
         default:
-            header("Location: ../auth/login.php");
+            header("Location: ../index.php");
             break;
     }
     exit;

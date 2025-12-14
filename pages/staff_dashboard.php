@@ -117,7 +117,7 @@ if (!$checkDebtorDueDateCol || $checkDebtorDueDateCol->num_rows === 0) {
 }
 
 // if ($_SESSION['role'] !== 'staff') {
-//     header("Location: ../auth/login.php");
+//     header("Location: ../index.php");
 //     exit();
 // }
 
