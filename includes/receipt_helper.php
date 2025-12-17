@@ -6,6 +6,15 @@
  * @return string Receipt number (e.g., 'RP-00001')
  */
 function generateReceiptNumber($conn, $prefix = 'RP') {
+    // FIXED: Always use RP as default prefix for ALL sales
+    $prefix = 'RP'; // Force RP prefix for consistency
+    
+    // Create table if it doesn't exist
+    $conn->query("CREATE TABLE IF NOT EXISTS `receipt_counter` (
+        `prefix` VARCHAR(10) NOT NULL PRIMARY KEY,
+        `last_number` INT NOT NULL DEFAULT 0
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+    
     // Start transaction to prevent race conditions
     $conn->begin_transaction();
     
@@ -20,7 +29,7 @@ function generateReceiptNumber($conn, $prefix = 'RP') {
         // Get next number
         $next_number = ($result['last_number'] ?? 0) + 1;
         
-        // FIX: If no row exists for this prefix, insert it
+        // If no row exists for this prefix, insert it
         if (!$result) {
             $stmt = $conn->prepare("INSERT INTO receipt_counter (prefix, last_number) VALUES (?, ?)");
             $stmt->bind_param("si", $prefix, $next_number);
