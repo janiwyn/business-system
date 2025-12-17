@@ -22,17 +22,16 @@ $currentMonth =  date('m');
 $lastMonth = date('m', strtotime('-1 month'));
 $year =  date('Y');
 
-// Current month sales
+// FIXED: Admin sees ALL branches - removed branch filter
 $currentQuery = $conn->prepare("SELECT SUM(amount) as total FROM sales WHERE MONTH(date) = ? AND YEAR(date) = ?");
 $currentQuery->bind_param("ss", $currentMonth, $year);
 $currentQuery->execute();
 $currentResult = $currentQuery->get_result()->fetch_assoc();
 $currentSales = $currentResult['total'] ?? 0;
 
-// Last month sales
-$lastQuery = $conn->prepare("SELECT SUM(amount) as total FROM sales WHERE MONTH(date) = ? AND YEAR(date) = ? AND `business_id` = '{$_SESSION['business_id']}'
-");
-$lastQuery->bind_param("ii", $lastMonth, $year);
+// Last month sales - FIXED
+$lastQuery = $conn->prepare("SELECT SUM(amount) as total FROM sales WHERE MONTH(date) = ? AND YEAR(date) = ?");
+$lastQuery->bind_param("is", $lastMonth, $year);
 $lastQuery->execute();
 $lastResult = $lastQuery->get_result()->fetch_assoc();
 $lastSales = $lastResult['total'] ?? 0;
@@ -40,53 +39,52 @@ $lastSales = $lastResult['total'] ?? 0;
 // Growth
 $growth = $lastSales > 0 ? (($currentSales - $lastSales) / $lastSales) * 100 : 0;
 
-// Employees
-$employee = $conn->query("SELECT COUNT(*) AS total_employees FROM users WHERE role='staff' AND business_id = '{$_SESSION['business_id']}'")
-                 ->fetch_assoc()['total_employees'];
+// Employees - ALL employees
+$employee = $conn->query("SELECT COUNT(*) AS total_employees FROM users WHERE role='staff'")->fetch_assoc()['total_employees'];
 
-$totalbranches = $conn->query("SELECT COUNT(*) AS total_branches FROM branch WHERE business_id = '{$_SESSION['business_id']}'")->fetch_assoc()['total_branches'];
-$totalStock = $conn->query("SELECT SUM(stock) AS total_stock FROM products WHERE business_id = '{$_SESSION['business_id']}'")->fetch_assoc()['total_stock'];
-$totalProfit = $conn->query("SELECT SUM(`net-profits`) AS total_profits FROM profits WHERE business_id = '{$_SESSION['business_id']}'")->fetch_assoc()['total_profits'];
+// Total branches
+$totalbranches = $conn->query("SELECT COUNT(*) AS total_branches FROM branch")->fetch_assoc()['total_branches'];
 
-// Most selling product
+// Total stock - ALL branches
+$totalStock = $conn->query("SELECT SUM(stock) AS total_stock FROM products")->fetch_assoc()['total_stock'];
+
+// Total profit - ALL branches
+$totalProfit = $conn->query("SELECT SUM(`net-profits`) AS total_profits FROM profits")->fetch_assoc()['total_profits'];
+
+// Most selling product - ALL branches
 $productRes = $conn->query("
-SELECT 
-    p.name, 
-    SUM(s.quantity) AS total_sold
-FROM sales s
-JOIN products p 
-    ON s.`product-id` = p.id
-WHERE s.`branch-id` = '{$_SESSION['branch_id']}'
-GROUP BY p.name
-ORDER BY total_sold DESC
-LIMIT 1;
-
+    SELECT p.name, SUM(s.quantity) AS total_sold
+    FROM sales s
+    LEFT JOIN products p ON s.`product-id` = p.id
+    WHERE s.`product-id` > 0
+    GROUP BY p.name
+    ORDER BY total_sold DESC
+    LIMIT 1
 ");
 $topProduct = $productRes->fetch_assoc();
 
-// Most active branch
+// Most active branch - ALL branches
 $branchSales = $conn->query("
     SELECT b.name, COUNT(s.id) AS sales_count
     FROM sales s
     JOIN branch b ON s.`branch-id` = b.id
-    WHERE s.`branch-id` = '{$_SESSION['branch_id']}'
     GROUP BY b.name
     ORDER BY sales_count DESC
     LIMIT 1
 ");
 $topBranch = $branchSales->fetch_assoc();
 
-// Branch sales & profits per branch
+// Branch sales & profits per branch - ALL branches
 $branchData = $conn->query("
     SELECT 
         b.name AS branch_name,
-        SUM(s.amount) AS total_sales,
-        SUM(pr.`net-profits`) AS total_profits
+        COALESCE(SUM(s.amount), 0) AS total_sales,
+        COALESCE(SUM(pr.`net-profits`), 0) AS total_profits
     FROM branch b
     LEFT JOIN sales s ON s.`branch-id` = b.id
     LEFT JOIN profits pr ON pr.`branch-id` = b.id
-    WHERE s.`branch-id` = '{$_SESSION['branch_id']}'
     GROUP BY b.name
+    ORDER BY b.name
 ");
 
 $branchLabels = [];
@@ -95,33 +93,32 @@ $profits = [];
 
 while ($row = $branchData->fetch_assoc()) {
     $branchLabels[] = $row['branch_name'];
-    $sales[]        = $row['total_sales'] ?? 0;
-    $profits[]      = $row['total_profits'] ?? 0;
+    $sales[]        = floatval($row['total_sales']);
+    $profits[]      = floatval($row['total_profits']);
 }
 
-// Total sales & profits
+// Total sales & profits - ALL branches
 $query = $conn->query("
     SELECT 
-        SUM(amount) AS total_sales,
-        SUM(total_profits) AS total_profits
-    FROM sales WHERE `branch-id` = '{$_SESSION['branch_id']}'
+        COALESCE(SUM(amount), 0) AS total_sales,
+        COALESCE(SUM(total_profits), 0) AS total_profits
+    FROM sales
 ");
 $result = $query->fetch_assoc();
 $totalSales   = $result['total_sales'];
 $totalProfits = $result['total_profits'];
 
-// Monthly sales (last 12 months)
+// Monthly sales (last 12 months) - ALL branches
 $monthlySalesQuery = $conn->query("
-  SELECT DATE_FORMAT(date, '%b %Y') as month_label, SUM(amount) AS total
-  FROM sales
-  WHERE date >= DATE_SUB(CURDATE(), INTERVAL 12 MONTH)
-  AND `branch-id` = '{$_SESSION['branch_id']}'
-  GROUP BY YEAR(date), MONTH(date)
-  ORDER BY YEAR(date), MONTH(date)
+    SELECT DATE_FORMAT(date, '%b %Y') as month_label, SUM(amount) AS total
+    FROM sales
+    WHERE date >= DATE_SUB(CURDATE(), INTERVAL 12 MONTH)
+    GROUP BY YEAR(date), MONTH(date)
+    ORDER BY YEAR(date), MONTH(date)
 ");
 
 $months = [];
-$monthlyTotals = array_fill(0, 12, 0); // Initialize with zeros for 12 months
+$monthlyTotals = array_fill(0, 12, 0);
 $currentDate = new DateTime();
 for ($i = 11; $i >= 0; $i--) {
     $date = (clone $currentDate)->modify("-$i months");
@@ -131,7 +128,7 @@ for ($i = 11; $i >= 0; $i--) {
 while ($row = $monthlySalesQuery->fetch_assoc()) {
     $monthIndex = array_search($row['month_label'], $months);
     if ($monthIndex !== false) {
-        $monthlyTotals[$monthIndex] = $row['total'];
+        $monthlyTotals[$monthIndex] = floatval($row['total']);
     }
 }
 
@@ -394,6 +391,7 @@ $username = $_SESSION['username'];
             <thead>
               <tr>
                 <th>#</th>
+                <th>Branch</th>
                 <th>Product</th>
                 <th>Quantity</th>
                 <th>Amount</th>
@@ -403,35 +401,70 @@ $username = $_SESSION['username'];
             </thead>
             <tbody>
               <?php
+              // FIXED: Show transactions from ALL branches
               $salesData = $conn->query("
                 SELECT 
                     sales.id, 
-                    products.name AS product_name, 
+                    COALESCE(products.name, 'Multiple Products') AS product_name, 
                     sales.quantity, 
                     sales.amount, 
                     sales.`sold-by`, 
-                    sales.date
+                    sales.date,
+                    branch.name AS branch_name
                 FROM sales
-                JOIN products 
-                    ON sales.`product-id` = products.id
-                WHERE sales.`branch-id` = '{$_SESSION['branch_id']}'
+                LEFT JOIN products ON sales.`product-id` = products.id
+                JOIN branch ON sales.`branch-id` = branch.id
                 ORDER BY sales.id DESC
-                LIMIT 10;
+                LIMIT 10
               ");
-              $i = 1;
-              while ($row = $salesData->fetch_assoc()):
+              
+              if ($salesData && $salesData->num_rows > 0):
+                  $i = 1;
+                  while ($row = $salesData->fetch_assoc()):
               ?>
                 <tr>
                   <td><?= $i++ ?></td>
-                  <td><?= $row['product_name'] ?></td>
+                  <td><?= htmlspecialchars($row['branch_name']) ?></td>
+                  <td><?= htmlspecialchars($row['product_name']) ?></td>
                   <td><?= $row['quantity'] ?></td>
                   <td>UGX<?= number_format($row['amount'], 2) ?></td>
                   <td><?= date('d-M-Y', strtotime($row['date'])) ?></td>
-                  <td><?= $row['sold-by'] ?></td>
+                  <td><?= htmlspecialchars($row['sold-by']) ?></td>
                 </tr>
-              <?php endwhile; ?>
+              <?php 
+                  endwhile;
+              else:
+              ?>
+                <tr>
+                  <td colspan="7" class="text-center text-muted">No recent transactions found</td>
+                </tr>
+              <?php endif; ?>
             </tbody>
           </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Quick Links Card: Added section -->
+  <div class="card mb-4" style="border-left: 4px solid teal;">
+    <div class="card-body">
+      <h5 class="title-card">Quick Links</h5>
+      <div class="row g-3">
+        <div class="col-md-4">
+          <a href="remote_orders.php" class="btn btn-primary w-100">
+            <i class="fas fa-shopping-bag me-2"></i>View Remote Orders
+          </a>
+        </div>
+        <div class="col-md-4">
+          <a href="qr_scanner.php" class="btn btn-success w-100">
+            <i class="fas fa-qrcode me-2"></i>Scan QR Code
+          </a>
+        </div>
+        <div class="col-md-4">
+          <a href="../customer/" target="_blank" class="btn btn-info w-100">
+            <i class="fas fa-external-link-alt me-2"></i>Customer Website
+          </a>
         </div>
       </div>
     </div>

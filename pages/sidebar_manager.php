@@ -119,9 +119,7 @@ body.dark-mode .sidebar::-webkit-scrollbar-thumb:horizontal {
 <div class="sidebar">
     <div class="sidebar-title">Manager Dashboard</div>
     <ul class="sidebar-nav">
-        <li>
-            <a href="../pages/manager_dashboard.php"><i class="fa-solid fa-gauge"></i> Dashboard</a>
-        </li>
+        <li><a href="../pages/manager_dashboard.php"><i class="fa-solid fa-gauge"></i> Dashboard</a></li>
         <li><a href="../pages/branch.php"><i class="fa-solid fa-building"></i> Branches</a></li>
         <li><a href="../pages/list_branches.php"><i class="fa-solid fa-building"></i> List Branches</a></li>
         <li><a href="../pages/edit_product.php"><i class="fa-solid fa-box"></i> Edit Product</a></li>
@@ -130,16 +128,16 @@ body.dark-mode .sidebar::-webkit-scrollbar-thumb:horizontal {
         <li><a href="../pages/sales.php"><i class="fa-solid fa-cart-shopping"></i> Sales</a></li>  
         <li><a href="../pages/report.php"><i class="fa-solid fa-chart-line"></i> Reports</a></li>
         <li><a href="../pages/employees.php"><i class="fa-solid fa-cart-shopping"></i> Employees</a></li>
-        <!-- Accounting dropdown -->
         <li><a href="../pages/accounting.php"><i class="fa-solid fa-briefcase"></i> Accounting</a></li>
         <li><a href="../pages/report.php"><i class="fa-solid fa-chart-line"></i> Reports</a></li>
         <li><a href="../pages/payroll.php"><i class="fa-solid fa-money-check-dollar"></i> Payroll</a></li>
         <li><a href="../pages/suppliers.php"><i class="fa-solid fa-truck"></i> Suppliers</a></li>
         <li><a href="../pages/customer_management.php"><i class="fa-solid fa-users"></i> Customer Management</a></li>
-        <li>
-            <a href="petty_cash.php"><i class="fa fa-money-bill"></i> Petty Cash</a>
-        </li>
+        <li><a href="petty_cash.php"><i class="fa fa-money-bill"></i> Petty Cash</a></li>
         <li><a href="../pages/till_management.php"><i class="fa-solid fa-cash-register"></i> Till Management</a></li>
+        <!-- Remote Orders Menu Items -->
+        <li><a href="../pages/remote_orders.php"><i class="fa-solid fa-shopping-bag"></i> Remote Orders</a></li>
+        <li><a href="../pages/qr_scanner.php"><i class="fa-solid fa-qrcode"></i> QR Scanner</a></li>
         <li style="margin-top:2rem;">
             <a href="../auth/logout.php" class="text-danger fw-bold"><i class="fa-solid fa-right-from-bracket"></i> Logout</a>
         </li>
