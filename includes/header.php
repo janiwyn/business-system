@@ -264,12 +264,47 @@
   </style>
 </head>
 <body>
+<?php
+// NEW: Get pending orders count
+$pending_orders_count = 0;
+if (isset($_SESSION['user_id']) && isset($conn)) {
+    $user_branch = $_SESSION['branch_id'] ?? null;
+    $user_role = $_SESSION['role'] ?? null;
+    
+    // Admin/Manager see all pending orders, Staff see only their branch
+    if ($user_role === 'staff' && $user_branch) {
+        $orders_stmt = $conn->prepare("SELECT COUNT(*) as count FROM remote_orders WHERE status = 'pending' AND branch_id = ?");
+        $orders_stmt->bind_param("i", $user_branch);
+    } else {
+        $orders_stmt = $conn->prepare("SELECT COUNT(*) as count FROM remote_orders WHERE status = 'pending'");
+    }
+    $orders_stmt->execute();
+    $orders_result = $orders_stmt->get_result()->fetch_assoc();
+    $pending_orders_count = $orders_result['count'] ?? 0;
+    $orders_stmt->close();
+}
+?>
 <header class="main-header">
   <div class="logo-area">
     <img src="../uploads/2.png" alt="Logo" class="logo-img" />
     <span class="logo-text">Bluecrest Technologies</span>
   </div>
   <div class="header-actions">
+    <div class="theme-switch">
+      <input type="checkbox" id="themeToggle" />
+      <label for="themeToggle">
+        <i class="fa-solid fa-moon"></i>
+      </label>
+    </div>
+    <!-- NEW: Orders Icon (before notifications) -->
+    <a href="../pages/order_notifications.php" class="position-relative me-3" style="text-decoration: none;">
+      <i class="fas fa-shopping-bag text-white" style="font-size: 1.3rem;"></i>
+      <?php if ($pending_orders_count > 0): ?>
+        <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+          <?= $pending_orders_count > 99 ? '99+' : $pending_orders_count ?>
+        </span>
+      <?php endif; ?>
+    </a>
     <div class="notification-icon position-relative">
       <a href="../pages/notification.php" class="text-white text-decoration-none">
         <i class="fa-solid fa-bell"></i>
@@ -277,12 +312,6 @@
           0
         </span>
       </a>
-    </div>
-    <div class="theme-switch">
-      <input type="checkbox" id="themeToggle" />
-      <label for="themeToggle">
-        <i class="fa-solid fa-moon"></i>
-      </label>
     </div>
     <!-- Hamburger icon should be after theme toggle -->
     <button id="sidebarToggle" class="hamburger d-lg-none ms-auto" aria-label="Open sidebar">
