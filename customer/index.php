@@ -81,36 +81,48 @@ $companyName = $settings['company_name'] ?? 'Our Business';
     </button>
 
     <!-- Checkout Modal -->
-    <div class="modal fade" id="checkoutModal" tabindex="-1">
-        <div class="modal-dialog modal-dialog-centered">
+    <div class="modal fade" id="checkoutModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
             <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title"><i class="fas fa-user me-2"></i>Customer Details</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                <div class="modal-header" style="background: var(--primary-color); color: #fff;">
+                    <h5 class="modal-title"><i class="fas fa-shopping-cart"></i> Checkout</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    <form id="checkoutForm">
-                        <div class="mb-3">
-                            <label class="form-label">Full Name *</label>
-                            <input type="text" class="form-control" id="customerName" required>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Phone Number *</label>
-                            <input type="tel" class="form-control" id="customerPhone" required 
-                                   pattern="[0-9]{10,15}" placeholder="e.g., 0700123456">
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Payment Method *</label>
-                            <select class="form-select" id="paymentMethod">
-                                <option value="cash">Cash on Pickup</option>
-                            </select>
-                        </div>
-                    </form>
+                    <h6 class="mb-3">Customer Information</h6>
+                    <div class="mb-3">
+                        <label for="customerName" class="form-label">
+                            <i class="fas fa-user"></i> Full Name
+                        </label>
+                        <input type="text" id="customerName" class="form-control" placeholder="Enter your full name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="customerPhone" class="form-label">
+                            <i class="fas fa-phone"></i> Phone Number
+                        </label>
+                        <input type="tel" id="customerPhone" class="form-control" placeholder="e.g., 0700000000" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="paymentMethod" class="form-label">
+                            <i class="fas fa-credit-card"></i> Payment Method
+                        </label>
+                        <select id="paymentMethod" class="form-select">
+                            <option value="cash">Cash on Pickup</option>
+                            <option value="MTN Merchant">MTN Mobile Money</option>
+                            <option value="Airtel Merchant">Airtel Money</option>
+                        </select>
+                        <small class="text-muted">
+                            For Cash: Pay when you collect<br>
+                            For Mobile Money: Pay now and we deliver
+                        </small>
+                    </div>
+                    
+                    <!-- Mobile money section will be inserted here dynamically -->
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                     <button type="button" class="btn btn-primary" onclick="submitOrder()">
-                        <i class="fas fa-check me-2"></i>Place Order
+                        <i class="fas fa-check"></i> Place Order
                     </button>
                 </div>
             </div>

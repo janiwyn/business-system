@@ -35,4 +35,14 @@ try {
     </div>
     ");
 }
+
+// Add location columns to remote_orders table
+$conn->query("ALTER TABLE remote_orders ADD COLUMN IF NOT EXISTS customer_location_lat DECIMAL(10, 8) NULL");
+if ($conn->errno) { @$conn->query("ALTER TABLE remote_orders ADD COLUMN customer_location_lat DECIMAL(10, 8) NULL"); }
+
+$conn->query("ALTER TABLE remote_orders ADD COLUMN IF NOT EXISTS customer_location_lng DECIMAL(11, 8) NULL");
+if ($conn->errno) { @$conn->query("ALTER TABLE remote_orders ADD COLUMN customer_location_lng DECIMAL(11, 8) NULL"); }
+
+$conn->query("ALTER TABLE remote_orders ADD COLUMN IF NOT EXISTS customer_address TEXT NULL");
+if ($conn->errno) { @$conn->query("ALTER TABLE remote_orders ADD COLUMN customer_address TEXT NULL"); }
 ?>

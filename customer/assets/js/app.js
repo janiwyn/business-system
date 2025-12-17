@@ -379,6 +379,14 @@ async function submitOrder() {
         return;
     }
     
+    // FIXED: Check if mobile money payment method selected - show form instead of submitting
+    if (paymentMethod === 'MTN Merchant' || paymentMethod === 'Airtel Merchant') {
+        // Show mobile money payment section (expand form)
+        showMobileMoneySection(paymentMethod);
+        return; // Stop here - don't generate QR yet
+    }
+    
+    // Cash payment - existing logic (generate QR immediately)
     const orderData = {
         branch_id: selectedBranch.id,
         customer_name: customerName,
@@ -406,6 +414,220 @@ async function submitOrder() {
         }
     } catch (error) {
         alert('Failed to place order. Please try again.');
+    }
+}
+
+// NEW: Show mobile money payment section
+function showMobileMoneySection(paymentMethod) {
+    const checkoutBody = document.querySelector('#checkoutModal .modal-body');
+    
+    // Check if mobile money section already exists
+    if (document.getElementById('mobileMoneySection')) {
+        return; // Already showing
+    }
+    
+    // Get merchant code
+    const merchantCode = paymentMethod === 'MTN Merchant' ? '6438439' : '884984';
+    const provider = paymentMethod === 'MTN Merchant' ? 'MTN' : 'Airtel';
+    const bgColor = paymentMethod === 'MTN Merchant' ? '#FFCC00' : '#FF0000';
+    
+    // Add mobile money fields
+    const mobileMoneyHTML = `
+        <div id="mobileMoneySection" class="mt-4 p-4 border rounded" style="background: #f8f9fa;">
+            <h5 class="mb-3 text-center"><i class="fas fa-mobile-alt"></i> ${provider} Mobile Money Payment</h5>
+            
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle"></i> Follow these steps to complete your order
+            </div>
+            
+            <div class="mb-3">
+                <label class="form-label fw-bold">📍 Delivery Location <span class="text-danger">*</span></label>
+                <textarea id="deliveryLocation" class="form-control" rows="3" 
+                    placeholder="Enter your complete delivery address (e.g., Plot 123, Kampala Road, near City Mall)" required></textarea>
+                <small class="text-muted">We'll deliver to this address after payment verification</small>
+            </div>
+            
+            <div class="mb-3 p-3 rounded" style="background: ${bgColor}20; border: 2px solid ${bgColor};">
+                <label class="form-label fw-bold" style="color: ${bgColor};">💳 ${provider} Merchant Code</label>
+                <div class="input-group">
+                    <input type="text" id="merchantCode" class="form-control form-control-lg fw-bold text-center" 
+                        value="${merchantCode}" readonly style="font-size: 1.5rem; letter-spacing: 2px;">
+                    <button class="btn btn-primary" type="button" onclick="copyMerchantCode()">
+                        <i class="fas fa-copy"></i> Copy
+                    </button>
+                </div>
+                <small class="text-muted d-block mt-2">
+                    <strong>Instructions:</strong><br>
+                    1. Open your ${provider} Mobile Money app<br>
+                    2. Go to "Pay Merchant"<br>
+                    3. Enter the code above: <strong>${merchantCode}</strong><br>
+                    4. Enter amount: <strong>UGX ${calculateCartTotal().toLocaleString()}</strong><br>
+                    5. Complete the payment
+                </small>
+            </div>
+            
+            <div class="mb-3">
+                <label class="form-label fw-bold">📸 Upload Payment Screenshot <span class="text-danger">*</span></label>
+                <input type="file" id="paymentScreenshot" class="form-control" 
+                    accept="image/*" required>
+                <small class="text-muted">
+                    After completing payment, take a screenshot of the confirmation message and upload it here
+                </small>
+                <div id="screenshotPreview" class="mt-2"></div>
+            </div>
+            
+            <div class="d-grid gap-2">
+                <button class="btn btn-success btn-lg" onclick="finishMobileMoneyOrder()">
+                    <i class="fas fa-check-circle"></i> Finish & Generate QR Code
+                </button>
+                <button class="btn btn-secondary" onclick="cancelMobileMoneyPayment()">
+                    <i class="fas fa-times"></i> Cancel
+                </button>
+            </div>
+        </div>
+    `;
+    
+    checkoutBody.insertAdjacentHTML('beforeend', mobileMoneyHTML);
+    
+    // Hide the original place order button
+    const modalFooter = document.querySelector('#checkoutModal .modal-footer');
+    if (modalFooter) modalFooter.style.display = 'none';
+    
+    // Disable customer info fields
+    document.getElementById('customerName').disabled = true;
+    document.getElementById('customerPhone').disabled = true;
+    document.getElementById('paymentMethod').disabled = true;
+    
+    // Add preview for screenshot
+    document.getElementById('paymentScreenshot').addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const preview = document.getElementById('screenshotPreview');
+                preview.innerHTML = `
+                    <img src="${event.target.result}" class="img-thumbnail" style="max-width: 200px;">
+                    <p class="text-success mt-2"><i class="fas fa-check"></i> Screenshot ready to upload</p>
+                `;
+            };
+            reader.readAsDataURL(file);
+        }
+    });
+}
+
+// NEW: Calculate cart total
+function calculateCartTotal() {
+    return cart.reduce((total, item) => total + (item.unit_price * item.quantity), 0);
+}
+
+// NEW: Copy merchant code to clipboard
+function copyMerchantCode() {
+    const codeInput = document.getElementById('merchantCode');
+    codeInput.select();
+    codeInput.setSelectionRange(0, 99999); // For mobile devices
+    
+    try {
+        document.execCommand('copy');
+        showToast('Merchant code copied! Paste it in your mobile money app', 'success');
+    } catch (err) {
+        // Fallback for modern browsers
+        navigator.clipboard.writeText(codeInput.value).then(() => {
+            showToast('Merchant code copied! Paste it in your mobile money app', 'success');
+        });
+    }
+}
+
+// NEW: Cancel mobile money payment
+function cancelMobileMoneyPayment() {
+    if (confirm('Are you sure you want to cancel? You will need to start over.')) {
+        // Remove mobile money section
+        const section = document.getElementById('mobileMoneySection');
+        if (section) section.remove();
+        
+        // Re-enable form fields
+        document.getElementById('customerName').disabled = false;
+        document.getElementById('customerPhone').disabled = false;
+        document.getElementById('paymentMethod').disabled = false;
+        
+        // Show footer again
+        const modalFooter = document.querySelector('#checkoutModal .modal-footer');
+        if (modalFooter) modalFooter.style.display = '';
+    }
+}
+
+// NEW: Finish mobile money order (submit with screenshot)
+async function finishMobileMoneyOrder() {
+    const customerName = document.getElementById('customerName').value.trim();
+    const customerPhone = document.getElementById('customerPhone').value.trim();
+    const paymentMethod = document.getElementById('paymentMethod').value;
+    const deliveryLocation = document.getElementById('deliveryLocation').value.trim();
+    const screenshotFile = document.getElementById('paymentScreenshot').files[0];
+    
+    // Validation
+    if (!deliveryLocation) {
+        alert('Please enter your delivery location');
+        document.getElementById('deliveryLocation').focus();
+        return;
+    }
+    
+    if (!screenshotFile) {
+        alert('Please upload payment screenshot');
+        document.getElementById('paymentScreenshot').focus();
+        return;
+    }
+    
+    // Show loading state
+    const finishBtn = event.target;
+    const originalText = finishBtn.innerHTML;
+    finishBtn.disabled = true;
+    finishBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+    
+    const formData = new FormData();
+    formData.append('branch_id', selectedBranch.id);
+    formData.append('customer_name', customerName);
+    formData.append('customer_phone', customerPhone);
+    formData.append('payment_method', paymentMethod);
+    formData.append('delivery_location', deliveryLocation);
+    formData.append('items', JSON.stringify(cart));
+    formData.append('payment_screenshot', screenshotFile);
+    
+    try {
+        const response = await fetch(`${API_BASE}/create_order.php`, {
+            method: 'POST',
+            body: formData
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            // Success! Close checkout modal
+            bootstrap.Modal.getInstance(document.getElementById('checkoutModal')).hide();
+            
+            // Show success modal with QR code
+            showSuccessModal(data.data);
+            
+            // Clear cart
+            cart = [];
+            updateCartUI();
+            
+            // Reset checkout form
+            document.getElementById('mobileMoneySection')?.remove();
+            document.getElementById('customerName').value = '';
+            document.getElementById('customerPhone').value = '';
+            document.getElementById('customerName').disabled = false;
+            document.getElementById('customerPhone').disabled = false;
+            document.getElementById('paymentMethod').disabled = false;
+            document.querySelector('#checkoutModal .modal-footer').style.display = '';
+        } else {
+            alert('Order failed: ' + data.message);
+            finishBtn.disabled = false;
+            finishBtn.innerHTML = originalText;
+        }
+    } catch (error) {
+        console.error('Order error:', error);
+        alert('Failed to place order. Please try again.');
+        finishBtn.disabled = false;
+        finishBtn.innerHTML = originalText;
     }
 }
 
