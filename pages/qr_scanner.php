@@ -102,7 +102,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         $total_cost = 0;
         $total_profit = 0;
         
-        // Build products_json array
+        // Build products_json array AND REDUCE STOCK
         $products_json_array = [];
         
         foreach ($items as $item) {
@@ -110,14 +110,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             $quantity = intval($item['quantity']);
             $unit_price = floatval($item['unit_price']);
             
-            // Get product cost
-            $prod_stmt = $conn->prepare("SELECT `buying-price` FROM products WHERE id = ? AND `branch-id` = ?");
+            // Get product details
+            $prod_stmt = $conn->prepare("SELECT `buying-price`, stock FROM products WHERE id = ? AND `branch-id` = ?");
             $prod_stmt->bind_param("ii", $product_id, $branch_id);
             $prod_stmt->execute();
             $prod = $prod_stmt->get_result()->fetch_assoc();
             $prod_stmt->close();
             
             $buying_price = $prod ? floatval($prod['buying-price']) : 0;
+            $current_stock = $prod ? intval($prod['stock']) : 0;
+            
+            // IMPORTANT: Check if enough stock available
+            if ($current_stock < $quantity) {
+                throw new Exception("Insufficient stock for product: {$item['product_name']}. Available: {$current_stock}, Required: {$quantity}");
+            }
+            
+            // REDUCE STOCK NOW (when sale is recorded)
+            $update_stock = $conn->prepare("UPDATE products SET stock = stock - ? WHERE id = ? AND `branch-id` = ?");
+            $update_stock->bind_param("iii", $quantity, $product_id, $branch_id);
+            if (!$update_stock->execute()) {
+                throw new Exception('Failed to update stock for product: ' . $item['product_name']);
+            }
+            $update_stock->close();
             
             $item_cost = $buying_price * $quantity;
             $item_amount = $unit_price * $quantity;
@@ -194,8 +208,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         
         $conn->commit();
         
-        error_log("QR Scanner: Transaction committed successfully");
-        
         echo json_encode([
             'success' => true,
             'message' => 'Sale recorded successfully!',
@@ -204,12 +216,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         
     } catch (Exception $e) {
         $conn->rollback();
-        $error_message = $e->getMessage();
-        error_log("QR Scanner EXCEPTION: $error_message");
-        echo json_encode(['success' => false, 'message' => $error_message]);
+        echo json_encode(['success' => false, 'message' => $e->getMessage()]);
     }
     
-    ob_end_flush();
     exit;
 }
 
