@@ -1,107 +1,93 @@
 <?php
-// Accept POST data
-$cart = json_decode($_POST['cart'] ?? '[]', true);
-$total = floatval($_POST['total'] ?? 0);
-$payment_method = $_POST['payment_method'] ?? 'Cash';
-$amount_paid = floatval($_POST['amount_paid'] ?? 0);
+// Simple receipt preview (same contract as invoice_preview.php)
 
-// Company info (same as printCartReceipt)
-$company = "CYINIBEL SUPERMARKET LIMITED";
-$till = "2";
-$tillSales = "050520250601106";
-$tin = "1017004561";
-$dateStr = date('Y-m-d H:i:s');
+$cartJson      = $_POST['cart'] ?? '[]';
+$total         = $_POST['total'] ?? '';
+$paymentMethod = $_POST['payment_method'] ?? '';
+$amountPaid    = $_POST['amount_paid'] ?? '';
+$balance       = $_POST['balance'] ?? '';
+$invoiceNo     = $_POST['invoice_no'] ?? ($_POST['receipt_no'] ?? '');
+$customerName  = $_POST['customer_name'] ?? '';
+$customerEmail = $_POST['customer_email'] ?? '';
+$customerContact = $_POST['customer_contact'] ?? '';
+$dueDate       = $_POST['due_date'] ?? '';
 
-// Build items HTML
-$itemsHtml = '';
-foreach ($cart as $item) {
-    $qty = intval($item['quantity']);
-    $name = htmlspecialchars($item['name']);
-    $subtotal = number_format($item['price'] * $qty, 0);
-    $itemsHtml .= "<tr>
-        <td style='text-align:left;'>$qty</td>
-        <td style='text-align:left;'>$name</td>
-        <td style='text-align:right;'>UGX $subtotal</td>
-    </tr>";
-}
-$change = $amount_paid - $total;
+$cart = json_decode(is_string($cartJson) ? $cartJson : json_encode($cartJson), true);
+if (!is_array($cart)) $cart = [];
+
+function h($s){ return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8'); }
 ?>
-<!DOCTYPE html>
+<!doctype html>
 <html>
 <head>
-    <title>Receipt Preview</title>
-    <style>
-        body { background: #f8f9fa; font-family: 'Courier New', monospace; }
-        #receiptToPrint { width:320px; max-width:100vw; margin:2rem auto; background:#fff; padding:1rem 1.5rem; border-radius:12px; box-shadow:0 4px 24px #0002; }
-        .print-btn { display:block; margin:2rem auto 0 auto; padding:0.7rem 2.5rem; font-size:1.1rem; background:#1abc9c; color:#fff; border:none; border-radius:8px; font-weight:bold; cursor:pointer; box-shadow:0 2px 8px #0002; }
-        @media print { .print-btn { display:none; } #receiptToPrint { box-shadow:none; border-radius:0; padding:0.5rem; } body { background:#fff; } }
-    </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Receipt Preview <?= h($invoiceNo) ?></title>
+<style>
+  /* reuse minimal styles from invoice_preview */
+  body{font-family:Arial;margin:18px;color:#222}
+  .receipt{max-width:700px;margin:0 auto;border:1px solid #eaeaea;padding:14px;border-radius:8px}
+  .header{display:flex;justify-content:space-between;align-items:center}
+  table{width:100%;border-collapse:collapse;margin-top:10px}
+  th,td{padding:8px;border-bottom:1px solid #f2f2f2}
+  .text-right{ text-align:right; }
+  .btns{margin-top:12px;text-align:right}
+  .btn{padding:8px 12px;border-radius:5px;border:1px solid #ccc;background:#fff;cursor:pointer}
+  .btn-print{background:#0b6;color:#fff;border:none}
+  @media print{ .btns{display:none} body{margin:0} }
+</style>
 </head>
 <body>
-    <div id="receiptToPrint">
-        <div style="text-align:center;margin-top:10px;">
-            <img src="../uploads/1 (1).png" alt="Logo" style="width:80px;height:80px;object-fit:contain;margin-bottom:8px;">
-        </div>
-        <div style="text-align:center;font-weight:bold;font-size:15px;margin-bottom:2px;"><?= $company ?></div>
-        <div style="text-align:center;font-size:12px;margin-bottom:2px;">----------------------------------------------------</div>
-        <div style="text-align:center;font-size:13px;margin-bottom:2px;"><?= $dateStr ?></div>
-        <div style="font-size:12px;margin-bottom:2px;">TILL: <?= $till ?> &nbsp; Till Sales: <?= $tillSales ?></div>
-        <div style="font-size:12px;margin-bottom:2px;">TIN: <?= $tin ?></div>
-        <div style="font-size:12px;margin-bottom:2px;">----------------------------------------------------</div>
-        <table style="width:100%;font-size:13px;margin-bottom:2px;border-collapse:collapse;">
-            <tbody>
-                <?= $itemsHtml ?>
-            </tbody>
-        </table>
-        <div style="font-size:12px;margin-bottom:2px;">----------------------------------------------------</div>
-        <table style="width:100%;font-size:13px;">
-            <tr>
-                <td style="text-align:left;">Subtotal</td>
-                <td style="text-align:right;">UGX <?= number_format($total, 0) ?></td>
-            </tr>
-            <tr>
-                <td style="text-align:left;">Total</td>
-                <td style="text-align:right;">UGX <?= number_format($total, 0) ?></td>
-            </tr>
-        </table>
-        <div style="font-size:12px;margin-bottom:2px;">----------------------------------------------------</div>
-        <table style="width:100%;font-size:13px;">
-            <tr>
-                <td style="text-align:left;">Cash</td>
-                <td style="text-align:right;">UGX <?= number_format($amount_paid, 0) ?></td>
-            </tr>
-            <tr>
-                <td style="text-align:left;">Change</td>
-                <td style="text-align:right;">UGX <?= number_format($change, 0) ?></td>
-            </tr>
-        </table>
-        <div style="font-size:12px;margin-bottom:2px;">----------------------------------------------------</div>
-        <div style="text-align:center;font-size:13px;margin:10px 0 2px 0;">THANK YOU</div>
-        <div style="text-align:center;font-size:13px;margin-bottom:8px;">HAVE A NICE DAY</div>
-        <div style="text-align:center;margin-top:8px;">
-            <svg id="barcodeSvg" style="width:180px;height:40px;"></svg>
-        </div>
+  <div class="receipt">
+    <div class="header">
+      <div>
+        <strong>Company Name</strong><br><small>Receipt</small>
+      </div>
+      <div>
+        <small>Ref: <?= h($invoiceNo ?: '—') ?></small><br>
+        <small><?= date('d M Y, H:i') ?></small>
+      </div>
     </div>
-    <button class="print-btn" onclick="window.print()">Print Receipt</button>
-    <script>
-    // Simple barcode SVG generator (Code128, dummy bars for visual)
-    (function() {
-        var svg = document.getElementById('barcodeSvg');
-        if (svg) {
-            var code = "<?= $tillSales ?>";
-            var bars = '';
-            var x = 0;
-            for (var i = 0; i < code.length; i++) {
-                var val = code.charCodeAt(i) % 7 + 1;
-                for (var j = 0; j < val; j++) {
-                    bars += '<rect x="'+x+'" y="0" width="2" height="40" fill="#000"/>';
-                    x += 3;
-                }
-                x += 2;
-            }
-            svg.innerHTML = bars;
-        }
-    })();
-    </script>
+
+    <div style="margin-top:10px">
+      <strong>Customer:</strong> <?= h($customerName ?: 'Walk-in') ?><br>
+      <?php if ($customerContact): ?><?= h($customerContact) ?><br><?php endif; ?>
+      <?php if ($customerEmail): ?><?= h($customerEmail) ?><br><?php endif; ?>
+    </div>
+
+    <table>
+      <thead><tr><th>Item</th><th>Qty</th><th class="text-right">Unit</th><th class="text-right">Subtotal</th></tr></thead>
+      <tbody>
+        <?php if (empty($cart)): ?>
+          <tr><td colspan="4" class="text-right">No items</td></tr>
+        <?php else: foreach($cart as $it):
+            $name = $it['product_name'] ?? $it['name'] ?? 'Item';
+            $qty = $it['quantity'] ?? ($it['qty'] ?? 1);
+            $unit = isset($it['unit_price']) ? number_format((float)$it['unit_price'],2) : '-';
+            $sub = isset($it['unit_price']) ? number_format(((float)$it['unit_price'])*((int)$qty),2) : '-';
+        ?>
+          <tr>
+            <td><?= h($name) ?></td>
+            <td><?= h($qty) ?></td>
+            <td class="text-right">UGX <?= h($unit) ?></td>
+            <td class="text-right">UGX <?= h($sub) ?></td>
+          </tr>
+        <?php endforeach; endif; ?>
+      </tbody>
+    </table>
+
+    <div style="margin-top:8px">
+      <table style="width:100%">
+        <tr><td style="width:70%"></td><td>Subtotal:</td><td class="text-right">UGX <?= h(number_format((float)$total,2)) ?></td></tr>
+        <tr><td></td><td>Paid:</td><td class="text-right">UGX <?= h(number_format((float)$amountPaid,2)) ?></td></tr>
+        <tr><td></td><td><strong>Balance:</strong></td><td class="text-right"><strong>UGX <?= h(number_format((float)$balance,2)) ?></strong></td></tr>
+      </table>
+    </div>
+
+    <div class="btns">
+      <button class="btn" onclick="window.close()">Close</button>
+      <button class="btn btn-print" onclick="window.print()">Print Receipt</button>
+    </div>
+  </div>
 </body>
 </html>
