@@ -181,13 +181,13 @@ try {
             throw new Exception('Failed to upload screenshot');
         }
         
-        // Insert payment proof record
+        // Insert payment proof record (UPDATED: include branch_id)
         $proofStmt = mysqli_prepare($conn, "INSERT INTO payment_proofs 
-            (order_id, order_reference, customer_name, customer_phone, payment_method, delivery_location, screenshot_path, status) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, 'pending')");
+            (order_id, order_reference, customer_name, customer_phone, payment_method, delivery_location, screenshot_path, branch_id, status) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending')");
         
-        mysqli_stmt_bind_param($proofStmt, "issssss", 
-            $orderId, $orderReference, $customerName, $customerPhone, $paymentMethod, $deliveryLocation, $fileName);
+        mysqli_stmt_bind_param($proofStmt, "issssssi", 
+            $orderId, $orderReference, $customerName, $customerPhone, $paymentMethod, $deliveryLocation, $fileName, $branchId);
         
         if (!mysqli_stmt_execute($proofStmt)) {
             throw new Exception('Failed to save payment proof: ' . mysqli_stmt_error($proofStmt));

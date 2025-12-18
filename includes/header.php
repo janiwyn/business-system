@@ -265,13 +265,13 @@
 </head>
 <body>
 <?php
-// NEW: Get pending orders count
+// Get pending orders count (filtered by branch for staff)
 $pending_orders_count = 0;
 if (isset($_SESSION['user_id']) && isset($conn)) {
     $user_branch = $_SESSION['branch_id'] ?? null;
     $user_role = $_SESSION['role'] ?? null;
     
-    // Admin/Manager see all pending orders, Staff see only their branch
+    // FIXED: Staff see only their branch orders, Admin/Manager see all
     if ($user_role === 'staff' && $user_branch) {
         $orders_stmt = $conn->prepare("SELECT COUNT(*) as count FROM remote_orders WHERE status = 'pending' AND branch_id = ?");
         $orders_stmt->bind_param("i", $user_branch);
