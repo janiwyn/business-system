@@ -467,8 +467,8 @@ $customers = $customers_res ? $customers_res->fetch_all(MYSQLI_ASSOC) : [];
                             if (!data.success) { container.innerHTML = '<div class="text-muted">No transactions.</div>'; return; }
                             if (!data.rows.length) { container.innerHTML = '<div class="text-muted">No transactions.</div>'; container.dataset.loaded = '1'; return; }
 
-                            // Add Invoice/Receipt No. column after Date & Time
-                            let html = '<table><thead><tr><th>Date & Time</th><th>Branch</th><th>Invoice/Receipt No.</th><th>Products</th><th class="text-center">Quantity</th><th class="text-end">Amount Paid</th><th class="text-end">Amount Credited</th><th>Payment Method</th><th>Sold By</th></tr></thead><tbody>';
+                            // Add Status column before Sold By
+                            let html = '<table><thead><tr><th>Date & Time</th><th>Branch</th><th>Invoice/Receipt No.</th><th>Products</th><th class="text-center">Quantity</th><th class="text-end">Amount Paid</th><th class="text-end">Amount Credited</th><th>Payment Method</th><th>Status</th><th>Sold By</th></tr></thead><tbody>';
                             data.rows.forEach(r=>{
                               let prodDisplay = '', totalQty = 0;
                               try {
@@ -491,12 +491,24 @@ $customers = $customers_res ? $customers_res->fetch_all(MYSQLI_ASSOC) : [];
                               const paid = parseFloat(r.amount_paid || 0).toFixed(2);
                               const credited = parseFloat(r.amount_credited || 0).toFixed(2);
                               const soldBy = escapeHtml(r.sold_by || '');
-                              
-                              // Determine Invoice or Receipt number based on amount_credited
                               const invoiceReceiptNo = escapeHtml(r.invoice_receipt_no || '-');
-                              
-                              // NEW: Get branch name
                               const branchName = escapeHtml(r.branch_name || 'Unknown');
+                              
+                              // NEW: Determine status badge
+                              let statusBadge = '';
+                              const status = r.status || '';
+                              const isRepayment = prodDisplay.toLowerCase().includes('repayment of invoice');
+                              
+                              if (isRepayment) {
+                                // Extract original invoice number from description
+                                const match = prodDisplay.match(/INV-\d{5}/i);
+                                const originalInvoice = match ? match[0] : '';
+                                statusBadge = `<button class="btn btn-sm btn-info view-original-invoice" data-invoice="${originalInvoice}" title="View Original Invoice"><i class="fa fa-eye"></i> View</button>`;
+                              } else if (status === 'debtor') {
+                                statusBadge = '<span class="badge bg-danger">Unpaid</span>';
+                              } else {
+                                statusBadge = '<span class="badge bg-success">Paid</span>';
+                              }
                               
                               html += `<tr>
                                          <td>${escapeHtml(r.date_time)}</td>
@@ -507,12 +519,22 @@ $customers = $customers_res ? $customers_res->fetch_all(MYSQLI_ASSOC) : [];
                                          <td class="text-end">UGX ${paid}</td>
                                          <td class="text-end">UGX ${credited}</td>
                                          <td>${escapeHtml(r.payment_method || '')}</td>
+                                         <td>${statusBadge}</td>
                                          <td>${soldBy}</td>
                                        </tr>`;
                             });
                             html += '</tbody></table>';
                             container.innerHTML = html;
                             container.dataset.loaded = '1';
+                            
+                            // Attach click handlers for "View" buttons
+                            container.querySelectorAll('.view-original-invoice').forEach(viewBtn => {
+                              viewBtn.addEventListener('click', function() {
+                                const originalInvoice = this.getAttribute('data-invoice');
+                                alert(`Opening original invoice: ${originalInvoice}\n(Feature to be implemented)`);
+                                // TODO: Implement navigation to original invoice
+                              });
+                            });
                           });
                         });
                         </script>
@@ -748,8 +770,8 @@ document.querySelectorAll('#customersAccordion .accordion-button').forEach(btn=>
     if (!data.success) { container.innerHTML = '<div class="text-muted">No transactions.</div>'; return; }
     if (!data.rows.length) { container.innerHTML = '<div class="text-muted">No transactions.</div>'; container.dataset.loaded = '1'; return; }
 
-    // Add Invoice/Receipt No. column after Date & Time
-    let html = '<div class="transactions-table"><table><thead><tr><th>Date & Time</th><th>Branch</th><th>Invoice/Receipt No.</th><th>Products</th><th class="text-center">Quantity</th><th class="text-end">Amount Paid</th><th class="text-end">Amount Credited</th><th>Payment Method</th><th>Sold By</th></tr></thead><tbody>';
+    // Add Status column before Sold By
+    let html = '<div class="transactions-table"><table><thead><tr><th>Date & Time</th><th>Branch</th><th>Invoice/Receipt No.</th><th>Products</th><th class="text-center">Quantity</th><th class="text-end">Amount Paid</th><th class="text-end">Amount Credited</th><th>Payment Method</th><th>Status</th><th>Sold By</th></tr></thead><tbody>';
     data.rows.forEach(r=>{
       let prodDisplay = '';
       let totalQty = 0;
@@ -773,12 +795,24 @@ document.querySelectorAll('#customersAccordion .accordion-button').forEach(btn=>
       const paid = parseFloat(r.amount_paid || 0).toFixed(2);
       const credited = parseFloat(r.amount_credited || 0).toFixed(2);
       const soldBy = escapeHtml(r.sold_by || '');
-      
-      // Determine Invoice or Receipt number based on amount_credited
       const invoiceReceiptNo = escapeHtml(r.invoice_receipt_no || '-');
-      
-      // NEW: Get branch name
       const branchName = escapeHtml(r.branch_name || 'Unknown');
+      
+      // NEW: Determine status badge
+      let statusBadge = '';
+      const status = r.status || '';
+      const isRepayment = prodDisplay.toLowerCase().includes('repayment of invoice');
+      
+      if (isRepayment) {
+        // Extract original invoice number from description
+        const match = prodDisplay.match(/INV-\d{5}/i);
+        const originalInvoice = match ? match[0] : '';
+        statusBadge = `<button class="btn btn-sm btn-info view-original-invoice" data-invoice="${originalInvoice}" title="View Original Invoice"><i class="fa fa-eye"></i> View</button>`;
+      } else if (status === 'debtor') {
+        statusBadge = '<span class="badge bg-danger">Unpaid</span>';
+      } else {
+        statusBadge = '<span class="badge bg-success">Paid</span>';
+      }
       
       html += `<tr>
                  <td>${escapeHtml(r.date_time)}</td>
@@ -789,12 +823,90 @@ document.querySelectorAll('#customersAccordion .accordion-button').forEach(btn=>
                  <td class="text-end">UGX ${paid}</td>
                  <td class="text-end">UGX ${credited}</td>
                  <td>${escapeHtml(r.payment_method || '')}</td>
+                 <td>${statusBadge}</td>
                  <td>${soldBy}</td>
                </tr>`;
     });
     html += '</tbody></table></div>';
     container.innerHTML = html;
     container.dataset.loaded = '1';
+    
+    // Attach click handlers for "View" buttons
+    container.querySelectorAll('.view-original-invoice').forEach(viewBtn => {
+      viewBtn.addEventListener('click', async function() {
+        const originalInvoice = this.getAttribute('data-invoice');
+        if (!originalInvoice) {
+          alert('Original invoice number not found');
+          return;
+        }
+        
+        // Fetch the original debtor transaction to get invoice details
+        try {
+          const res = await fetch(`customer_management.php?fetch_transactions=1&customer_id=${customerId}`);
+          const data = await res.json();
+          
+          if (data.success && data.rows) {
+            // Find the original invoice transaction
+            const originalTrans = data.rows.find(t => t.invoice_receipt_no === originalInvoice);
+            
+            if (originalTrans) {
+              // Open invoice preview with original transaction data
+              const form = document.createElement('form');
+              form.method = 'POST';
+              form.action = 'invoice_preview.php';
+              form.target = '_blank';
+              form.style.display = 'none';
+              
+              const addField = (name, value) => {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = name;
+                input.value = typeof value === 'string' ? value : JSON.stringify(value);
+                form.appendChild(input);
+              };
+              
+              // Parse products
+              let cart = [];
+              try {
+                cart = JSON.parse(originalTrans.products_bought || '[]');
+              } catch(e) {
+                cart = [];
+              }
+              
+              // Calculate total
+              let total = 0;
+              if (Array.isArray(cart)) {
+                cart.forEach(item => {
+                  const qty = parseFloat(item.quantity || item.qty || 0);
+                  const price = parseFloat(item.price || 0);
+                  total += qty * price;
+                });
+              }
+              
+              addField('cart', cart);
+              addField('total', total);
+              addField('payment_method', originalTrans.payment_method || 'Customer File');
+              addField('amount_paid', originalTrans.amount_paid || 0);
+              addField('balance', originalTrans.amount_credited || 0);
+              addField('invoice_no', originalInvoice);
+              addField('customer_name', 'Customer #' + customerId);
+              addField('customer_email', '');
+              addField('customer_contact', '');
+              addField('due_date', '');
+              
+              document.body.appendChild(form);
+              form.submit();
+              setTimeout(() => document.body.removeChild(form), 600);
+            } else {
+              alert(`Original invoice ${originalInvoice} not found in transaction history`);
+            }
+          }
+        } catch(err) {
+          console.error('Error fetching original invoice:', err);
+          alert('Error loading original invoice');
+        }
+      });
+    });
   });
 });
 
@@ -974,12 +1086,122 @@ async function exportCustomerTransactions(customerId, customerName){
 // Helper for CSV escaping
 function csvEscape(val) {
   if (val === null || val === undefined) return '';
-  val = String(val);
-  if (val.includes(',') || val.includes('"') || val.includes('\n')) {
-    return '"' + val.replace(/"/g, '""') + '"';
+  const str = String(val);
+  if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+    return '"' + str.replace(/"/g, '""') + '"';
   }
-  return val;
+  return str;
 }
+
+// Helper for HTML escaping
+function escapeHtml(s) {
+  if (!s) return '';
+  return String(s).replace(/[&<>"']/g, c => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
+  }[c]));
+}
+
+// --- Generate ALL customers report (for Manage tab) ---
+document.getElementById('btnGenerateReport')?.addEventListener('click', () => {
+  const table = document.getElementById('manageCustomersTable');
+  if (!table) { alert('No customer data to report'); return; }
+
+  const rows = Array.from(table.querySelectorAll('tbody tr'));
+  const rowsHtml = rows.map(tr => {
+    const cells = tr.querySelectorAll('td');
+    if (cells.length < 4) return '';
+    const name = cells[0]?.textContent?.trim() || '';
+    const contact = cells[1]?.textContent?.trim() || '';
+    const credited = cells[2]?.textContent?.replace(/[^\d.-]/g, '') || '0';
+    const balance = cells[3]?.textContent?.replace(/[^\d.-]/g, '') || '0';
+    return `<tr>
+      <td>${escapeHtml(name)}</td>
+      <td>${escapeHtml(contact)}</td>
+      <td class="text-end">UGX ${parseFloat(credited).toFixed(2)}</td>
+      <td class="text-end">UGX ${parseFloat(balance).toFixed(2)}</td>
+    </tr>`;
+  }).join('');
+
+  const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <title>All Customers Report</title>
+  <meta charset="utf-8">
+  <style>
+    body { font-family: 'Segoe UI', Arial, sans-serif; background:#f8f9fa; color:#222; margin:0; padding:0; }
+    .report-container { max-width: 800px; margin: 2rem auto; background:#fff; border-radius:14px; box-shadow:0 4px 24px #0002; padding:2rem 2.5rem; }
+    .report-header { text-align:center; margin-bottom:2rem; }
+    .report-title { font-size:2rem; font-weight:bold; color:#1abc9c; margin-bottom:.4rem; }
+    table { width:100%; border-collapse:collapse; margin-top:1rem; }
+    th, td { padding:.7rem 1rem; border-bottom:1px solid #e0e0e0; font-size:1rem; }
+    th { background:#1abc9c; color:#fff; font-weight:600; }
+    tbody tr:nth-child(even) { background:#f4f6f9; }
+    tbody tr:hover { background:#e0f7fa; }
+    .text-end { text-align:right; }
+    .print-btn { display:block; margin:1.5rem auto 0; padding:.7rem 2.5rem; font-size:1.1rem; background:#1abc9c; color:#fff; border:none; border-radius:8px; font-weight:bold; cursor:pointer; box-shadow:0 2px 8px #0002; }
+    @media print { .print-btn { display:none; } .report-container { box-shadow:none; border-radius:0; padding:.5rem; } }
+  </style>
+</head>
+<body>
+  <div class="report-container">
+    <div class="report-header">
+      <div class="report-title">All Customers Report</div>
+      <div class="report-meta">Generated: ${new Date().toLocaleString()}</div>
+    </div>
+    <table>
+      <thead>
+        <tr><th>Name</th><th>Contact</th><th class="text-end">Amount Credited</th><th class="text-end">Account Balance</th></tr>
+      </thead>
+      <tbody>${rowsHtml}</tbody>
+    </table>
+    <button class="print-btn" onclick="window.print()">Print Report</button>
+  </div>
+</body>
+</html>`;
+  const w = window.open('', '_blank');
+  w.document.write(html);
+  w.document.close();
+});
+
+// --- Export ALL customers to CSV ---
+document.getElementById('btnExportExcel')?.addEventListener('click', () => {
+  const table = document.getElementById('manageCustomersTable');
+  if (!table) { alert('No customer data to export'); return; }
+
+  const header = ['Name', 'Contact', 'Amount Credited', 'Account Balance'];
+  const csvRows = [header.join(',')];
+
+  const rows = Array.from(table.querySelectorAll('tbody tr'));
+  rows.forEach(tr => {
+    const cells = tr.querySelectorAll('td');
+    if (cells.length < 4) return;
+    const name = cells[0]?.textContent?.trim() || '';
+    const contact = cells[1]?.textContent?.trim() || '';
+    const credited = cells[2]?.textContent?.replace(/[^\d.-]/g, '') || '0';
+    const balance = cells[3]?.textContent?.replace(/[^\d.-]/g, '') || '0';
+    const row = [
+      csvEscape(name),
+      csvEscape(contact),
+      credited,
+      balance
+    ];
+    csvRows.push(row.join(','));
+  });
+
+  const blob = new Blob([csvRows.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'all_customers.csv';
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+});
 </script>
 
 <?php include '../includes/footer.php'; ?>
