@@ -2,12 +2,15 @@
 /**
  * Generate next sequential receipt number
  * @param mysqli $conn Database connection
- * @param string $prefix Receipt prefix (default: 'RP')
- * @return string Receipt number (e.g., 'RP-00001')
+ * @param string $prefix Receipt prefix ('RP' for receipts, 'INV' for invoices)
+ * @return string Receipt number (e.g., 'RP-00001' or 'INV-00001')
  */
 function generateReceiptNumber($conn, $prefix = 'RP') {
-    // FIXED: Always use RP as default prefix for ALL sales
-    $prefix = 'RP'; // Force RP prefix for consistency
+    // FIXED: Support both RP and INV prefixes with separate counters
+    // Validate prefix
+    if (!in_array($prefix, ['RP', 'INV'])) {
+        $prefix = 'RP'; // Default to RP if invalid
+    }
     
     // Create table if it doesn't exist
     $conn->query("CREATE TABLE IF NOT EXISTS `receipt_counter` (
@@ -45,7 +48,7 @@ function generateReceiptNumber($conn, $prefix = 'RP') {
         
         $conn->commit();
         
-        // Format: RP-00001 (5 digits with leading zeros)
+        // Format: RP-00001 or INV-00001 (5 digits with leading zeros)
         return $prefix . '-' . str_pad($next_number, 5, '0', STR_PAD_LEFT);
         
     } catch (Exception $e) {

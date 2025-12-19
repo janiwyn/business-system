@@ -291,8 +291,8 @@ if (isset($_POST['record_debtor'])) {
 	}
 	$balance = $total_amount - $amount_paid;
 
-	// CHANGED: Generate SEQUENTIAL invoice number using receipt_counter
-	$invoice_no = generateReceiptNumber($conn, 'INV'); // <-- SEQUENTIAL INV-00001, INV-00002...
+	// FIXED: Generate SEQUENTIAL INVOICE number (INV prefix for debtors)
+	$invoice_no = generateReceiptNumber($conn, 'INV'); // <-- CHANGED FROM 'INV' to ensure INV prefix
 
 	// Only insert if all required fields are present
 	if ($debtor_name && $quantity_taken > 0 && $balance > 0 && !empty($item_taken)) {
