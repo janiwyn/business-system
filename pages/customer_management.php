@@ -503,7 +503,8 @@ $customers = $customers_res ? $customers_res->fetch_all(MYSQLI_ASSOC) : [];
                                 // Extract original invoice number from description
                                 const match = prodDisplay.match(/INV-\d{5}/i);
                                 const originalInvoice = match ? match[0] : '';
-                                statusBadge = `<button class="btn btn-sm btn-info view-original-invoice" data-invoice="${originalInvoice}" title="View Original Invoice"><i class="fa fa-eye"></i> View</button>`;
+                                // UPDATED: Icon-only blue button
+                                statusBadge = `<button class="btn btn-sm view-original-invoice" data-invoice="${originalInvoice}" title="View Original Invoice"><i class="fa fa-eye"></i></button>`;
                               } else if (status === 'debtor') {
                                 statusBadge = '<span class="badge bg-danger">Unpaid</span>';
                               } else {
@@ -652,6 +653,48 @@ body.dark-mode .btn-success,
 body.dark-mode .btn-danger,
 body.dark-mode .btn-warning {
     color: #fff !important;
+}
+
+/* NEW: Improved styling for View button */
+.view-original-invoice {
+    padding: 0.25rem 0.5rem !important;
+    font-size: 0.875rem !important;
+    border-radius: 6px !important;
+    background-color: #3498db !important;
+    border-color: #3498db !important;
+    color: #fff !important;
+    transition: all 0.2s ease !important;
+    box-shadow: 0 2px 4px rgba(52, 152, 219, 0.2) !important;
+}
+
+.view-original-invoice:hover {
+    background-color: #2980b9 !important;
+    border-color: #2980b9 !important;
+    transform: translateY(-1px) !important;
+    box-shadow: 0 4px 8px rgba(52, 152, 219, 0.3) !important;
+}
+
+.view-original-invoice:active {
+    transform: translateY(0) !important;
+    box-shadow: 0 1px 2px rgba(52, 152, 219, 0.2) !important;
+}
+
+.view-original-invoice i {
+    font-size: 1rem !important;
+    margin: 0 !important;
+}
+
+/* Dark mode specific styling for View button */
+body.dark-mode .view-original-invoice {
+    background-color: #5dade2 !important;
+    border-color: #5dade2 !important;
+    box-shadow: 0 2px 4px rgba(93, 173, 226, 0.3) !important;
+}
+
+body.dark-mode .view-original-invoice:hover {
+    background-color: #3498db !important;
+    border-color: #3498db !important;
+    box-shadow: 0 4px 8px rgba(52, 152, 219, 0.4) !important;
 }
 </style>
 
@@ -807,7 +850,8 @@ document.querySelectorAll('#customersAccordion .accordion-button').forEach(btn=>
         // Extract original invoice number from description
         const match = prodDisplay.match(/INV-\d{5}/i);
         const originalInvoice = match ? match[0] : '';
-        statusBadge = `<button class="btn btn-sm btn-info view-original-invoice" data-invoice="${originalInvoice}" title="View Original Invoice"><i class="fa fa-eye"></i> View</button>`;
+        // UPDATED: Icon-only blue button
+        statusBadge = `<button class="btn btn-sm view-original-invoice" data-invoice="${originalInvoice}" title="View Original Invoice"><i class="fa fa-eye"></i></button>`;
       } else if (status === 'debtor') {
         statusBadge = '<span class="badge bg-danger">Unpaid</span>';
       } else {
