@@ -1,4 +1,4 @@
- <?php
+<?php
 
 // Admin phone number
 // $admin_phone = "0781710027"; //  number
@@ -35,39 +35,50 @@
 // curl_close($ch);
 ?> <?php
 
-function sendExpirySMS($productName, $expiryDate) {
-    $apiUrl = "https://aliesmsapi.araknerd.com/message/batch/create";
-    $token = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJkYXRhIjp7ImlhdCI6MTc0MzQyMjY4NCwiZXhwIjoxNzQzNDIyNzQ0LCJ1c2VyX2lkIjoiMiIsInJvbGVfaWQiOiIzIiwidXNlcm5hbWUiOiJzdXBwb3J0QGFyYWtuZXJkLmNvbSJ9fQ.kyoC0aMICw1SIwFoHX0qvPtvk9YGw3QYv4kodYD3csw";
+// Prevent redeclaration of functions if file is included multiple times
+if (!function_exists('sendExpirySMS')) {
+    function sendExpirySMS($productName, $expiryDate, $recipients) {
+        $apiUrl = "https://aliesmsapi.araknerd.com/message/batch/create";
+        $token = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJkYXRhIjp7ImlhdCI6MTc0MzQyMjY4NCwiZXhwIjoxNzQzNDIyNzQ0LCJ1c2VyX2lkIjoiMiIsInJvbGVfaWQiOiIzIiwidXNlcm5hbWUiOiJzdXBwb3J0QGFyYWtuZXJkLmNvbSJ9fQ.kyoC0aMICw1SIwFoHX0qvPtvk9YGw3QYv4kodYD3csw";
  
 
-    $message = "ALIESMS Alert: The product '$productName' will expire on $expiryDate. Please remove it from stock. Thank you!";
+        $message = "ALIESMS Alert: The product '$productName' will expire on $expiryDate. Please remove it from stock. Thank you!";
 
-    $payload = [
-        "user_id" => 1,
-        "batch_name" => "Expiry Date Alert",
-        "message_text" => $message,
-        "receipients" => "0781710027, 0771827046"
-    ];
+        $payload = [
+            "user_id" => 1,
+            "batch_name" => "Expiry Date Alert",
+            "message_text" => $message,
+            "receipients" => $recipients
+        ];
 
-    $ch = curl_init($apiUrl);
-    curl_setopt($ch, CURLOPT_POST, true);
-    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_HTTPHEADER, [
-        "Authorization: Bearer $token",
-        "Content-Type: application/json"
-    ]);
-    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-    curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+        $ch = curl_init($apiUrl);
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, [
+            "Authorization: Bearer $token",
+            "Content-Type: application/json"
+        ]);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
 
-    $response = curl_exec($ch);
-    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    curl_close($ch);
+        $response = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
 
-    if ($response === false) {
-        error_log("SMS Error: " . curl_error($ch));
-    } else {
-        error_log("SMS sent successfully for $productName. HTTP code: $httpCode");
+        if ($response === false) {
+            error_log("SMS Error: " . curl_error($ch));
+        } else {
+            error_log("SMS sent successfully for $productName. HTTP code: $httpCode");
+        }
     }
 }
+
+if (!function_exists('checkExpiringProducts')) {
+    function checkExpiringProducts($conn) {
+        // ...existing code...
+    }
+}
+
+// Add similar checks for any other functions in this file
 ?>

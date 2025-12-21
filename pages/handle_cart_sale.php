@@ -56,8 +56,7 @@ if (isset($_POST['submit_cart']) && !empty($_POST['cart_data'])) {
         
         // If insufficient balance: ONLY record customer debtor, DO NOT record sales
         if ($customer_balance < $total) {
-            // CHANGED: Only record customer_transactions (debtor), NO sales table insert
-
+            // FIXED: Use INV prefix for customer debtors
             $receipt_invoice_no = generateReceiptNumber($conn, 'INV');
 
             $now = date('Y-m-d H:i:s');

@@ -63,7 +63,6 @@ $role = $_SESSION['role'];
     background: #e74c3c !important;
     color: #fff !important;
 }
-/* Remove pointer-events: none or z-index changes here. Sidebar appearance handled globally. */
 </style>
 <div class="sidebar">
     <div class="sidebar-title">Staff Dashboard</div>
@@ -81,7 +80,10 @@ $role = $_SESSION['role'];
                 <i class="fa-solid fa-coins"></i> Petty Cash
             </a>
         </li>
-        <!-- <li><a href="../pages/debtor.php"><i class="fa-solid fa-users"></i> Debtors</a></li> -->
+        <!-- Remote Orders Menu Items -->
+        <li><a href="../pages/remote_orders.php"><i class="fa-solid fa-shopping-bag"></i> Remote Orders</a></li>
+        <li><a href="../pages/qr_scanner.php"><i class="fa-solid fa-qrcode"></i> QR Scanner</a></li>
+        <li><a href="../pages/payment_proofs.php"><i class="fa-solid fa-receipt"></i> Payment Proofs</a></li>
         <li style="margin-top:2rem;">
             <a href="../auth/logout.php" class="text-danger fw-bold"><i class="fa-solid fa-right-from-bracket"></i> Logout</a>
         </li>

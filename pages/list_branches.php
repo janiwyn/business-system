@@ -5,16 +5,12 @@ include '../pages/sidebar.php';
 include '../includes/header.php';
 include '../includes/db.php';
 
-if (!isset($_SESSION['business_id'])) {
-    die("Error: business_id not found in session");
-}
+// FIXED: Remove business_id check - show all branches for admin/manager
+$user_role = $_SESSION['role'];
 
-$business_id = $_SESSION['business_id'];
-
-// Fetch all branches connected tot he business
+// Fetch all branches (admin/manager can see all)
 $sql = "SELECT id, name, location, contact 
         FROM branch 
-        WHERE business_id = '$business_id '
         ORDER BY id DESC";
 
 $result = mysqli_query($conn, $sql);
@@ -122,7 +118,7 @@ body.dark-mode .btn-info, body.dark-mode .btn-warning, body.dark-mode .btn-dange
                     <th>#</th>
                     <th>Branch Name</th>
                     <th>Location</th>
-                    <th>Manager</th>
+                    <th>Contact</th>
                     <th>Actions</th>
                   </tr>
                 </thead>
@@ -133,7 +129,7 @@ body.dark-mode .btn-info, body.dark-mode .btn-warning, body.dark-mode .btn-dange
                       <td><?= $row['id']; ?></td>
                       <td><?= htmlspecialchars($row['name']); ?></td>
                       <td><?= htmlspecialchars($row['location']); ?></td>
-                      <td><?= $row['manager'] ?? '<span class="text-muted">No Manager</span>'; ?></td>
+                      <td><?= htmlspecialchars($row['contact'] ?? 'N/A'); ?></td>
                       <td>
                         <a href="branch.php?id=<?= $row['id']; ?>" class="btn btn-sm btn-info" title="View">
                           <i class="fa fa-eye"></i>
@@ -172,7 +168,7 @@ body.dark-mode .btn-info, body.dark-mode .btn-warning, body.dark-mode .btn-dange
                     <th>#</th>
                     <th>Branch Name</th>
                     <th>Location</th>
-                    <th>Manager</th>
+                    <th>Contact</th>
                     <th>Actions</th>
                 </tr>
             </thead>
@@ -187,7 +183,7 @@ body.dark-mode .btn-info, body.dark-mode .btn-warning, body.dark-mode .btn-dange
                     <td><?= $row['id']; ?></td>
                     <td><?= htmlspecialchars($row['name']); ?></td>
                     <td><?= htmlspecialchars($row['location']); ?></td>
-                    <td><?= $row['manager'] ?? '<span class="text-muted">No Manager</span>'; ?></td>
+                    <td><?= htmlspecialchars($row['contact'] ?? 'N/A'); ?></td>
                     <td>
                         <a href="branch.php?id=<?= $row['id']; ?>" class="btn btn-sm btn-info">View</a>
                         <a href="branch_edit.php?id=<?= $row['id']; ?>" class="btn btn-sm btn-warning">Edit</a>

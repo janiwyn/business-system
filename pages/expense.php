@@ -38,99 +38,121 @@ if (
     !isset($_POST['fetch_supplier_products']) &&
     (empty($_POST['cart_json']) || $_POST['cart_json'] === '[]')
 ) {
+    // NEW: Check if this is from "Other Expense" form
+    $is_other_expense_form = isset($_POST['is_other_expense']) && $_POST['is_other_expense'] === '1';
+    
     $category   = mysqli_real_escape_string($conn, $_POST['category']);
     $branch_id  = mysqli_real_escape_string($conn, $_POST['branch_id']);
-    $supplier_id = mysqli_real_escape_string($conn, $_POST['supplier_id']);
-    $product    = mysqli_real_escape_string($conn, $_POST['product']);
+    $date       = $_POST['date'];
+    $spent_by   = mysqli_real_escape_string($conn, $_POST['spent_by']);
     $quantity   = isset($_POST['quantity']) ? intval($_POST['quantity']) : 0;
     $unit_price = isset($_POST['unit_price']) ? floatval($_POST['unit_price']) : 0;
     $amount     = isset($_POST['amount']) ? floatval($_POST['amount']) : 0;
-    $description = mysqli_real_escape_string($conn, $_POST['description']);
-    $date       = $_POST['date'];
-    $spent_by   = mysqli_real_escape_string($conn, $_POST['spent_by']);
     $amount_paid = floatval($_POST['amount_paid'] ?? 0);
-
-    // NEW: Handle "Other" supplier option
-    $is_other_supplier = ($supplier_id === 'other');
-    $business_name = '';
-    $product_name = '';
     
-    if ($is_other_supplier) {
-        $business_name = mysqli_real_escape_string($conn, $_POST['business_name'] ?? '');
-        $product_name = mysqli_real_escape_string($conn, $_POST['product_manual'] ?? '');
-        $supplier_id = 0; // Set to 0 or NULL for "Other"
-    }
-
-    if (!empty($category) && !empty($branch_id) && $quantity > 0 && $unit_price > 0 && !empty($date)) {
-        // NEW: Modified INSERT to handle both supplier and "Other" cases
-        if ($is_other_supplier) {
-            // For "Other" supplier: product=NULL, product_name=text, supplier=business_name
-            $sql = "INSERT INTO expenses (category, `branch-id`, supplier_id, supplier, product, product_name, quantity, unit_price, amount, description, date, `spent-by`) 
-                    VALUES ('$category', '$branch_id', NULL, '$business_name', NULL, '$product_name', $quantity, $unit_price, $amount, '$description', '$date', '$spent_by')";
-        } else {
-            // For regular supplier: product=ID, product_name=NULL
-            $sql = "INSERT INTO expenses (category, `branch-id`, supplier_id, product, product_name, quantity, unit_price, amount, description, date, `spent-by`) 
-                    VALUES ('$category', '$branch_id', '$supplier_id', '$product', NULL, $quantity, $unit_price, $amount, '$description', '$date', '$spent_by')";
-        }
+    if ($is_other_expense_form) {
+        // OTHER EXPENSE FORM: type goes to product column, supplier is "-"
+        $type = mysqli_real_escape_string($conn, $_POST['type']);
+        $description = mysqli_real_escape_string($conn, $_POST['description'] ?? '');
         
-        if ($conn->query($sql)) {
-            // NEW: Only insert into supplier_transactions if NOT "Other"
-            if (!$is_other_supplier) {
-                // Insert into supplier_transactions
-                $products_res = $conn->query("SELECT product_name FROM supplier_products WHERE id = $product");
-                $product_name = '';
-                if ($products_res && $row = $products_res->fetch_assoc()) {
-                    $product_name = $row['product_name'];
-                }
-                $branch_name = '';
-                $branch_res = $conn->query("SELECT name FROM branch WHERE id = $branch_id");
-                if ($branch_res && $brow = $branch_res->fetch_assoc()) {
-                    $branch_name = $brow['name'];
-                }
-                $balance = $amount - $amount_paid;
-                $now = date('Y-m-d H:i:s');
-                $payment_method = '';
-                $stmt = $conn->prepare("INSERT INTO supplier_transactions (supplier_id, date_time, branch, products_supplied, quantity, unit_price, amount, payment_method, amount_paid, balance) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-                $stmt->bind_param(
-                    "isssiddsdd",
-                    $supplier_id,
-                    $now,
-                    $branch_name,
-                    $product_name,
-                    $quantity,
-                    $unit_price,
-                    $amount,
-                    $payment_method,
-                    $amount_paid,
-                    $balance
-                );
-                $stmt->execute();
-                $stmt->close();
-                // --- End supplier_transactions insert ---
+        if (!empty($category) && !empty($type) && !empty($branch_id) && $quantity > 0 && $unit_price > 0 && !empty($date)) {
+            $sql = "INSERT INTO expenses (category, `branch-id`, supplier, product_name, quantity, unit_price, amount, description, date, `spent-by`) 
+                    VALUES ('$category', '$branch_id', '-', '$type', $quantity, $unit_price, $amount, '$description', '$date', '$spent_by')";
+            
+            if ($conn->query($sql)) {
+                $message = "Other expense added successfully.";
+                header("Location: expense.php?added=1");
+                exit;
+            } else {
+                $message = "Error: " . $conn->error;
             }
-            $message = "Expense added successfully.";
-            // PRG pattern: redirect after successful insert
-            header("Location: expense.php?added=1");
-            exit;
         } else {
-            $message = "Error: " . $conn->error;
-        }
-
-        // Update profits table
-        $currentDate = date("Y-m-d");
-        $result = $conn->query("SELECT * FROM profits WHERE date='$currentDate'");
-        $profit_result = $result->fetch_assoc();
-
-        if ($profit_result) {
-            $total_expenses = $profit_result['expenses'] + $amount;
-            $net_profit = $profit_result['total'] - $total_expenses;
-
-            $update_sql = "UPDATE profits SET expenses=$total_expenses, `net-profits`=$net_profit 
-                           WHERE date='$currentDate'";
-            $conn->query($update_sql);
+            $message = "Please fill in all required fields.";
         }
     } else {
-        $message = "Please fill in all required fields.";
+        // ORIGINAL EXPENSE FORM LOGIC
+        $supplier_id = mysqli_real_escape_string($conn, $_POST['supplier_id']);
+        $product    = mysqli_real_escape_string($conn, $_POST['product']);
+        $description = mysqli_real_escape_string($conn, $_POST['description']);
+
+        // NEW: Handle "Other" supplier option
+        $is_other_supplier = ($supplier_id === 'other');
+        $business_name = '';
+        $product_name = '';
+        
+        if ($is_other_supplier) {
+            $business_name = mysqli_real_escape_string($conn, $_POST['business_name'] ?? '');
+            $product_name = mysqli_real_escape_string($conn, $_POST['product_manual'] ?? '');
+            $supplier_id = 0;
+        }
+
+        if (!empty($category) && !empty($branch_id) && $quantity > 0 && $unit_price > 0 && !empty($date)) {
+            if ($is_other_supplier) {
+                $sql = "INSERT INTO expenses (category, `branch-id`, supplier_id, supplier, product, product_name, quantity, unit_price, amount, description, date, `spent-by`) 
+                        VALUES ('$category', '$branch_id', NULL, '$business_name', NULL, '$product_name', $quantity, $unit_price, $amount, '$description', '$date', '$spent_by')";
+            } else {
+                $sql = "INSERT INTO expenses (category, `branch-id`, supplier_id, product, product_name, quantity, unit_price, amount, description, date, `spent-by`) 
+                        VALUES ('$category', '$branch_id', '$supplier_id', '$product', NULL, $quantity, $unit_price, $amount, '$description', '$date', '$spent_by')";
+            }
+            
+            if ($conn->query($sql)) {
+                if (!$is_other_supplier) {
+                    // Insert into supplier_transactions
+                    $products_res = $conn->query("SELECT product_name FROM supplier_products WHERE id = $product");
+                    $product_name = '';
+                    if ($products_res && $row = $products_res->fetch_assoc()) {
+                        $product_name = $row['product_name'];
+                    }
+                    $branch_name = '';
+                    $branch_res = $conn->query("SELECT name FROM branch WHERE id = $branch_id");
+                    if ($branch_res && $brow = $branch_res->fetch_assoc()) {
+                        $branch_name = $brow['name'];
+                    }
+                    $balance = $amount - $amount_paid;
+                    $now = date('Y-m-d H:i:s');
+                    $payment_method = '';
+                    $stmt = $conn->prepare("INSERT INTO supplier_transactions (supplier_id, date_time, branch, products_supplied, quantity, unit_price, amount, payment_method, amount_paid, balance) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                    $stmt->bind_param(
+                        "isssiddsdd",
+                        $supplier_id,
+                        $now,
+                        $branch_name,
+                        $product_name,
+                        $quantity,
+                        $unit_price,
+                        $amount,
+                        $payment_method,
+                        $amount_paid,
+                        $balance
+                    );
+                    $stmt->execute();
+                    $stmt->close();
+                    // --- End supplier_transactions insert ---
+                }
+                $message = "Expense added successfully.";
+                // PRG pattern: redirect after successful insert
+                header("Location: expense.php?added=1");
+                exit;
+            } else {
+                $message = "Error: " . $conn->error;
+            }
+
+            // Update profits table
+            $currentDate = date("Y-m-d");
+            $result = $conn->query("SELECT * FROM profits WHERE date='$currentDate'");
+            $profit_result = $result->fetch_assoc();
+
+            if ($profit_result) {
+                $total_expenses = $profit_result['expenses'] + $amount;
+                $net_profit = $profit_result['total'] - $total_expenses;
+
+                $update_sql = "UPDATE profits SET expenses=$total_expenses, `net-profits`=$net_profit 
+                               WHERE date='$currentDate'";
+                $conn->query($update_sql);
+            }
+        } else {
+            $message = "Please fill in all required fields.";
+        }
     }
 }
 
@@ -140,81 +162,102 @@ if (
     !isset($_POST['fetch_supplier_products']) &&
     !empty($_POST['cart_json']) && $_POST['cart_json'] !== '[]'
 ) {
+    // NEW: Check if this is from "Other Expense" form
+    $is_other_expense_form = isset($_POST['is_other_expense']) && $_POST['is_other_expense'] === '1';
+    
     $cart = json_decode($_POST['cart_json'] ?? '[]', true);
     $branch_id  = mysqli_real_escape_string($conn, $_POST['branch_id']);
-    $supplier_id = mysqli_real_escape_string($conn, $_POST['supplier_id']);
     $date       = $_POST['date'];
     $spent_by   = mysqli_real_escape_string($conn, $_POST['spent_by']);
     $category   = mysqli_real_escape_string($conn, $_POST['category']);
     
-    // NEW: Handle "Other" supplier for cart
-    $is_other_supplier = ($supplier_id === 'other');
-    $business_name = $is_other_supplier ? mysqli_real_escape_string($conn, $_POST['business_name'] ?? '') : '';
-    if ($is_other_supplier) $supplier_id = 0;
-    
-    if (is_array($cart) && count($cart) > 0) {
-        foreach ($cart as $item) {
-            $quantity   = isset($item['quantity']) ? intval($item['quantity']) : 0;
-            $unit_price = isset($item['unit_price']) ? floatval($item['unit_price']) : 0;
-            $amount     = isset($item['amount']) ? floatval($item['amount']) : 0;
-            $amount_paid = isset($item['amount_paid']) ? floatval($item['amount_paid']) : 0;
-            
-            // NEW: Handle product name for "Other" supplier
-            $product_name = isset($item['product_name']) ? mysqli_real_escape_string($conn, $item['product_name']) : '';
-            
-            // FIX: Use new product_name column for manual entries
-            if ($is_other_supplier) {
-                // For "Other" supplier: product=NULL, product_name=text, supplier=business_name
-                $sql = "INSERT INTO expenses (category, `branch-id`, supplier_id, supplier, product, product_name, quantity, unit_price, amount, date, `spent-by`) 
-                        VALUES ('$category', '$branch_id', NULL, '$business_name', NULL, '$product_name', $quantity, $unit_price, $amount, '$date', '$spent_by')";
-            } else {
-                // Regular supplier: product=ID, product_name=NULL
-                $product_id = mysqli_real_escape_string($conn, $item['product']);
-                $sql = "INSERT INTO expenses (category, `branch-id`, supplier_id, product, product_name, quantity, unit_price, amount, date, `spent-by`) 
-                        VALUES ('$category', '$branch_id', '$supplier_id', '$product_id', NULL, $quantity, $unit_price, $amount, '$date', '$spent_by')";
+    if ($is_other_expense_form) {
+        // OTHER EXPENSE FORM CART
+        if (is_array($cart) && count($cart) > 0) {
+            foreach ($cart as $item) {
+                $type = mysqli_real_escape_string($conn, $item['type'] ?? '');
+                $quantity   = isset($item['quantity']) ? intval($item['quantity']) : 0;
+                $unit_price = isset($item['unit_price']) ? floatval($item['unit_price']) : 0;
+                $amount     = isset($item['amount']) ? floatval($item['amount']) : 0;
+                
+                $sql = "INSERT INTO expenses (category, `branch-id`, supplier, product_name, quantity, unit_price, amount, date, `spent-by`) 
+                        VALUES ('$category', '$branch_id', '-', '$type', $quantity, $unit_price, $amount, '$date', '$spent_by')";
+                $conn->query($sql);
             }
-            $conn->query($sql);
-            
-            // NEW: Only insert into supplier_transactions if NOT "Other"
-            if (!$is_other_supplier) {
-                // Insert into supplier_transactions
-                $products_res = $conn->query("SELECT product_name FROM supplier_products WHERE id = $product_id");
-                $product_name = '';
-                if ($products_res && $row = $products_res->fetch_assoc()) {
-                    $product_name = $row['product_name'];
-                }
-                $branch_name = '';
-                $branch_res = $conn->query("SELECT name FROM branch WHERE id = $branch_id");
-                if ($branch_res && $brow = $branch_res->fetch_assoc()) {
-                    $branch_name = $brow['name'];
-                }
-                $balance = $amount - $amount_paid;
-                $now = date('Y-m-d H:i:s');
-                $payment_method = '';
-                $stmt = $conn->prepare("INSERT INTO supplier_transactions (supplier_id, date_time, branch, products_supplied, quantity, unit_price, amount, payment_method, amount_paid, balance) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-                $stmt->bind_param(
-                    "isssiddsdd",
-                    $supplier_id,
-                    $now,
-                    $branch_name,
-                    $product_name,
-                    $quantity,
-                    $unit_price,
-                    $amount,
-                    $payment_method,
-                    $amount_paid,
-                    $balance
-                );
-                $stmt->execute();
-                $stmt->close();
-            }
+            $message = "Other expenses added successfully.";
+            header("Location: expense.php?added=1");
+            exit;
         }
-        $message = "Expenses added successfully.";
-        // PRG pattern: redirect after successful insert
-        header("Location: expense.php?added=1");
-        exit;
     } else {
-        $message = "Please add at least one product to the cart.";
+        // ORIGINAL EXPENSE FORM CART LOGIC
+        $supplier_id = mysqli_real_escape_string($conn, $_POST['supplier_id']);
+        $is_other_supplier = ($supplier_id === 'other');
+        $business_name = $is_other_supplier ? mysqli_real_escape_string($conn, $_POST['business_name'] ?? '') : '';
+        if ($is_other_supplier) $supplier_id = 0;
+        
+        if (is_array($cart) && count($cart) > 0) {
+            foreach ($cart as $item) {
+                $quantity   = isset($item['quantity']) ? intval($item['quantity']) : 0;
+                $unit_price = isset($item['unit_price']) ? floatval($item['unit_price']) : 0;
+                $amount     = isset($item['amount']) ? floatval($item['amount']) : 0;
+                $amount_paid = isset($item['amount_paid']) ? floatval($item['amount_paid']) : 0;
+                
+                // NEW: Handle product name for "Other" supplier
+                $product_name = isset($item['product_name']) ? mysqli_real_escape_string($conn, $item['product_name']) : '';
+                
+                // FIX: Use new product_name column for manual entries
+                if ($is_other_supplier) {
+                    // For "Other" supplier: product=NULL, product_name=text, supplier=business_name
+                    $sql = "INSERT INTO expenses (category, `branch-id`, supplier_id, supplier, product, product_name, quantity, unit_price, amount, date, `spent-by`) 
+                            VALUES ('$category', '$branch_id', NULL, '$business_name', NULL, '$product_name', $quantity, $unit_price, $amount, '$date', '$spent_by')";
+                } else {
+                    // Regular supplier: product=ID, product_name=NULL
+                    $product_id = mysqli_real_escape_string($conn, $item['product']);
+                    $sql = "INSERT INTO expenses (category, `branch-id`, supplier_id, product, product_name, quantity, unit_price, amount, date, `spent-by`) 
+                            VALUES ('$category', '$branch_id', '$supplier_id', '$product_id', NULL, $quantity, $unit_price, $amount, '$date', '$spent_by')";
+                }
+                $conn->query($sql);
+                
+                // NEW: Only insert into supplier_transactions if NOT "Other"
+                if (!$is_other_supplier) {
+                    // Insert into supplier_transactions
+                    $products_res = $conn->query("SELECT product_name FROM supplier_products WHERE id = $product_id");
+                    $product_name = '';
+                    if ($products_res && $row = $products_res->fetch_assoc()) {
+                        $product_name = $row['product_name'];
+                    }
+                    $branch_name = '';
+                    $branch_res = $conn->query("SELECT name FROM branch WHERE id = $branch_id");
+                    if ($branch_res && $brow = $branch_res->fetch_assoc()) {
+                        $branch_name = $brow['name'];
+                    }
+                    $balance = $amount - $amount_paid;
+                    $now = date('Y-m-d H:i:s');
+                    $payment_method = '';
+                    $stmt = $conn->prepare("INSERT INTO supplier_transactions (supplier_id, date_time, branch, products_supplied, quantity, unit_price, amount, payment_method, amount_paid, balance) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                    $stmt->bind_param(
+                        "isssiddsdd",
+                        $supplier_id,
+                        $now,
+                        $branch_name,
+                        $product_name,
+                        $quantity,
+                        $unit_price,
+                        $amount,
+                        $payment_method,
+                        $amount_paid,
+                        $balance
+                    );
+                    $stmt->execute();
+                    $stmt->close();
+                }
+            }
+            $message = "Expenses added successfully.";
+            header("Location: expense.php?added=1");
+            exit;
+        } else {
+            $message = "Please add at least one product to the cart.";
+        }
     }
 }
 
@@ -632,128 +675,253 @@ body.dark-mode .tm-main-tabs .tm-tab-btn.active { background:#1abc9c; color:#fff
     <?php endif; ?>
 
     <!-- Add Expense Form -->
-    <div class="card mb-4" style="border-left: 4px solid teal;"  >
+    <div class="card mb-4" style="border-left: 4px solid teal;">
         <div class="card-header title-card">➕ Add New Expense</div>
         <div class="card-body">
-            <form method="post" id="addExpenseForm">
-                <div class="row g-3">
-                    <div class="col-md-3">
-                        <label for="category" class="form-label fw-semibold">Category *</label>
-                        <input type="text" name="category" id="category" class="form-control" required>
-                    </div>
-                    <div class="col-md-3">
-                        <label for="branch_id" class="form-label fw-semibold">Branch *</label>
-                        <select name="branch_id" id="branch_id" class="form-select" required>
-                            <option value="">Select branch</option>
-                            <?php foreach($branches as $b): ?>
-                                <option value="<?= $b['id'] ?>"><?= htmlspecialchars($b['name']) ?></option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
-                    <div class="col-md-3">
-                        <label for="supplier_id" class="form-label fw-semibold">Supplier *</label>
-                        <select name="supplier_id" id="supplier_id" class="form-select" required>
-                            <option value="">Select supplier</option>
-                            <?php foreach($suppliers as $s): ?>
-                                <option value="<?= $s['id'] ?>">
-                                    <?= htmlspecialchars($s['name']) ?>
-                                </option>
-                            <?php endforeach; ?>
-                            <!-- NEW: Add "Other" option -->
-                            <option value="other">Other</option>
-                        </select>
-                    </div>
-                    <!-- NEW: Business Name field (hidden by default) -->
-                    <div class="col-md-3" id="business_name_wrapper" style="display:none;">
-                        <label for="business_name" class="form-label fw-semibold">Business Name *</label>
-                        <input type="text" name="business_name" id="business_name" class="form-control">
-                    </div>
-                    <!-- NEW: Product dropdown (for suppliers) -->
-                    <div class="col-md-3" id="product_wrapper">
-                        <label for="product" class="form-label fw-semibold">Product *</label>
-                        <select name="product" id="product" class="form-select">
-                            <option value="">Select product</option>
-                            <!-- Populated by JS -->
-                        </select>
-                    </div>
-                    <!-- NEW: Manual product input (for "Other") -->
-                    <div class="col-md-3" id="product_manual_wrapper" style="display:none;">
-                        <label for="product_manual" class="form-label fw-semibold">Product *</label>
-                        <input type="text" name="product_manual" id="product_manual" class="form-control">
-                    </div>
-                    <div class="col-md-2">
-                        <label for="unit_price" class="form-label fw-semibold">Unit Price *</label>
-                        <input type="number" id="unit_price" name="unit_price" class="form-control" step="0.01" min="0">
-                    </div>
-                    <div class="col-md-2">
-                        <label for="quantity" class="form-label fw-semibold">Quantity *</label>
-                        <input type="number" id="quantity" class="form-control" min="1">
-                    </div>
-                    <div class="col-md-2">
-                        <label for="amount" class="form-label fw-semibold">Amount</label>
-                        <input type="number" id="amount" class="form-control" readonly>
-                    </div>
-                    <div class="col-md-2">
-                        <label for="amount_paid" class="form-label fw-semibold">Amount Paid</label>
-                        <input type="number" id="amount_paid" class="form-control" min="0" step="0.01">
-                    </div>
-                    <div class="col-md-1 d-flex align-items-end">
-                        <button type="button" id="addToCartBtn" class="btn btn-primary w-100 add-to-cart-btn" title="Add to Cart" style="display:flex;align-items:center;justify-content:center;">
-                            <span style="font-size:1.4em;line-height:1;">
-                                <i class="bi bi-cart-plus"></i>
-                            </span>
-                        </button>
-                    </div>
-                    <div class="col-md-2">
-                        <label for="date" class="form-label fw-semibold">Date *</label>
-                        <input type="date" name="date" id="date" class="form-control" required value="<?= date('Y-m-d') ?>">
-                    </div>
-                    <div class="col-md-2">
-                        <label for="spent_by" class="form-label fw-semibold">Spent By *</label>
-                        <select name="spent_by" id="spent_by" class="form-select" required>
-                            <option value="">-- Select User --</option>
-                            <?php
-                            $users = $conn->query("SELECT id, username FROM users");
-                            while ($u = $users->fetch_assoc()) {
-                                echo "<option value='{$u['id']}'>{$u['username']}</option>";
-                            }
-                            ?>
-                        </select>
-                    </div>
+            <!-- NEW: Form Type Tab Switcher -->
+            <ul class="nav nav-pills tm-main-tabs mb-4" id="formTypeTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link tm-tab-btn active"
+                            id="add-expense-form-tab"
+                            data-bs-toggle="tab"
+                            data-bs-target="#addExpenseFormTab"
+                            type="button"
+                            role="tab"
+                            aria-controls="addExpenseFormTab"
+                            aria-selected="true">
+                        Add New Expense
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link tm-tab-btn"
+                            id="other-expense-form-tab"
+                            data-bs-toggle="tab"
+                            data-bs-target="#otherExpenseFormTab"
+                            type="button"
+                            role="tab"
+                            aria-controls="otherExpenseFormTab"
+                            aria-selected="false">
+                        Other Expense
+                    </button>
+                </li>
+            </ul>
+
+            <div class="tab-content" id="formTypeTabsContent">
+                <!-- Add New Expense Form Tab -->
+                <div class="tab-pane fade show active" id="addExpenseFormTab" role="tabpanel" aria-labelledby="add-expense-form-tab">
+                    <form method="post" id="addExpenseForm">
+                        <div class="row g-3">
+                            <div class="col-md-3">
+                                <label for="category" class="form-label fw-semibold">Category *</label>
+                                <input type="text" name="category" id="category" class="form-control" required>
+                            </div>
+                            <div class="col-md-3">
+                                <label for="branch_id" class="form-label fw-semibold">Branch *</label>
+                                <select name="branch_id" id="branch_id" class="form-select" required>
+                                    <option value="">Select branch</option>
+                                    <?php foreach($branches as $b): ?>
+                                        <option value="<?= $b['id'] ?>"><?= htmlspecialchars($b['name']) ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label for="supplier_id" class="form-label fw-semibold">Supplier *</label>
+                                <select name="supplier_id" id="supplier_id" class="form-select" required>
+                                    <option value="">Select supplier</option>
+                                    <?php foreach($suppliers as $s): ?>
+                                        <option value="<?= $s['id'] ?>">
+                                            <?= htmlspecialchars($s['name']) ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                    <option value="other">Other</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3" id="business_name_wrapper" style="display:none;">
+                                <label for="business_name" class="form-label fw-semibold">Business Name *</label>
+                                <input type="text" name="business_name" id="business_name" class="form-control">
+                            </div>
+                            <div class="col-md-3" id="product_wrapper">
+                                <label for="product" class="form-label fw-semibold">Product *</label>
+                                <select name="product" id="product" class="form-select">
+                                    <option value="">Select product</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3" id="product_manual_wrapper" style="display:none;">
+                                <label for="product_manual" class="form-label fw-semibold">Product *</label>
+                                <input type="text" name="product_manual" id="product_manual" class="form-control">
+                            </div>
+                            <div class="col-md-2">
+                                <label for="unit_price" class="form-label fw-semibold">Unit Price *</label>
+                                <input type="number" id="unit_price" name="unit_price" class="form-control" step="0.01" min="0">
+                            </div>
+                            <div class="col-md-2">
+                                <label for="quantity" class="form-label fw-semibold">Quantity *</label>
+                                <input type="number" id="quantity" class="form-control" min="1">
+                            </div>
+                            <div class="col-md-2">
+                                <label for="amount" class="form-label fw-semibold">Amount</label>
+                                <input type="number" id="amount" class="form-control" readonly>
+                            </div>
+                            <div class="col-md-2">
+                                <label for="amount_paid" class="form-label fw-semibold">Amount Paid</label>
+                                <input type="number" id="amount_paid" class="form-control" min="0" step="0.01">
+                            </div>
+                            <div class="col-md-1 d-flex align-items-end">
+                                <button type="button" id="addToCartBtn" class="btn btn-primary w-100 add-to-cart-btn" title="Add to Cart" style="display:flex;align-items:center;justify-content:center;">
+                                    <span style="font-size:1.4em;line-height:1;">
+                                        <i class="bi bi-cart-plus"></i>
+                                    </span>
+                                </button>
+                            </div>
+                            <div class="col-md-2">
+                                <label for="date" class="form-label fw-semibold">Date *</label>
+                                <input type="date" name="date" id="date" class="form-control" required value="<?= date('Y-m-d') ?>">
+                            </div>
+                            <div class="col-md-2">
+                                <label for="spent_by" class="form-label fw-semibold">Spent By *</label>
+                                <select name="spent_by" id="spent_by" class="form-select" required>
+                                    <option value="">-- Select User --</option>
+                                    <?php
+                                    $users = $conn->query("SELECT id, username FROM users");
+                                    while ($u = $users->fetch_assoc()) {
+                                        echo "<option value='{$u['id']}'>{$u['username']}</option>";
+                                    }
+                                    ?>
+                                </select>
+                            </div>
+                        </div>
+                        <!-- Cart Section -->
+                        <div id="cartSection" style="display:none; margin-top:1.5rem;">
+                            <h6 style="font-size:1.15rem; font-weight:bold; color:var(--primary-color); margin-bottom:1rem;">
+                                <i class="bi bi-cart4"></i> Cart
+                            </h6>
+                            <div class="table-responsive">
+                                <table class="cart-table align-middle shadow-sm" style="border-radius:12px; overflow:hidden;">
+                                    <thead style="background:var(--primary-color);color:#fff;">
+                                        <tr>
+                                            <th>Product</th>
+                                            <th>Quantity</th>
+                                            <th>Unit Price</th>
+                                            <th>Amount</th>
+                                            <th>Amount Paid</th>
+                                            <th></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="cartItems"></tbody>
+                                    <tfoot>
+                                        <tr>
+                                            <td colspan="3" class="text-end fw-bold">Total</td>
+                                            <td id="cartTotal" class="fw-bold" style="color:#1abc9c;">0</td>
+                                            <td colspan="2"></td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            </div>
+                        </div>
+                        <input type="hidden" name="cart_json" id="cart_json">
+                        <div class="col-12 text-end mt-3">
+                            <button type="submit" class="btn btn-primary">Add Expense</button>
+                        </div>
+                    </form>
                 </div>
-                <!-- Cart Section -->
-                <div id="cartSection" style="display:none; margin-top:1.5rem;">
-                    <h6 style="font-size:1.15rem; font-weight:bold; color:var(--primary-color); margin-bottom:1rem;">
-        <i class="bi bi-cart4"></i> Cart
-    </h6>
-                    <div class="table-responsive">
-                        <table class="cart-table align-middle shadow-sm" style="border-radius:12px; overflow:hidden;">
-                            <thead style="background:var(--primary-color);color:#fff;">
-                                <tr>
-                                    <th>Product</th>
-                                    <th>Quantity</th>
-                                    <th>Unit Price</th>
-                                    <th>Amount</th>
-                                    <th>Amount Paid</th>
-                                    <th></th>
-                                </tr>
-                            </thead>
-                            <tbody id="cartItems"></tbody>
-                            <tfoot>
-                                <tr>
-                                    <td colspan="3" class="text-end fw-bold">Total</td>
-                                    <td id="cartTotal" class="fw-bold" style="color:#1abc9c;">0</td>
-                                    <td colspan="2"></td>
-                                </tr>
-                            </tfoot>
-                        </table>
-                    </div>
+
+                <!-- Other Expense Form Tab -->
+                <div class="tab-pane fade" id="otherExpenseFormTab" role="tabpanel" aria-labelledby="other-expense-form-tab">
+                    <form method="post" id="otherExpenseForm">
+                        <input type="hidden" name="is_other_expense" value="1">
+                        <div class="row g-3">
+                            <div class="col-md-3">
+                                <label for="other_category" class="form-label fw-semibold">Category *</label>
+                                <input type="text" name="category" id="other_category" class="form-control" required>
+                            </div>
+                            <div class="col-md-3">
+                                <label for="other_type" class="form-label fw-semibold">Type *</label>
+                                <input type="text" name="type" id="other_type" class="form-control" required>
+                            </div>
+                            <div class="col-md-3">
+                                <label for="other_branch_id" class="form-label fw-semibold">Branch *</label>
+                                <select name="branch_id" id="other_branch_id" class="form-select" required>
+                                    <option value="">Select branch</option>
+                                    <?php foreach($branches as $b): ?>
+                                        <option value="<?= $b['id'] ?>"><?= htmlspecialchars($b['name']) ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <label for="other_unit_price" class="form-label fw-semibold">Unit Price *</label>
+                                <input type="number" name="unit_price" id="other_unit_price" class="form-control" step="0.01" min="0" required>
+                            </div>
+                            <div class="col-md-2">
+                                <label for="other_quantity" class="form-label fw-semibold">Quantity *</label>
+                                <input type="number" name="quantity" id="other_quantity" class="form-control" min="1" required>
+                            </div>
+                            <div class="col-md-2">
+                                <label for="other_amount" class="form-label fw-semibold">Amount</label>
+                                <input type="number" name="amount" id="other_amount" class="form-control" readonly>
+                            </div>
+                            <div class="col-md-2">
+                                <label for="other_amount_paid" class="form-label fw-semibold">Amount Paid</label>
+                                <input type="number" name="amount_paid" id="other_amount_paid" class="form-control" min="0" step="0.01">
+                            </div>
+                            <div class="col-md-1 d-flex align-items-end">
+                                <button type="button" id="addToOtherCartBtn" class="btn btn-primary w-100 add-to-cart-btn" title="Add to Cart" style="display:flex;align-items:center;justify-content:center;">
+                                    <span style="font-size:1.4em;line-height:1;">
+                                        <i class="bi bi-cart-plus"></i>
+                                    </span>
+                                </button>
+                            </div>
+                            <div class="col-md-2">
+                                <label for="other_date" class="form-label fw-semibold">Date *</label>
+                                <input type="date" name="date" id="other_date" class="form-control" required value="<?= date('Y-m-d') ?>">
+                            </div>
+                            <div class="col-md-2">
+                                <label for="other_spent_by" class="form-label fw-semibold">Spent By *</label>
+                                <select name="spent_by" id="other_spent_by" class="form-select" required>
+                                    <option value="">-- Select User --</option>
+                                    <?php
+                                    $users->data_seek(0);
+                                    while ($u = $users->fetch_assoc()) {
+                                        echo "<option value='{$u['id']}'>{$u['username']}</option>";
+                                    }
+                                    ?>
+                                </select>
+                            </div>
+                        </div>
+                        <!-- Cart Section for Other Expense -->
+                        <div id="otherCartSection" style="display:none; margin-top:1.5rem;">
+                            <h6 style="font-size:1.15rem; font-weight:bold; color:var(--primary-color); margin-bottom:1rem;">
+                                <i class="bi bi-cart4"></i> Cart
+                            </h6>
+                            <div class="table-responsive">
+                                <table class="cart-table align-middle shadow-sm" style="border-radius:12px; overflow:hidden;">
+                                    <thead style="background:var(--primary-color);color:#fff;">
+                                        <tr>
+                                            <th>Type</th>
+                                            <th>Quantity</th>
+                                            <th>Unit Price</th>
+                                            <th>Amount</th>
+                                            <th>Amount Paid</th>
+                                            <th></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="otherCartItems"></tbody>
+                                    <tfoot>
+                                        <tr>
+                                            <td colspan="3" class="text-end fw-bold">Total</td>
+                                            <td id="otherCartTotal" class="fw-bold" style="color:#1abc9c;">0</td>
+                                            <td colspan="2"></td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            </div>
+                        </div>
+                        <input type="hidden" name="cart_json" id="other_cart_json">
+                        <div class="col-12 text-end mt-3">
+                            <button type="submit" class="btn btn-primary">Add Other Expense</button>
+                        </div>
+                    </form>
                 </div>
-                <input type="hidden" name="cart_json" id="cart_json">
-                <div class="col-12 text-end mt-3">
-                    <button type="submit" class="btn btn-primary">Add Expense</button>
-                </div>
-            </form>
+            </div>
         </div>
     </div>
 
@@ -867,13 +1035,10 @@ body.dark-mode .tm-main-tabs .tm-tab-btn.active { background:#1abc9c; color:#fff
                                                     <td><?= isset($row['date']) ? htmlspecialchars($row['date']) : '' ?></td>
                                                     <td>
                                                         <?php
-                                                        // FIX: Display supplier name for both regular and "Other" suppliers
                                                         $sup_name = '';
                                                         if (!empty($row['supplier'])) {
-                                                            // "Other" supplier: business name is in supplier column
                                                             $sup_name = $row['supplier'];
                                                         } elseif (isset($row['supplier_id'])) {
-                                                            // Regular supplier: look up from suppliers array
                                                             foreach ($suppliers as $sup) {
                                                                 if ($sup['id'] == $row['supplier_id']) {
                                                                     $sup_name = $sup['name'];
@@ -888,14 +1053,10 @@ body.dark-mode .tm-main-tabs .tm-tab-btn.active { background:#1abc9c; color:#fff
                                                     <td><?= isset($row['category']) ? htmlspecialchars($row['category']) : '' ?></td>
                                                     <td>
                                                         <?php
-                                                        // FIX: Display product name for both regular and "Other" suppliers
                                                         $prod_name = '';
-                                                        // Check if "Other" supplier (supplier_id is NULL/empty AND supplier column has value)
                                                         if ((empty($row['supplier_id']) || $row['supplier_id'] === null) && !empty($row['supplier'])) {
-                                                            // "Other" supplier: use product_name column
                                                             $prod_name = $row['product_name'] ?? '';
                                                         } elseif (!empty($row['product']) && isset($products_lookup[$row['product']])) {
-                                                            // Regular supplier: look up from products_lookup
                                                             $prod_name = $products_lookup[$row['product']];
                                                         }
                                                         echo htmlspecialchars($prod_name);
@@ -975,13 +1136,10 @@ body.dark-mode .tm-main-tabs .tm-tab-btn.active { background:#1abc9c; color:#fff
                                         <td><?= isset($row['date']) ? htmlspecialchars($row['date']) : '' ?></td>
                                         <td>
                                             <?php
-                                            // FIX: Display supplier name for both regular and "Other" suppliers
                                             $sup_name = '';
                                             if (!empty($row['supplier'])) {
-                                                // "Other" supplier: business name is in supplier column
                                                 $sup_name = $row['supplier'];
                                             } elseif (isset($row['supplier_id'])) {
-                                                // Regular supplier: look up from suppliers array
                                                 foreach ($suppliers as $sup) {
                                                     if ($sup['id'] == $row['supplier_id']) {
                                                         $sup_name = $sup['name'];
@@ -996,14 +1154,10 @@ body.dark-mode .tm-main-tabs .tm-tab-btn.active { background:#1abc9c; color:#fff
                                         <td><?= isset($row['category']) ? htmlspecialchars($row['category']) : '' ?></td>
                                         <td>
                                             <?php
-                                            // FIX: Display product name for both regular and "Other" suppliers
                                             $prod_name = '';
-                                            // Check if "Other" supplier (supplier_id is NULL/empty AND supplier column has value)
                                             if ((empty($row['supplier_id']) || $row['supplier_id'] === null) && !empty($row['supplier'])) {
-                                                // "Other" supplier: use product_name column
                                                 $prod_name = $row['product_name'] ?? '';
                                             } elseif (!empty($row['product']) && isset($products_lookup[$row['product']])) {
-                                                // Regular supplier: look up from products_lookup
                                                 $prod_name = $products_lookup[$row['product']];
                                             }
                                             echo htmlspecialchars($prod_name);
@@ -1425,6 +1579,148 @@ document.getElementById('addExpenseForm').addEventListener('submit', function(e)
     return false; // Prevent default form submission
 });
 
+// NEW: Other Expense Form Cart Management
+let otherCart = [];
+
+function calculateOtherAmount() {
+    const qty = parseFloat(document.getElementById('other_quantity').value) || 0;
+    const unitPrice = parseFloat(document.getElementById('other_unit_price').value) || 0;
+    document.getElementById('other_amount').value = (qty * unitPrice).toFixed(2);
+}
+document.getElementById('other_quantity').addEventListener('input', calculateOtherAmount);
+document.getElementById('other_unit_price').addEventListener('input', calculateOtherAmount);
+
+function updateOtherCartTable() {
+    const cartSection = document.getElementById('otherCartSection');
+    const cartItems = document.getElementById('otherCartItems');
+    const cartTotal = document.getElementById('otherCartTotal');
+    if (otherCart.length === 0) {
+        cartSection.style.display = 'none';
+        cartItems.innerHTML = '';
+        cartTotal.textContent = '0';
+        return;
+    }
+    cartSection.style.display = '';
+    let total = 0;
+    cartItems.innerHTML = '';
+    otherCart.forEach((item, idx) => {
+        total += parseFloat(item.amount || 0);
+        cartItems.innerHTML += `
+            <tr>
+                <td>${item.type}</td>
+                <td>${item.quantity}</td>
+                <td>UGX ${parseFloat(item.unit_price).toFixed(2)}</td>
+                <td>UGX ${parseFloat(item.amount).toFixed(2)}</td>
+                <td>UGX ${parseFloat(item.amount_paid).toFixed(2)}</td>
+                <td><button type="button" class="btn btn-danger btn-sm" onclick="removeOtherCartItem(${idx})">Remove</button></td>
+            </tr>
+        `;
+    });
+    cartTotal.textContent = 'UGX ' + total.toFixed(2);
+    
+    if (otherCart.length > 0) {
+        document.getElementById('other_category').removeAttribute('required');
+        document.getElementById('other_type').removeAttribute('required');
+        document.getElementById('other_branch_id').removeAttribute('required');
+        document.getElementById('other_date').removeAttribute('required');
+        document.getElementById('other_spent_by').removeAttribute('required');
+        document.getElementById('other_unit_price').removeAttribute('required');
+        document.getElementById('other_quantity').removeAttribute('required');
+    }
+}
+
+function removeOtherCartItem(idx) {
+    otherCart.splice(idx, 1);
+    updateOtherCartTable();
+    if (otherCart.length === 0) {
+        document.getElementById('other_category').setAttribute('required', 'required');
+        document.getElementById('other_type').setAttribute('required', 'required');
+        document.getElementById('other_branch_id').setAttribute('required', 'required');
+        document.getElementById('other_date').setAttribute('required', 'required');
+        document.getElementById('other_spent_by').setAttribute('required', 'required');
+        document.getElementById('other_unit_price').setAttribute('required', 'required');
+        document.getElementById('other_quantity').setAttribute('required', 'required');
+    }
+}
+
+document.getElementById('addToOtherCartBtn').addEventListener('click', function() {
+    const type = document.getElementById('other_type').value.trim();
+    const unitPrice = parseFloat(document.getElementById('other_unit_price').value) || 0;
+    const quantity = parseInt(document.getElementById('other_quantity').value) || 0;
+    const amount = parseFloat(document.getElementById('other_amount').value) || 0;
+    const amountPaid = parseFloat(document.getElementById('other_amount_paid').value) || 0;
+    
+    if (!type || quantity <= 0 || unitPrice <= 0) {
+        alert('Please fill in all required fields with valid values.');
+        return;
+    }
+    
+    otherCart.push({
+        type: type,
+        quantity: quantity,
+        unit_price: unitPrice,
+        amount: amount,
+        amount_paid: amountPaid
+    });
+    
+    updateOtherCartTable();
+    
+    document.getElementById('other_type').value = '';
+    document.getElementById('other_unit_price').value = '';
+    document.getElementById('other_quantity').value = '';
+    document.getElementById('other_amount').value = '';
+    document.getElementById('other_amount_paid').value = '';
+});
+
+document.getElementById('otherExpenseForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    if (otherCart.length === 0) {
+        alert('Please add at least one item to the cart.');
+        return false;
+    }
+    
+    const category = document.getElementById('other_category').value.trim();
+    const branchId = document.getElementById('other_branch_id').value;
+    const date = document.getElementById('other_date').value;
+    const spentBy = document.getElementById('other_spent_by').value;
+    
+    if (!category || !branchId || !date || !spentBy) {
+        alert('Please fill in all required fields.');
+        return false;
+    }
+    
+    document.getElementById('other_cart_json').value = JSON.stringify(otherCart);
+    
+    const tempForm = document.createElement('form');
+    tempForm.method = 'POST';
+    tempForm.action = 'expense.php';
+    tempForm.style.display = 'none';
+    
+    const fields = {
+        'is_other_expense': '1',
+        'cart_json': JSON.stringify(otherCart),
+        'category': category,
+        'branch_id': branchId,
+        'date': date,
+        'spent_by': spentBy
+    };
+    
+    for (const [name, value] of Object.entries(fields)) {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = name;
+        input.value = value;
+        tempForm.appendChild(input);
+    }
+    
+    document.body.appendChild(tempForm);
+    tempForm.submit();
+    
+    return false;
+});
+
 function openReportGen(type) {
     // Set modal title
     document.getElementById('reportGenModalTitle').textContent =
@@ -1446,3 +1742,4 @@ document.getElementById('reportGenForm').addEventListener('submit', function(e) 
     bootstrap.Modal.getInstance(document.getElementById('reportGenModal')).hide();
 });
 </script>
+

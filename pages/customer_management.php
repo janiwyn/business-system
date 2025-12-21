@@ -123,22 +123,89 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['fetch_transactions'])) 
     $user_role = $_SESSION['role'] ?? 'staff';
     $user_branch = $_SESSION['branch_id'] ?? null;
     
-    $out = ['success'=>false,'rows'=>[]];
+    // NEW: Filter parameters
+    $date_from = $_GET['date_from'] ?? '';
+    $date_to = $_GET['date_to'] ?? '';
+    $trans_type = $_GET['trans_type'] ?? 'all'; // 'all', 'invoice', 'receipt'
+    $branch_filter = $_GET['branch_filter'] ?? '';
+    $page = max(1, intval($_GET['page'] ?? 1));
+    $items_per_page = 50;
+    $offset = ($page - 1) * $items_per_page;
+    
+    $out = ['success'=>false,'rows'=>[],'total_pages'=>0,'current_page'=>$page];
     if ($customer_id > 0) {
+        // Build WHERE conditions
+        $where_conditions = ['ct.customer_id = ?'];
+        $params = [$customer_id];
+        $types = 'i';
+        
+        // Staff: only see their branch
         if ($user_role === 'staff') {
-            // Staff: only see transactions from their branch
-            $stmt = $conn->prepare("SELECT ct.*, c.payment_method, b.name AS branch_name FROM customer_transactions ct JOIN customers c ON c.id = ct.customer_id LEFT JOIN branch b ON ct.branch_id = b.id WHERE ct.customer_id = ? AND ct.branch_id = ? ORDER BY ct.date_time DESC");
-            $stmt->bind_param("ii", $customer_id, $user_branch);
-        } else {
-            // Admin/Manager: see all transactions
-            $stmt = $conn->prepare("SELECT ct.*, c.payment_method, b.name AS branch_name FROM customer_transactions ct JOIN customers c ON c.id = ct.customer_id LEFT JOIN branch b ON ct.branch_id = b.id WHERE ct.customer_id = ? ORDER BY ct.date_time DESC");
-            $stmt->bind_param("i", $customer_id);
+            $where_conditions[] = 'ct.branch_id = ?';
+            $params[] = $user_branch;
+            $types .= 'i';
+        } elseif ($branch_filter) {
+            // Admin/Manager: optional branch filter
+            $where_conditions[] = 'ct.branch_id = ?';
+            $params[] = intval($branch_filter);
+            $types .= 'i';
         }
+        
+        // Date filters
+        if ($date_from) {
+            $where_conditions[] = 'DATE(ct.date_time) >= ?';
+            $params[] = $date_from;
+            $types .= 's';
+        }
+        if ($date_to) {
+            $where_conditions[] = 'DATE(ct.date_time) <= ?';
+            $params[] = $date_to;
+            $types .= 's';
+        }
+        
+        // Transaction type filter (invoice/receipt)
+        if ($trans_type === 'invoice') {
+            $where_conditions[] = "ct.invoice_receipt_no LIKE 'INV-%'";
+        } elseif ($trans_type === 'receipt') {
+            $where_conditions[] = "ct.invoice_receipt_no LIKE 'RP-%'";
+        }
+        
+        $where_clause = 'WHERE ' . implode(' AND ', $where_conditions);
+        
+        // Count total for pagination
+        $count_sql = "SELECT COUNT(*) as total FROM customer_transactions ct $where_clause";
+        $count_stmt = $conn->prepare($count_sql);
+        $count_stmt->bind_param($types, ...$params);
+        $count_stmt->execute();
+        $total_rows = $count_stmt->get_result()->fetch_assoc()['total'];
+        $count_stmt->close();
+        
+        $total_pages = ceil($total_rows / $items_per_page);
+        
+        // Fetch paginated data
+        $sql = "SELECT ct.*, c.payment_method, b.name AS branch_name 
+                FROM customer_transactions ct 
+                JOIN customers c ON c.id = ct.customer_id 
+                LEFT JOIN branch b ON ct.branch_id = b.id 
+                $where_clause 
+                ORDER BY ct.date_time DESC 
+                LIMIT ? OFFSET ?";
+        
+        $params[] = $items_per_page;
+        $params[] = $offset;
+        $types .= 'ii';
+        
+        $stmt = $conn->prepare($sql);
+        $stmt->bind_param($types, ...$params);
         $stmt->execute();
         $res = $stmt->get_result();
         while ($r = $res->fetch_assoc()) $out['rows'][] = $r;
         $stmt->close();
+        
         $out['success'] = true;
+        $out['total_pages'] = $total_pages;
+        $out['current_page'] = $page;
+        $out['total_rows'] = $total_rows;
     }
     header('Content-Type: application/json; charset=utf-8');
     echo json_encode($out);
@@ -467,8 +534,8 @@ $customers = $customers_res ? $customers_res->fetch_all(MYSQLI_ASSOC) : [];
                             if (!data.success) { container.innerHTML = '<div class="text-muted">No transactions.</div>'; return; }
                             if (!data.rows.length) { container.innerHTML = '<div class="text-muted">No transactions.</div>'; container.dataset.loaded = '1'; return; }
 
-                            // Add Invoice/Receipt No. column after Date & Time
-                            let html = '<table><thead><tr><th>Date & Time</th><th>Branch</th><th>Invoice/Receipt No.</th><th>Products</th><th class="text-center">Quantity</th><th class="text-end">Amount Paid</th><th class="text-end">Amount Credited</th><th>Payment Method</th><th>Sold By</th></tr></thead><tbody>';
+                            // Add Status column before Sold By
+                            let html = '<table><thead><tr><th>Date & Time</th><th>Branch</th><th>Invoice/Receipt No.</th><th>Products</th><th class="text-center">Quantity</th><th class="text-end">Amount Paid</th><th class="text-end">Amount Credited</th><th>Payment Method</th><th>Status</th><th>Sold By</th></tr></thead><tbody>';
                             data.rows.forEach(r=>{
                               let prodDisplay = '', totalQty = 0;
                               try {
@@ -491,12 +558,25 @@ $customers = $customers_res ? $customers_res->fetch_all(MYSQLI_ASSOC) : [];
                               const paid = parseFloat(r.amount_paid || 0).toFixed(2);
                               const credited = parseFloat(r.amount_credited || 0).toFixed(2);
                               const soldBy = escapeHtml(r.sold_by || '');
-                              
-                              // Determine Invoice or Receipt number based on amount_credited
                               const invoiceReceiptNo = escapeHtml(r.invoice_receipt_no || '-');
-                              
-                              // NEW: Get branch name
                               const branchName = escapeHtml(r.branch_name || 'Unknown');
+                              
+                              // NEW: Determine status badge
+                              let statusBadge = '';
+                              const status = r.status || '';
+                              const isRepayment = prodDisplay.toLowerCase().includes('repayment of invoice');
+                              
+                              if (isRepayment) {
+                                // Extract original invoice number from description
+                                const match = prodDisplay.match(/INV-\d{5}/i);
+                                const originalInvoice = match ? match[0] : '';
+                                // UPDATED: Icon-only blue button
+                                statusBadge = `<button class="btn btn-sm view-original-invoice" data-invoice="${originalInvoice}" title="View Original Invoice"><i class="fa fa-eye"></i></button>`;
+                              } else if (status === 'debtor') {
+                                statusBadge = '<span class="badge bg-danger">Unpaid</span>';
+                              } else {
+                                statusBadge = '<span class="badge bg-success">Paid</span>';
+                              }
                               
                               html += `<tr>
                                          <td>${escapeHtml(r.date_time)}</td>
@@ -507,12 +587,22 @@ $customers = $customers_res ? $customers_res->fetch_all(MYSQLI_ASSOC) : [];
                                          <td class="text-end">UGX ${paid}</td>
                                          <td class="text-end">UGX ${credited}</td>
                                          <td>${escapeHtml(r.payment_method || '')}</td>
+                                         <td>${statusBadge}</td>
                                          <td>${soldBy}</td>
                                        </tr>`;
                             });
                             html += '</tbody></table>';
                             container.innerHTML = html;
                             container.dataset.loaded = '1';
+                            
+                            // Attach click handlers for "View" buttons
+                            container.querySelectorAll('.view-original-invoice').forEach(viewBtn => {
+                              viewBtn.addEventListener('click', function() {
+                                const originalInvoice = this.getAttribute('data-invoice');
+                                alert(`Opening original invoice: ${originalInvoice}\n(Feature to be implemented)`);
+                                // TODO: Implement navigation to original invoice
+                              });
+                            });
                           });
                         });
                         </script>
@@ -631,6 +721,48 @@ body.dark-mode .btn-danger,
 body.dark-mode .btn-warning {
     color: #fff !important;
 }
+
+/* NEW: Improved styling for View button */
+.view-original-invoice {
+    padding: 0.25rem 0.5rem !important;
+    font-size: 0.875rem !important;
+    border-radius: 6px !important;
+    background-color: #3498db !important;
+    border-color: #3498db !important;
+    color: #fff !important;
+    transition: all 0.2s ease !important;
+    box-shadow: 0 2px 4px rgba(52, 152, 219, 0.2) !important;
+}
+
+.view-original-invoice:hover {
+    background-color: #2980b9 !important;
+    border-color: #2980b9 !important;
+    transform: translateY(-1px) !important;
+    box-shadow: 0 4px 8px rgba(52, 152, 219, 0.3) !important;
+}
+
+.view-original-invoice:active {
+    transform: translateY(0) !important;
+    box-shadow: 0 1px 2px rgba(52, 152, 219, 0.2) !important;
+}
+
+.view-original-invoice i {
+    font-size: 1rem !important;
+    margin: 0 !important;
+}
+
+/* Dark mode specific styling for View button */
+body.dark-mode .view-original-invoice {
+    background-color: #5dade2 !important;
+    border-color: #5dade2 !important;
+    box-shadow: 0 2px 4px rgba(93, 173, 226, 0.3) !important;
+}
+
+body.dark-mode .view-original-invoice:hover {
+    background-color: #3498db !important;
+    border-color: #3498db !important;
+    box-shadow: 0 4px 8px rgba(52, 152, 219, 0.4) !important;
+}
 </style>
 
 <script>
@@ -737,63 +869,241 @@ document.querySelectorAll('#customersAccordion .accordion-button').forEach(btn=>
     const customerId = collapseId.replace('collapse','');
     const container = document.getElementById('transContainer'+customerId);
     if (container.dataset.loaded) return;
-    container.innerHTML = '<div class="text-muted">Loading...</div>';
-    const res = await fetch('customer_management.php?fetch_transactions=1&customer_id='+customerId);
-    let data;
-    try { data = await res.json(); } catch(err){
-      container.innerHTML = '<div class="text-muted">Error loading.</div>';
-      container.dataset.loaded='1';
-      return;
-    }
-    if (!data.success) { container.innerHTML = '<div class="text-muted">No transactions.</div>'; return; }
-    if (!data.rows.length) { container.innerHTML = '<div class="text-muted">No transactions.</div>'; container.dataset.loaded = '1'; return; }
-
-    // Add Invoice/Receipt No. column after Date & Time
-    let html = '<div class="transactions-table"><table><thead><tr><th>Date & Time</th><th>Branch</th><th>Invoice/Receipt No.</th><th>Products</th><th class="text-center">Quantity</th><th class="text-end">Amount Paid</th><th class="text-end">Amount Credited</th><th>Payment Method</th><th>Sold By</th></tr></thead><tbody>';
-    data.rows.forEach(r=>{
-      let prodDisplay = '';
-      let totalQty = 0;
-      try {
-        const pb = JSON.parse(r.products_bought || '[]');
-        if (Array.isArray(pb)) {
-          const parts = pb.map(p => {
-            const name = (p.name || p.product || '').toString();
-            const qty = parseInt(p.quantity || p.qty || 0) || 0;
-            totalQty += qty;
-            return `${escapeHtml(name)} x${qty}`;
-          });
-          prodDisplay = parts.join(', ');
-        } else {
-          prodDisplay = escapeHtml(String(r.products_bought || ''));
-        }
-      } catch (err) {
-        prodDisplay = escapeHtml(String(r.products_bought || ''));
+    
+    // NEW: Build filter form HTML
+    const filterFormHtml = `
+      <div class="transaction-filters mb-3 p-3 bg-light rounded">
+        <form class="row g-2 trans-filter-form" data-customer-id="${customerId}">
+          <div class="col-md-3 col-sm-6">
+            <label class="form-label small">From Date</label>
+            <input type="date" name="date_from" class="form-control form-control-sm">
+          </div>
+          <div class="col-md-3 col-sm-6">
+            <label class="form-label small">To Date</label>
+            <input type="date" name="date_to" class="form-control form-control-sm">
+          </div>
+          <div class="col-md-2 col-sm-6">
+            <label class="form-label small">Type</label>
+            <select name="trans_type" class="form-select form-select-sm">
+              <option value="all">All</option>
+              <option value="invoice">Invoice</option>
+              <option value="receipt">Receipt</option>
+            </select>
+          </div>
+          ${<?php echo ($user_role !== 'staff') ? 'true' : 'false'; ?> ? `
+          <div class="col-md-2 col-sm-6">
+            <label class="form-label small">Branch</label>
+            <select name="branch_filter" class="form-select form-select-sm">
+              <option value="">All Branches</option>
+              <?php 
+              $branches_filter = $conn->query("SELECT id, name FROM branch");
+              while ($b = $branches_filter->fetch_assoc()): 
+              ?>
+                <option value="<?= $b['id'] ?>"><?= htmlspecialchars($b['name']) ?></option>
+              <?php endwhile; ?>
+            </select>
+          </div>
+          ` : ''}
+          <div class="col-md-2 col-sm-6 d-flex align-items-end">
+            <button type="submit" class="btn btn-primary btn-sm w-100">Filter</button>
+          </div>
+        </form>
+      </div>
+      <div class="transactions-data-container"></div>
+    `;
+    
+    container.innerHTML = filterFormHtml;
+    
+    // Function to load transactions with filters
+    async function loadTransactions(filters = {}) {
+      const dataContainer = container.querySelector('.transactions-data-container');
+      dataContainer.innerHTML = '<div class="text-center text-muted p-3">Loading...</div>';
+      
+      const params = new URLSearchParams({
+        fetch_transactions: '1',
+        customer_id: customerId,
+        ...filters
+      });
+      
+      const res = await fetch('customer_management.php?' + params.toString());
+      let data;
+      try { 
+        data = await res.json(); 
+      } catch(err){
+        dataContainer.innerHTML = '<div class="text-center text-danger p-3">Error loading transactions.</div>';
+        return;
+      }
+      
+      if (!data.success || !data.rows.length) { 
+        dataContainer.innerHTML = '<div class="text-center text-muted p-3">No transactions found.</div>'; 
+        return; 
       }
 
-      const paid = parseFloat(r.amount_paid || 0).toFixed(2);
-      const credited = parseFloat(r.amount_credited || 0).toFixed(2);
-      const soldBy = escapeHtml(r.sold_by || '');
+      // Build table HTML
+      let html = '<div class="transactions-table"><table><thead><tr><th>Date & Time</th><th>Branch</th><th>Invoice/Receipt No.</th><th>Products</th><th class="text-center">Quantity</th><th class="text-end">Amount Paid</th><th class="text-end">Amount Credited</th><th>Payment Method</th><th>Status</th><th>Sold By</th></tr></thead><tbody>';
       
-      // Determine Invoice or Receipt number based on amount_credited
-      const invoiceReceiptNo = escapeHtml(r.invoice_receipt_no || '-');
+      data.rows.forEach(r=>{
+        let prodDisplay = '';
+        let totalQty = 0;
+        try {
+          const pb = JSON.parse(r.products_bought || '[]');
+          if (Array.isArray(pb)) {
+            const parts = pb.map(p => {
+              const name = (p.name || p.product || '').toString();
+              const qty = parseInt(p.quantity || p.qty || 0) || 0;
+              totalQty += qty;
+              return `${escapeHtml(name)} x${qty}`;
+            });
+            prodDisplay = parts.join(', ');
+          } else {
+            prodDisplay = escapeHtml(String(r.products_bought || ''));
+          }
+        } catch (err) {
+          prodDisplay = escapeHtml(String(r.products_bought || ''));
+        }
+
+        const paid = parseFloat(r.amount_paid || 0).toFixed(2);
+        const credited = parseFloat(r.amount_credited || 0).toFixed(2);
+        const soldBy = escapeHtml(r.sold_by || '');
+        const invoiceReceiptNo = escapeHtml(r.invoice_receipt_no || '-');
+        const branchName = escapeHtml(r.branch_name || 'Unknown');
+        
+        // NEW: Determine status badge
+        let statusBadge = '';
+        const status = r.status || '';
+        const isRepayment = prodDisplay.toLowerCase().includes('repayment of invoice');
+        
+        if (isRepayment) {
+          const match = prodDisplay.match(/INV-\d{5}/i);
+          const originalInvoice = match ? match[0] : '';
+          statusBadge = `<button class="btn btn-sm view-original-invoice" data-invoice="${originalInvoice}" title="View Original Invoice"><i class="fa fa-eye"></i></button>`;
+        } else if (status === 'debtor') {
+          statusBadge = '<span class="badge bg-danger">Unpaid</span>';
+        } else {
+          statusBadge = '<span class="badge bg-success">Paid</span>';
+        }
+        
+        html += `<tr>
+                   <td>${escapeHtml(r.date_time)}</td>
+                   <td>${branchName}</td>
+                   <td>${invoiceReceiptNo}</td>
+                   <td>${prodDisplay || '-'}</td>
+                   <td class="text-center">${totalQty}</td>
+                   <td class="text-end">UGX ${paid}</td>
+                   <td class="text-end">UGX ${credited}</td>
+                   <td>${escapeHtml(r.payment_method || '')}</td>
+                   <td>${statusBadge}</td>
+                   <td>${soldBy}</td>
+                 </tr>`;
+      });
+      html += '</tbody></table></div>';
       
-      // NEW: Get branch name
-      const branchName = escapeHtml(r.branch_name || 'Unknown');
+      // Add pagination
+      if (data.total_pages > 1) {
+        html += '<nav class="mt-3"><ul class="pagination pagination-sm justify-content-center">';
+        for (let p = 1; p <= data.total_pages; p++) {
+          const active = p === data.current_page ? 'active' : '';
+          html += `<li class="page-item ${active}"><a class="page-link page-link-trans" href="#" data-page="${p}">${p}</a></li>`;
+        }
+        html += '</ul></nav>';
+        html += `<div class="text-center text-muted small">Showing page ${data.current_page} of ${data.total_pages} (${data.total_rows} total transactions)</div>`;
+      }
       
-      html += `<tr>
-                 <td>${escapeHtml(r.date_time)}</td>
-                 <td>${branchName}</td>
-                 <td>${invoiceReceiptNo}</td>
-                 <td>${prodDisplay || '-'}</td>
-                 <td class="text-center">${totalQty}</td>
-                 <td class="text-end">UGX ${paid}</td>
-                 <td class="text-end">UGX ${credited}</td>
-                 <td>${escapeHtml(r.payment_method || '')}</td>
-                 <td>${soldBy}</td>
-               </tr>`;
+      dataContainer.innerHTML = html;
+      
+      // Attach pagination click handlers
+      dataContainer.querySelectorAll('.page-link-trans').forEach(link => {
+        link.addEventListener('click', (e) => {
+          e.preventDefault();
+          const page = link.getAttribute('data-page');
+          const currentFilters = Object.fromEntries(new FormData(container.querySelector('.trans-filter-form')));
+          loadTransactions({...currentFilters, page});
+        });
+      });
+      
+      // Attach click handlers for "View" buttons
+      dataContainer.querySelectorAll('.view-original-invoice').forEach(viewBtn => {
+        viewBtn.addEventListener('click', async function() {
+          const originalInvoice = this.getAttribute('data-invoice');
+          if (!originalInvoice) {
+            alert('Original invoice number not found');
+            return;
+          }
+          
+          try {
+            const res = await fetch(`customer_management.php?fetch_transactions=1&customer_id=${customerId}`);
+            const data = await res.json();
+            
+            if (data.success && data.rows) {
+              const originalTrans = data.rows.find(t => t.invoice_receipt_no === originalInvoice);
+              
+              if (originalTrans) {
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = 'invoice_preview.php';
+                form.target = '_blank';
+                form.style.display = 'none';
+                
+                const addField = (name, value) => {
+                  const input = document.createElement('input');
+                  input.type = 'hidden';
+                  input.name = name;
+                  input.value = typeof value === 'string' ? value : JSON.stringify(value);
+                  form.appendChild(input);
+                };
+                
+                let cart = [];
+                try {
+                  cart = JSON.parse(originalTrans.products_bought || '[]');
+                } catch(e) {
+                  cart = [];
+                }
+                
+                let total = 0;
+                if (Array.isArray(cart)) {
+                  cart.forEach(item => {
+                    const qty = parseFloat(item.quantity || item.qty || 0);
+                    const price = parseFloat(item.price || 0);
+                    total += qty * price;
+                  });
+                }
+                
+                addField('cart', cart);
+                addField('total', total);
+                addField('payment_method', originalTrans.payment_method || 'Customer File');
+                addField('amount_paid', originalTrans.amount_paid || 0);
+                addField('balance', originalTrans.amount_credited || 0);
+                addField('invoice_no', originalInvoice);
+                addField('customer_name', 'Customer #' + customerId);
+                addField('customer_email', '');
+                addField('customer_contact', '');
+                addField('due_date', '');
+                
+                document.body.appendChild(form);
+                form.submit();
+                setTimeout(() => document.body.removeChild(form), 600);
+              } else {
+                alert(`Original invoice ${originalInvoice} not found in transaction history`);
+              }
+            }
+          } catch(err) {
+            console.error('Error fetching original invoice:', err);
+            alert('Error loading original invoice');
+          }
+        });
+      });
+    }
+    
+    // Attach filter form submit handler
+    container.querySelector('.trans-filter-form').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const formData = new FormData(e.target);
+      const filters = Object.fromEntries(formData);
+      loadTransactions(filters);
     });
-    html += '</tbody></table></div>';
-    container.innerHTML = html;
+    
+    // Load initial data
+    loadTransactions();
     container.dataset.loaded = '1';
   });
 });
@@ -974,12 +1284,122 @@ async function exportCustomerTransactions(customerId, customerName){
 // Helper for CSV escaping
 function csvEscape(val) {
   if (val === null || val === undefined) return '';
-  val = String(val);
-  if (val.includes(',') || val.includes('"') || val.includes('\n')) {
-    return '"' + val.replace(/"/g, '""') + '"';
+  const str = String(val);
+  if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+    return '"' + str.replace(/"/g, '""') + '"';
   }
-  return val;
+  return str;
 }
+
+// Helper for HTML escaping
+function escapeHtml(s) {
+  if (!s) return '';
+  return String(s).replace(/[&<>"']/g, c => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
+  }[c]));
+}
+
+// --- Generate ALL customers report (for Manage tab) ---
+document.getElementById('btnGenerateReport')?.addEventListener('click', () => {
+  const table = document.getElementById('manageCustomersTable');
+  if (!table) { alert('No customer data to report'); return; }
+
+  const rows = Array.from(table.querySelectorAll('tbody tr'));
+  const rowsHtml = rows.map(tr => {
+    const cells = tr.querySelectorAll('td');
+    if (cells.length < 4) return '';
+    const name = cells[0]?.textContent?.trim() || '';
+    const contact = cells[1]?.textContent?.trim() || '';
+    const credited = cells[2]?.textContent?.replace(/[^\d.-]/g, '') || '0';
+    const balance = cells[3]?.textContent?.replace(/[^\d.-]/g, '') || '0';
+    return `<tr>
+      <td>${escapeHtml(name)}</td>
+      <td>${escapeHtml(contact)}</td>
+      <td class="text-end">UGX ${parseFloat(credited).toFixed(2)}</td>
+      <td class="text-end">UGX ${parseFloat(balance).toFixed(2)}</td>
+    </tr>`;
+  }).join('');
+
+  const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <title>All Customers Report</title>
+  <meta charset="utf-8">
+  <style>
+    body { font-family: 'Segoe UI', Arial, sans-serif; background:#f8f9fa; color:#222; margin:0; padding:0; }
+    .report-container { max-width: 800px; margin: 2rem auto; background:#fff; border-radius:14px; box-shadow:0 4px 24px #0002; padding:2rem 2.5rem; }
+    .report-header { text-align:center; margin-bottom:2rem; }
+    .report-title { font-size:2rem; font-weight:bold; color:#1abc9c; margin-bottom:.4rem; }
+    table { width:100%; border-collapse:collapse; margin-top:1rem; }
+    th, td { padding:.7rem 1rem; border-bottom:1px solid #e0e0e0; font-size:1rem; }
+    th { background:#1abc9c; color:#fff; font-weight:600; }
+    tbody tr:nth-child(even) { background:#f4f6f9; }
+    tbody tr:hover { background:#e0f7fa; }
+    .text-end { text-align:right; }
+    .print-btn { display:block; margin:1.5rem auto 0; padding:.7rem 2.5rem; font-size:1.1rem; background:#1abc9c; color:#fff; border:none; border-radius:8px; font-weight:bold; cursor:pointer; box-shadow:0 2px 8px #0002; }
+    @media print { .print-btn { display:none; } .report-container { box-shadow:none; border-radius:0; padding:.5rem; } }
+  </style>
+</head>
+<body>
+  <div class="report-container">
+    <div class="report-header">
+      <div class="report-title">All Customers Report</div>
+      <div class="report-meta">Generated: ${new Date().toLocaleString()}</div>
+    </div>
+    <table>
+      <thead>
+        <tr><th>Name</th><th>Contact</th><th class="text-end">Amount Credited</th><th class="text-end">Account Balance</th></tr>
+      </thead>
+      <tbody>${rowsHtml}</tbody>
+    </table>
+    <button class="print-btn" onclick="window.print()">Print Report</button>
+  </div>
+</body>
+</html>`;
+  const w = window.open('', '_blank');
+  w.document.write(html);
+  w.document.close();
+});
+
+// --- Export ALL customers to CSV ---
+document.getElementById('btnExportExcel')?.addEventListener('click', () => {
+  const table = document.getElementById('manageCustomersTable');
+  if (!table) { alert('No customer data to export'); return; }
+
+  const header = ['Name', 'Contact', 'Amount Credited', 'Account Balance'];
+  const csvRows = [header.join(',')];
+
+  const rows = Array.from(table.querySelectorAll('tbody tr'));
+  rows.forEach(tr => {
+    const cells = tr.querySelectorAll('td');
+    if (cells.length < 4) return;
+    const name = cells[0]?.textContent?.trim() || '';
+    const contact = cells[1]?.textContent?.trim() || '';
+    const credited = cells[2]?.textContent?.replace(/[^\d.-]/g, '') || '0';
+    const balance = cells[3]?.textContent?.replace(/[^\d.-]/g, '') || '0';
+    const row = [
+      csvEscape(name),
+      csvEscape(contact),
+      credited,
+      balance
+    ];
+    csvRows.push(row.join(','));
+  });
+
+  const blob = new Blob([csvRows.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'all_customers.csv';
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+});
 </script>
 
 <?php include '../includes/footer.php'; ?>

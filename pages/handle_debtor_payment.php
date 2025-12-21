@@ -58,7 +58,7 @@ if (isset($_POST['pay_debtor']) && isset($_POST['id']) && isset($_POST['amount']
     // Full payment: record sales and remove debtor
     $conn->begin_transaction();
     try {
-        // CHANGED: Use sequential receipt number
+        // FIXED: Use RP prefix for payment receipts (not invoices)
         $receiptNo = generateReceiptNumber($conn, 'RP');
         
         // --- FIX: Use products_json for grouped sale (like customer debtors) ---

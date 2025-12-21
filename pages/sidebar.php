@@ -126,3 +126,17 @@ if ($role == 'admin' || $role == 'manager') {
 </li>';
 }
 ?>
+
+<!-- Remote Orders menu items (visible to all) -->
+<li class="nav-item">
+    <a class="nav-link" href="remote_orders.php">
+        <i class="fas fa-shopping-bag me-2"></i>
+        <span>Remote Orders</span>
+    </a>
+</li>
+<li class="nav-item">
+    <a class="nav-link" href="qr_scanner.php">
+        <i class="fas fa-qrcode me-2"></i>
+        <span>QR Scanner</span>
+    </a>
+</li>
